@@ -55,4 +55,4 @@ pnpm tauri build
 
 - Tests: no hay todavía (primer FFI/calculo será donde nazcan). CI: no hay.
 - El `README.md` es boilerplate del template de Tauri — no está mantenido, no fiarse.
-- Progreso: scaffold + **Spike 1 (tray) validado**. Spikes pendientes: scheduler (zbus/`PrepareForSleep`), audio (rodio), FFI (praytimes) y luego contratos IPC estables.
+- Progreso: scaffold + **Spike 1 (tray) validado** + **Spike 2 (scheduler 24/7) validado en vivo (suspend real vía zbus incluido)**, con contratos IPC `get_schedule`/`schedule_changed` ya definidos en `scheduler.rs`. Spikes pendientes: audio (`rodio` + WAV mono 22.05 kHz + `test_adhan`), FFI (`praytimes.c` por `cc`).
