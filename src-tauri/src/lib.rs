@@ -1,5 +1,6 @@
 // Entry point de la app: `run()` es el factory real del core (main.rs solo delega).
 
+pub mod audio;
 pub mod scheduler;
 
 use std::sync::mpsc;
@@ -35,6 +36,13 @@ fn get_schedule(state: tauri::State<scheduler::SharedState>) -> Result<scheduler
     Ok(st.schedule.clone())
 }
 
+// Contrato IPC del spec: test de audio — el futuro botón "Probar" de la tab Audio
+#[tauri::command]
+fn test_adhan() -> Result<(), String> {
+    log!("test_adhan (IPC): reproduce el beep del spike");
+    audio::play_mock_adhan(audio::MOCK_VOLUME)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -52,7 +60,7 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
-        .invoke_handler(tauri::generate_handler![greet, get_schedule])
+        .invoke_handler(tauri::generate_handler![greet, get_schedule, test_adhan])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -71,11 +79,14 @@ pub fn run() {
                 None::<&str>,
             )?;
             let config = MenuItem::with_id(app, "config", "Configuración…", true, None::<&str>)?;
+            let test_adhan =
+                MenuItem::with_id(app, "test_adhan", "Reproducir adhan ahora (test)", true, None::<&str>)?;
             let salir = MenuItem::with_id(app, "exit", "Salir", true, None::<&str>)?;
 
             let menu = MenuBuilder::new(app)
                 .item(&countdown)
                 .separator()
+                .item(&test_adhan)
                 .item(&config)
                 .separator()
                 .item(&salir)
@@ -86,6 +97,12 @@ pub fn run() {
                 .menu(&menu)
                 .tooltip("Adhan Companion")
                 .on_menu_event(|app, ev| match ev.id().as_ref() {
+                    "test_adhan" => {
+                        match crate::audio::play_mock_adhan(crate::audio::MOCK_VOLUME) {
+                            Ok(()) => log!("adhan (test) desde el menú: audio por ALSA ok"),
+                            Err(e) => log!("audio falló: {e}"),
+                        }
+                    }
                     "config" => {
                         if let Some(w) = app.get_webview_window("main") {
                             let _ = w.show();

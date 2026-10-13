@@ -193,6 +193,8 @@ pub fn run(s: SchedulerLoop) {
     let mut schedule = compute_schedule();
     let mut fired: usize = 0;
     let mut date = schedule.date.clone();
+    // Edge del disparo: suena una sola vez por rezo al entrar en zona verde
+    let mut adhan_announced = false;
 
     loop {
         std::thread::sleep(Duration::from_secs(1));
@@ -210,6 +212,7 @@ pub fn run(s: SchedulerLoop) {
         if recal {
             schedule = compute_schedule();
             fired = 0;
+            adhan_announced = false;
             date = schedule.date.clone();
             let _ = s.app.emit("schedule_changed", &schedule);
         }
@@ -221,6 +224,7 @@ pub fn run(s: SchedulerLoop) {
             crate::log!("trigger: medianoche → recalcular el día");
             schedule = compute_schedule();
             fired = 0;
+            adhan_announced = false;
             date = today;
             let _ = s.app.emit("schedule_changed", &schedule);
         }
@@ -245,10 +249,25 @@ pub fn run(s: SchedulerLoop) {
         // Mock del QoS del spec: si el momento pasó estando la app viva o reanudada
         // muy tarde, no se dispara tarde — se marca como perdido y se sigue
         if secs < -(ADHAN_SECS) {
-            crate::log!("adhan de {} terminó (verde {} s) / o sin ventana vivida → marca en el registro y avanza", PRAYERS[fired], ADHAN_SECS);
+            crate::log!(
+                "adhan de {} terminó (verde {} s) / o sin ventana vivida → marca en el registro y avanza",
+                PRAYERS[fired], ADHAN_SECS
+            );
             fired += 1;
+            adhan_announced = false;
             let _ = s.app.emit("schedule_changed", &schedule);
             continue;
+        }
+
+        // Spike 3: disparo real del audio — suena UNA vez al entrar en zona verde.
+        // El regla del spec: si la app duerme sobre el rezo, no se dispara tarde
+        // (secs < -ADHAN_SECS ya avanzó arriba sin tocar el audio).
+        if secs < 0 && !adhan_announced {
+            adhan_announced = true;
+            match crate::audio::play_mock_adhan(crate::audio::MOCK_VOLUME) {
+                Ok(()) => crate::log!("🔊 adhan (mock beep 3.9 s) sonando por ALSA — volumen 0.70"),
+                Err(e) => crate::log!("audio falló en el disparo: {e}"),
+            }
         }
 
         // Estados del spec: azul (>15m) → ámbar (≤15m) → verde (adhan sonando ADHAN_SECS)
