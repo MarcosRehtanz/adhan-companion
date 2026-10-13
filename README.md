@@ -8,7 +8,7 @@ App de escritorio **tray-first** para Ubuntu: el tray es la app — horarios de 
 
 ## Qué va a hacer (MVP)
 
-- **Cálculo local** de los 5 horarios con [PrayTimes C](https://github.com/hamidzz/praytimes) compilado en el core Rust por FFI — sin red, mismo código que el firmware del nodo hermano ([Adhan Companion — Alarma de Salat](https://github.com/search?q=Adhan+Companion)).
+- **Cálculo local** de los 5 horarios con [PrayTimes C](https://github.com/hamidzz/praytimes) compilado en el core Rust por FFI — sin red, usando el mismo código que el firmware del nodo hermano (proyecto "Adhan Companion — Alarma de Salat": ESP32-S3 con pantalla e-ink).
 - **Icono del tray** con estados (silenciado / día / próximo < 15 min / adhan sonando) y menú con countdown + horarios del día.
 - **Preaviso + adhan**: notificación y audio con volumen propio, opción de silenciar.
 - **Marcar rezado** con registro local append-only.
