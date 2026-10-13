@@ -55,5 +55,5 @@ pnpm tauri build
 ## Estado actual
 
 - Tests: no hay todavía (primer FFI/calculo será donde nazcan). CI: no hay.
-- El `README.md` es boilerplate del template de Tauri — no está mantenido, no fiarse.
+- El `README.md` está en español y mantiene el estado del proyecto al público (no dejarlo volver a boilerplate).
 - Progreso: scaffold + **Spike 1 (tray) validado**, **Spike 2 (scheduler 24/7) validado en vivo (suspend real vía zbus)**, **Spike 3 (audio rodio) validado en vivo** — con contratos IPC `get_schedule`/`schedule_changed`/`test_adhan` definidos. Pendientes: Spike 4 FFI (`praytimes.c` por `cc`), luego config.json real (set_config), registro (mark_prayed), notificaciones.
