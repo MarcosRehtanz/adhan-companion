@@ -40,6 +40,7 @@ pnpm tauri build
 ## Convenciones del código
 
 - Logs Rust con la macro `log!` (prefijo `[adhan]`, solo debug) — no usar `println!` directo.
+- rodio 0.23 (API renombrada respecto a ejemplos viejos): `Sink`→`Player`, `OutputStreamBuilder`→`DeviceSinkBuilder::open_default_sink()`, features `["playback","wav"]`. Si el drop del sink es intencional, llamar `log_on_drop(false)` o ensucia el log con un "audio will stop" engañoso.
 - El tray cicla estados de icono dibujando círculos RGBA con `circle_icon()` en `lib.rs`; los assets reales los reemplazan cuando se defina el set de iconos (matriz estado×icono en el spec).
 - Nombre de crate `adhan-companion`, lib `"adhan_companion_lib"` (el sufijo `_lib` es necesario, no renombrar).
 - No quitar `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]` de `main.rs` (necesario para Windows en release).
@@ -55,4 +56,4 @@ pnpm tauri build
 
 - Tests: no hay todavía (primer FFI/calculo será donde nazcan). CI: no hay.
 - El `README.md` es boilerplate del template de Tauri — no está mantenido, no fiarse.
-- Progreso: scaffold + **Spike 1 (tray) validado** + **Spike 2 (scheduler 24/7) validado en vivo (suspend real vía zbus incluido)**, con contratos IPC `get_schedule`/`schedule_changed` ya definidos en `scheduler.rs`. Spikes pendientes: audio (`rodio` + WAV mono 22.05 kHz + `test_adhan`), FFI (`praytimes.c` por `cc`).
+- Progreso: scaffold + **Spike 1 (tray) validado**, **Spike 2 (scheduler 24/7) validado en vivo (suspend real vía zbus)**, **Spike 3 (audio rodio) validado en vivo** — con contratos IPC `get_schedule`/`schedule_changed`/`test_adhan` definidos. Pendientes: Spike 4 FFI (`praytimes.c` por `cc`), luego config.json real (set_config), registro (mark_prayed), notificaciones.
