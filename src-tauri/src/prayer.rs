@@ -79,7 +79,7 @@ pub const PRAYER_SET: [&str; 5] = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 
 /// Índices dentro del out[7] del C: 0=Fajr, 1=Sunrise, 2=Dhuhr, 3=Asr,
 /// 4=Sunset, 5=Maghrib, 6=Isha — solo los 5 rezos del schedule
-const PRAYER_INDICES: [usize; 5] = [0, 2, 3, 5, 6];
+pub const PRAYER_INDICES: [usize; 5] = [0, 2, 3, 5, 6];
 
 /// fix_hour del port (range reduce 0..24)
 fn fix_hour(h: f64) -> f64 {

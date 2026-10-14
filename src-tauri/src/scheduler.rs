@@ -1,32 +1,34 @@
-//! Spike 2 — el motor de fondo 24/7 (la "clave de fondo" del spec).
+//! Spike 2→4 — el motor de fondo 24/7 con el cálculo REAL.
 //!
 //! - `Schedule` / `PrayerSlot`: los tipos del contrato IPC (embrión de `get_schedule`)
-//! - `run_scheduler_loop`: tick por segundo con los triggers del spec:
+//! - `compute_schedule`: FFI a PrayTimes C (config constants default hasta que
+//!   exista config.json) — la fuente única del cálculo
+//! - `run`: tick por segundo con los triggers del spec:
 //!   • medianoche (cambio de fecha local) → recalcular
 //!   • resume del sleep (`PrepareForSleep` de login1 vía zbus) → recalcular + realinear
-//!   • disparo del adhan (mock) → estado verde 60 s, luego avanza y marca lo salteado
-//! - `icon_for`: el círculo RGBA por estado (gris/azul/ámbar/verde del spec)
-//!
-//! Los horarios son MOCK (now + offsets fijos, elegidos para ver las
-//! transiciones en los primeros minutos). El cálculo real entra con el FFI a
-//! praytimes.c (Spike 4) — los tipos y el motor son los definitivos.
+//!   • disparo del adhan (WAV del spike) → estado verde 60 s, luego avanza
+//! - estados del icono de acuerdo al tiempo real hasta el próximo rezo
 
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 
-use chrono::Timelike;
+use chrono::{Datelike, Timelike};
 use serde::Serialize;
 use tauri::Emitter;
+
+use crate::prayer::{PrayerConfig, PRAYER_INDICES};
 
 /// Los 5 rezos del schema del spec (sin sunrise/sunset, índices 0..4)
 pub const PRAYERS: [&str; 5] = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
-/// Mock: minutos en el futuro al arrancar, elegidos para la demo de transiciones:
-/// +2/14 min los primeros disparos, de ahí en adelante estados visibles.
-const MOCK_OFFSETS_MIN: [f64; 5] = [2.0, 14.0, 22.0, 40.0, 60.0];
-
 /// Duración del estado "verde" (adhan sonando) en el spike
 const ADHAN_SECS: i64 = 60;
+
+// TODO config.json (schema compatible con casa/adhan/config) — constantes
+// default mientras no exista: Buenos Aires, MWL, Shafi, AqrabAlAyyam
+const DEFAULT_LAT: f64 = -34.61;
+const DEFAULT_LON: f64 = -58.38;
+const DEFAULT_TZ: f64 = -3.0;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PrayerSlot {
@@ -59,7 +61,14 @@ pub struct SharedStateInner {
 impl SharedStateInner {
     pub fn new() -> Self {
         let schedule = compute_schedule();
-        Self { schedule, fired: 0 }
+        let now_h = chrono::Local::now().hour() as f64 + chrono::Local::now().minute() as f64 / 60.0;
+        // next = el primer rezo del día todavía no pasado (sino, ya dispararon todos)
+        let fired = PRAYERS
+            .iter()
+            .zip(schedule.prayers.iter())
+            .position(|(_, p)| p.dec > now_h)
+            .unwrap_or(PRAYERS.len());
+        Self { schedule, fired }
     }
 }
 
@@ -69,16 +78,22 @@ pub enum Trigger {
     Resume,
 }
 
-/// Horarios MOCK: cada rezo a `now + offset`. Tipos y formato definitivos;
-/// con el FFI esto se reemplaza por `pt_get_times(...)` y el tz del config.
+/// Horarios REALES vía FFI al C (config default en constants hasta config.json).
+/// Offset TZ: el schema del spec guarda tz ISO con la ciudad; desktop lo toma
+/// del sistema e lo guarda cobajo — por ahora constante igual al schema de ejemplo.
 pub fn compute_schedule() -> Schedule {
     let now = chrono::Local::now();
-    let base = now.hour() as f64 + now.minute() as f64 / 60.0;
+    let cfg = PrayerConfig::default();
+    let times7 = crate::prayer::calc_times(
+        now.year(), now.month() as i32, now.day() as i32,
+        DEFAULT_LAT, DEFAULT_LON, DEFAULT_TZ,
+        &cfg,
+    );
     let prayers = PRAYERS
         .iter()
-        .zip(MOCK_OFFSETS_MIN)
-        .map(|(name, off_min)| {
-            let dec = base + off_min / 60.0;
+        .enumerate()
+        .map(|(i, name)| {
+            let dec = times7[PRAYER_INDICES[i]];
             let h = (dec.trunc() as i32) % 24;
             let m = (dec.fract() * 60.0).round() as i32;
             PrayerSlot {
@@ -93,7 +108,7 @@ pub fn compute_schedule() -> Schedule {
         date: now.format("%Y-%m-%d").to_string(),
         prayers,
         next: Some(PRAYERS[0].into()),
-        countdown_secs: Some((MOCK_OFFSETS_MIN[0] * 60.0) as i64),
+        countdown_secs: None,
     }
 }
 
