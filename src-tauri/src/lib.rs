@@ -1,6 +1,7 @@
 // Entry point de la app: `run()` es el factory real del core (main.rs solo delega).
 
 pub mod audio;
+pub mod prayer;
 pub mod scheduler;
 
 use std::sync::mpsc;
