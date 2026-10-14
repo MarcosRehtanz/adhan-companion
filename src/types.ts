@@ -16,3 +16,8 @@ export interface Schedule {
   /** rezos ya marcados como rezados hoy */
   marked: string[];
 }
+
+export interface MarkedDay {
+  date: string;
+  prayers: string[];
+}

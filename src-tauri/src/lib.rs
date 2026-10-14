@@ -43,9 +43,12 @@ fn get_schedule(state: tauri::State<scheduler::SharedState>) -> Result<scheduler
 
 // Contrato IPC del spec: test de audio — el futuro botón "Probar" de la tab Audio
 #[tauri::command]
-fn test_adhan() -> Result<(), String> {
-    log!("test_adhan (IPC): reproduce el beep del spike");
-    audio::play_mock_adhan(audio::MOCK_VOLUME)
+fn test_adhan(state: tauri::State<SharedConfig>) -> Result<(), String> {
+    log!("test_adhan (IPC): toggle del adhan real");
+    let cfg = state.read().map(|c| c.clone()).map_err(|e| format!("config: {e}"))?;
+    let estado = audio::toggle_adhan(cfg.audio.volume as f32 / 100.0)?;
+    log!("adhan: {estado}");
+    Ok(())
 }
 
 // Notificación de prueba: valida el canal freedesktop UI-agnostic
@@ -57,19 +60,40 @@ fn test_notification(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-// Contrato IPC del spec: marcar rezado — index 0..4 sobre los 5 del schedule
+// Contrato IPC del spec: marcar/desmarcar rezado por fecha (toggle, last-wins)
 #[tauri::command]
 fn mark_prayed(
-    idx: usize,
+    date: String,
+    prayer: String,
     sched_tx: tauri::State<mpsc::Sender<scheduler::Trigger>>,
 ) -> Result<String, String> {
-    if idx >= scheduler::PRAYERS.len() {
-        return Err(format!("rezo idx {idx} fuera de rango"));
+    if !scheduler::PRAYERS.contains(&prayer.as_str()) {
+        return Err(format!("rezo desconocido: {prayer}"));
     }
     sched_tx
-        .send(scheduler::Trigger::Pray(idx))
+        .send(scheduler::Trigger::Pray { date, prayer: prayer.clone() })
         .map_err(|e| format!("scheduler no disponible: {e}"))?;
-    Ok(scheduler::PRAYERS[idx].to_string())
+    Ok(prayer)
+}
+
+// Estado del mes para el calendario de seguimiento: { date, prayers[] }
+#[tauri::command]
+fn get_marked(month: String) -> Result<Vec<registro::MarkedDay>, String> {
+    Ok(registro::marked_for_month(&month))
+}
+
+// Horarios de una fecha (pasado) para el calendario retroactivo
+#[tauri::command]
+fn get_schedule_for(date: String, state: tauri::State<SharedConfig>) -> Result<Vec<scheduler::PrayerSlot>, String> {
+    let parts: Vec<&str> = date.split('-').collect();
+    if parts.len() != 3 {
+        return Err(format!("fecha inválida: {date} (esperado YYYY-MM-DD)"));
+    }
+    let y = parts[0].parse::<i32>().map_err(|_| "año inválido")?;
+    let m = parts[1].parse::<i32>().map_err(|_| "mes inválido")?;
+    let d = parts[2].parse::<i32>().map_err(|_| "día inválido")?;
+    let cfg = state.read().map(|c| c.clone()).map_err(|e| format!("config: {e}"))?;
+    Ok(scheduler::prayer_slots_for(y, m, d, &cfg))
 }
 
 // Contracts IPC de config (Spike de config): leer y guardar hot-reload
@@ -123,7 +147,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            greet, get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed
+            greet, get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
@@ -156,6 +180,8 @@ pub fn run() {
             }
             let test_adhan =
                 MenuItem::with_id(app, "test_adhan", "Reproducir adhan ahora (test)", true, None::<&str>)?;
+            let silenciar =
+                MenuItem::with_id(app, "silence_adhan", "Silenciar adhan", true, None::<&str>)?;
             let test_notif =
                 MenuItem::with_id(app, "test_notification", "Notificación de prueba", true, None::<&str>)?;
             let config = MenuItem::with_id(app, "config", "Configuración…", true, None::<&str>)?;
@@ -170,6 +196,7 @@ pub fn run() {
             let menu = menu
                 .separator()
                 .item(&test_adhan)
+                .item(&silenciar)
                 .item(&test_notif)
                 .item(&config)
                 .separator()
@@ -183,15 +210,24 @@ pub fn run() {
             app.manage(tx.clone());
 
             let tray = TrayIconBuilder::with_id("tray")
-                .icon(scheduler::icon_for(32, scheduler::AZUL))
+                .icon(scheduler::icon_de(scheduler::IconoEstado::Dia))
                 .menu(&menu)
                 .tooltip("Adhan Companion")
                 .on_menu_event(move |app, ev| match ev.id().as_ref() {
                     "test_adhan" => {
-                        match crate::audio::play_mock_adhan(crate::audio::MOCK_VOLUME) {
-                            Ok(()) => log!("adhan (test) desde el menú: audio por ALSA ok"),
+                        let vol = app
+                            .state::<SharedConfig>()
+                            .read()
+                            .map(|c| c.audio.volume as f32 / 100.0)
+                            .unwrap_or(0.7);
+                        match crate::audio::toggle_adhan(vol) {
+                            Ok(estado) => log!("adhan (test) desde el menú: {estado}"),
                             Err(e) => log!("audio falló: {e}"),
                         }
+                    }
+                    "silence_adhan" => {
+                        crate::audio::stop_adhan();
+                        log!("adhan silenciado desde el tray");
                     }
                     "test_notification" => scheduler::notify_test(app),
                     "config" => {
@@ -205,11 +241,15 @@ pub fn run() {
                         app.exit(0);
                     }
                     id if id.starts_with("pray:") => {
-                        // marcar rezado — el scheduler lo procesa y registra
+                        // marcar rezado (día de hoy) — el scheduler togglea y registra
                         if let Ok(idx) = id["pray:".len()..].parse::<usize>() {
-                            // el closure es move: usa el pray_tx poseído
-                            if let Err(e) = pray_tx.send(scheduler::Trigger::Pray(idx)) {
-                                log!("marcado no entrego al scheduler: {e}");
+                            if let Some(name) = scheduler::PRAYERS.get(idx) {
+                                if let Err(e) = pray_tx.send(scheduler::Trigger::Pray {
+                                    date: String::new(), // hoy
+                                    prayer: (*name).to_string(),
+                                }) {
+                                    log!("marcado no entregó al scheduler: {e}");
+                                }
                             }
                         }
                     }

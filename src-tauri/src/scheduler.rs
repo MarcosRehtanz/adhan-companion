@@ -81,8 +81,35 @@ pub enum Trigger {
     Resume,
     /// el config cambió (IPC set_config) → recalcular
     ConfigChanged,
-    /// el usuario marcó el rezo idx como rezado (menú del tray o IPC mark_prayed)
-    Pray(usize),
+    /// el usuario marcó/desmarcó un rezo (menú del tray o IPC mark_prayed).
+    /// `date` vacía = hoy (lo resuelve el scheduler con el schedule del día)
+    Pray { date: String, prayer: String },
+}
+
+/// Rezos (los 5) calculados para una fecha concreta con el config dado.
+/// Reutilizado por el schedule del día (hoy) y por `get_schedule_for` (pasado).
+pub fn prayer_slots_for(y: i32, m: i32, d: i32, cfg: &crate::config::Config) -> Vec<PrayerSlot> {
+    let pcfg = crate::prayer::PrayerConfig::from(cfg);
+    let times7 = crate::prayer::calc_times(
+        y, m, d,
+        cfg.lat, cfg.lon, cfg.tz_offset_hours(),
+        &pcfg,
+    );
+    PRAYERS
+        .iter()
+        .enumerate()
+        .map(|(i, name)| {
+            let dec = times7[PRAYER_INDICES[i]];
+            let h = (dec.trunc() as i32) % 24;
+            let min = (dec.fract() * 60.0).round() as i32;
+            PrayerSlot {
+                name: (*name).to_string(),
+                dec,
+                hhmm: format!("{h:02}:{min:02}"),
+                enabled: true,
+            }
+        })
+        .collect()
 }
 
 /// Horarios REALES vía FFI al C, con el config del usuario (o default).
@@ -90,27 +117,7 @@ pub enum Trigger {
 /// sistema (chrono) — el cambio de TZ del sistema es otro trigger del spec.
 pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
     let now = chrono::Local::now();
-    let pcfg = crate::prayer::PrayerConfig::from(cfg_snapshot);
-    let times7 = crate::prayer::calc_times(
-        now.year(), now.month() as i32, now.day() as i32,
-        cfg_snapshot.lat, cfg_snapshot.lon, cfg_snapshot.tz_offset_hours(),
-        &pcfg,
-    );
-    let prayers = PRAYERS
-        .iter()
-        .enumerate()
-        .map(|(i, name)| {
-            let dec = times7[PRAYER_INDICES[i]];
-            let h = (dec.trunc() as i32) % 24;
-            let m = (dec.fract() * 60.0).round() as i32;
-            PrayerSlot {
-                name: (*name).to_string(),
-                dec,
-                hhmm: format!("{h:02}:{m:02}"),
-                enabled: true,
-            }
-        })
-        .collect();
+    let prayers = prayer_slots_for(now.year(), now.month() as i32, now.day() as i32, cfg_snapshot);
     let date = now.format("%Y-%m-%d").to_string();
     let marked = PRAYERS
         .iter()
@@ -184,32 +191,29 @@ pub fn spawn_login1_watcher(tx: mpsc::Sender<Trigger>) {
 fn log_watcher_ready() {
     crate::log!("zbus conectado a login1 — escuchando PrepareForSleep");
 }
-pub fn icon_for(size: u32, (r, g, b): (u8, u8, u8)) -> tauri::image::Image<'static> {
-    let mut rgba = vec![0u8; (size * size * 4) as usize];
-    let c = size as f32 / 2.0;
-    for y in 0..size {
-        for x in 0..size {
-            let dx = x as f32 + 0.5 - c;
-            let dy = y as f32 + 0.5 - c;
-            let d = (dx * dx + dy * dy).sqrt();
-            let i = ((y * size + x) as usize) * 4;
-            if d >= c {
-                continue;
-            }
-            let a = if d < c - 1.0 { 255u8 } else { ((c - d) * 255.0) as u8 };
-            rgba[i] = r;
-            rgba[i + 1] = g;
-            rgba[i + 2] = b;
-            rgba[i + 3] = a;
-        }
-    }
-    tauri::image::Image::new_owned(rgba, size, size)
+
+/// Estados del tray con las specs de la matriz estado×icono:
+/// gris (silenciado) / azul (día) / ámbar (próximo < 15 min) / verde (adhan)
+#[derive(Debug, Clone, Copy)]
+pub enum IconoEstado {
+    Silenciado,
+    Dia,
+    Proximo,
+    Adhan,
 }
 
-/// Estados del spec (gris queda para "silenciado", no sale en este spike)
-pub const AZUL: (u8, u8, u8) = (0x21, 0x96, 0xf3);
-const AMBAR: (u8, u8, u8) = (0xff, 0x98, 0x00);
-const VERDE: (u8, u8, u8) = (0x4c, 0xaf, 0x50);
+/// PNG 32px por estado, generados por `scripts/gen-icons.py` (mismo glyph
+/// que el app icon). Se cargan de assets embebidos — sin dibujo en runtime.
+pub fn icon_de(estado: IconoEstado) -> tauri::image::Image<'static> {
+    let bytes: &'static [u8] = match estado {
+        IconoEstado::Silenciado => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/tray/silenciado.png")),
+        IconoEstado::Dia => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/tray/dia.png")),
+        IconoEstado::Proximo => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/tray/proximo.png")),
+        IconoEstado::Adhan => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/tray/adhan.png")),
+    };
+    tauri::image::Image::from_bytes(bytes)
+        .expect("PNG del tray debe decodificar (generados por scripts/gen-icons.py)")
+}
 
 /// Notificación freedesktop desde el core (plugin notification)
 fn notify(app: &tauri::AppHandle, title: &str, body: &str) {
@@ -277,7 +281,7 @@ pub fn run(s: SchedulerLoop) {
 
         // Trigger: resume del sleep / cambio de config (IPC set_config) / marcar rezado
         let mut recal: Option<&str> = None;
-        let mut pray: Option<usize> = None;
+        let mut pray: Option<(String, String)> = None;
         while let Ok(t) = s.rx.try_recv() {
             match t {
                 Trigger::Resume => {
@@ -288,7 +292,7 @@ pub fn run(s: SchedulerLoop) {
                     crate::log!("trigger: cambio de config → recalcular con el config nuevo");
                     recal = Some("config");
                 }
-                Trigger::Pray(idx) => pray = Some(idx),
+                Trigger::Pray { date, prayer } => pray = Some((date, prayer)),
             }
         }
         if let Some(via) = recal {
@@ -301,19 +305,35 @@ pub fn run(s: SchedulerLoop) {
             refresh_prayer_items(&s, &schedule);
             let _ = s.app.emit("schedule_changed", &schedule);
         }
-        if let Some(idx) = pray {
-            if idx < PRAYERS.len() {
-                let name = PRAYERS[idx];
-                let result = crate::registro::append(&schedule.date, name, "rezado");
-                crate::log!("marcado rezado {name}: {}", result.is_ok());
-                if !schedule.marked.contains(&name.to_string()) {
-                    schedule.marked.push(name.to_string());
-                }
-                refresh_prayer_items(&s, &schedule);
-                {
-                    let mut st = s.state.lock().unwrap();
-                    st.schedule.marked = schedule.marked.clone();
-                    st.schedule.next = schedule.next.clone();
+        if let Some((date_arg, name)) = pray {
+            if PRAYERS.contains(&name.as_str()) {
+                let date = if date_arg.is_empty() { schedule.date.clone() } else { date_arg };
+                let already = crate::registro::is_prayer_marked(&date, &name);
+                let status = if already { "desmarcado" } else { "rezado" };
+                let result = crate::registro::append(&date, &name, status);
+                crate::log!(
+                    "{}: {} ({})",
+                    if already { "desmarcado" } else { "marcado rezado" },
+                    name,
+                    result.is_ok()
+                );
+                // solo si es el día de hoy se actualiza el estado del schedule/menú
+                if date == schedule.date {
+                    if already {
+                        schedule.marked.retain(|m| m != &name);
+                    } else {
+                        if !schedule.marked.contains(&name) {
+                            schedule.marked.push(name.clone());
+                        }
+                        // confirmar (ya recé / ya escuché) también corta el adhan si suena
+                        crate::audio::stop_adhan();
+                    }
+                    refresh_prayer_items(&s, &schedule);
+                    {
+                        let mut st = s.state.lock().unwrap();
+                        st.schedule.marked = schedule.marked.clone();
+                        st.schedule.next = schedule.next.clone();
+                    }
                 }
                 let _ = s.app.emit("schedule_changed", &schedule);
             }
@@ -373,10 +393,30 @@ pub fn run(s: SchedulerLoop) {
             if let Err(e) = crate::registro::append(&schedule.date, PRAYERS[fired], "adhan") {
                 crate::log!("registro del disparo falló: {e}");
             }
-            notify(&s.app, "Adhan — hora de orar", format!("{} ({})", PRAYERS[fired], schedule.prayers[fired].hhmm).as_str());
-            match crate::audio::play_mock_adhan(crate::audio::MOCK_VOLUME) {
-                Ok(()) => crate::log!("🔊 adhan (mock beep 3.9 s) sonando por ALSA — volumen 0.70"),
-                Err(e) => crate::log!("audio falló en el disparo: {e}"),
+            notify(
+                &s.app,
+                "Adhan — hora de orar",
+                format!(
+                    "{} ({}) — tocá el menú del tray para confirmar (ya recé) o Silenciar para detener",
+                    PRAYERS[fired], schedule.prayers[fired].hhmm
+                ).as_str(),
+            );
+            // audio del config: volumen + toggle enabled por rezo
+            let cfg = snapshot(&s.config);
+            let volumen = cfg.audio.volume as f32 / 100.0;
+            let habilitado = cfg
+                .audio
+                .enabled
+                .get(&PRAYERS[fired].to_lowercase())
+                .copied()
+                .unwrap_or(true);
+            if habilitado {
+                match crate::audio::play_adhan(volumen) {
+                    Ok(()) => crate::log!("adhan por ALSA — volumen {}%", cfg.audio.volume),
+                    Err(e) => crate::log!("audio falló en el disparo: {e}"),
+                }
+            } else {
+                crate::log!("adhan silenciado para {} (audio.enabled)", PRAYERS[fired]);
             }
         }
 
@@ -396,12 +436,12 @@ pub fn run(s: SchedulerLoop) {
         }
 
         // Estados del spec: azul (>15m) → ámbar (≤15m) → verde (adhan sonando ADHAN_SECS)
-        let color = if secs < 0 {
-            VERDE
+        let estado = if secs < 0 {
+            IconoEstado::Adhan
         } else if secs <= 15 * 60 {
-            AMBAR
+            IconoEstado::Proximo
         } else {
-            AZUL
+            IconoEstado::Dia
         };
         let label = if secs < 0 {
             format!("— ADHAN — {}", PRAYERS[fired])
@@ -419,7 +459,7 @@ pub fn run(s: SchedulerLoop) {
         let tr = s.tray.clone();
         let _ = s.app.run_on_main_thread(move || {
             let _ = cd.set_text(label);
-            let _ = tr.set_icon(Some(icon_for(32, color)));
+            let _ = tr.set_icon(Some(icon_de(estado)));
         });
 
         let mut st = s.state.lock().unwrap();

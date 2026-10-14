@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
+use chrono::Datelike;
 
 /// mismo dir que config.json (regla del spec)
 pub fn registro_path() -> PathBuf {
@@ -55,9 +56,52 @@ pub fn load_for_date(date: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// estado rezado del día: true si hay al menos una entrada "rezado" del rezo
+/// estado rezado del día: true si el ÚLTIMO evento del rezo es "rezado"
+/// (toggle: "desmarcado" deshace un "rezado" previo — append-only, last-wins)
 pub fn is_prayer_marked(date: &str, prayer: &str) -> bool {
+    last_status_for(date, prayer).as_deref() == Some("rezado")
+}
+
+/// último status registrado para un (date, prayer) — nil si nunca hubo evento
+pub fn last_status_for(date: &str, prayer: &str) -> Option<String> {
     load_for_date(date)
-        .iter()
-        .any(|(p, s)| p == prayer && s == "rezado")
+        .into_iter()
+        .rev()
+        .find(|(p, _)| p == prayer)
+        .map(|(_, s)| s)
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct MarkedDay {
+    pub date: String,
+    pub prayers: Vec<String>,
+}
+
+/// Días de un mes ("YYYY-MM") que tienen al menos un rezo marcado hoy,
+/// con la lista de rezos marcados (último evento gana) — para el calendario.
+pub fn marked_for_month(month: &str) -> Vec<MarkedDay> {
+    let parts: Vec<&str> = month.split('-').collect();
+    if parts.len() != 2 {
+        return Vec::new();
+    }
+    let Ok(y) = parts[0].parse::<i32>() else { return Vec::new() };
+    let Ok(m) = parts[1].parse::<u32>() else { return Vec::new() };
+    let days = chrono::NaiveDate::from_ymd_opt(y, m + 1, 1)
+        .and_then(|d| d.pred_opt())
+        .map(|d| d.day())
+        .unwrap_or(30);
+    let mut out = Vec::new();
+    for d in 1..=days {
+        let date = format!("{month}-{d:02}");
+        let prayers: Vec<String> = crate::scheduler::PRAYERS
+            .iter()
+            .filter(|p| is_prayer_marked(&date, p))
+            .cloned()
+            .map(String::from)
+            .collect();
+        if !prayers.is_empty() {
+            out.push(MarkedDay { date, prayers });
+        }
+    }
+    out
 }
