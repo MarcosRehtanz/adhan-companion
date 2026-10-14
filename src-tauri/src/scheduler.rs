@@ -16,19 +16,14 @@ use chrono::{Datelike, Timelike};
 use serde::Serialize;
 use tauri::Emitter;
 
-use crate::prayer::{PrayerConfig, PRAYER_INDICES};
+use crate::config::SharedConfig;
+use crate::prayer::PRAYER_INDICES;
 
 /// Los 5 rezos del schema del spec (sin sunrise/sunset, índices 0..4)
 pub const PRAYERS: [&str; 5] = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
 /// Duración del estado "verde" (adhan sonando) en el spike
 const ADHAN_SECS: i64 = 60;
-
-// TODO config.json (schema compatible con casa/adhan/config) — constantes
-// default mientras no exista: Buenos Aires, MWL, Shafi, AqrabAlAyyam
-const DEFAULT_LAT: f64 = -34.61;
-const DEFAULT_LON: f64 = -58.38;
-const DEFAULT_TZ: f64 = -3.0;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PrayerSlot {
@@ -59,9 +54,10 @@ pub struct SharedStateInner {
 }
 
 impl SharedStateInner {
-    pub fn new() -> Self {
-        let schedule = compute_schedule();
-        let now_h = chrono::Local::now().hour() as f64 + chrono::Local::now().minute() as f64 / 60.0;
+    pub fn new(cfg: &crate::config::Config) -> Self {
+        let schedule = compute_schedule(cfg);
+        let now = chrono::Local::now();
+        let now_h = now.hour() as f64 + now.minute() as f64 / 60.0;
         // next = el primer rezo del día todavía no pasado (sino, ya dispararon todos)
         let fired = PRAYERS
             .iter()
@@ -72,22 +68,29 @@ impl SharedStateInner {
     }
 }
 
+/// Snapshot seguro del config (panics en poison nunca deben pisar el tray)
+fn snapshot(cfg: &SharedConfig) -> crate::config::Config {
+    cfg.read().map(|c| c.clone()).unwrap_or_default()
+}
+
 /// Triggers del spec que llegan al loop externo al tick
 pub enum Trigger {
     /// login1 reporta el wake (starting=false de PrepareForSleep) → recalcular
     Resume,
+    /// el config cambió (IPC set_config) → recalcular
+    ConfigChanged,
 }
 
-/// Horarios REALES vía FFI al C (config default en constants hasta config.json).
-/// Offset TZ: el schema del spec guarda tz ISO con la ciudad; desktop lo toma
-/// del sistema e lo guarda cobajo — por ahora constante igual al schema de ejemplo.
-pub fn compute_schedule() -> Schedule {
+/// Horarios REALES vía FFI al C, con el config del usuario (o default).
+/// El tz del config es IANA pero el C pide offset decimal: se toma del
+/// sistema (chrono) — el cambio de TZ del sistema es otro trigger del spec.
+pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
     let now = chrono::Local::now();
-    let cfg = PrayerConfig::default();
+    let pcfg = crate::prayer::PrayerConfig::from(cfg_snapshot);
     let times7 = crate::prayer::calc_times(
         now.year(), now.month() as i32, now.day() as i32,
-        DEFAULT_LAT, DEFAULT_LON, DEFAULT_TZ,
-        &cfg,
+        cfg_snapshot.lat, cfg_snapshot.lon, cfg_snapshot.tz_offset_hours(),
+        &pcfg,
     );
     let prayers = PRAYERS
         .iter()
@@ -202,10 +205,11 @@ pub struct SchedulerLoop {
     pub countdown_item: tauri::menu::MenuItem<tauri::Wry>,
     pub rx: mpsc::Receiver<Trigger>,
     pub state: SharedState,
+    pub config: SharedConfig,
 }
 
 pub fn run(s: SchedulerLoop) {
-    let mut schedule = compute_schedule();
+    let mut schedule = compute_schedule(&snapshot(&s.config));
     let mut fired: usize = 0;
     let mut date = schedule.date.clone();
     // Edge del disparo: suena una sola vez por rezo al entrar en zona verde
@@ -214,18 +218,23 @@ pub fn run(s: SchedulerLoop) {
     loop {
         std::thread::sleep(Duration::from_secs(1));
 
-        // Trigger: resume del sleep
-        let mut recal = false;
+        // Trigger: resume del sleep / cambio de config (IPC set_config)
+        let mut recal: Option<&str> = None;
         while let Ok(t) = s.rx.try_recv() {
             match t {
                 Trigger::Resume => {
                     crate::log!("trigger: resume del sleep → recalcular + realinear timers");
-                    recal = true;
+                    recal = Some("resume");
+                }
+                Trigger::ConfigChanged => {
+                    crate::log!("trigger: cambio de config → recalcular con el config nuevo");
+                    recal = Some("config");
                 }
             }
         }
-        if recal {
-            schedule = compute_schedule();
+        if let Some(via) = recal {
+            crate::log!("recalculando vía {via}");
+            schedule = compute_schedule(&snapshot(&s.config));
             fired = 0;
             adhan_announced = false;
             date = schedule.date.clone();
@@ -237,7 +246,7 @@ pub fn run(s: SchedulerLoop) {
         let today = now.format("%Y-%m-%d").to_string();
         if today != date {
             crate::log!("trigger: medianoche → recalcular el día");
-            schedule = compute_schedule();
+            schedule = compute_schedule(&snapshot(&s.config));
             fired = 0;
             adhan_announced = false;
             date = today;

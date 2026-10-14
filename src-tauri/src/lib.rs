@@ -1,6 +1,7 @@
 // Entry point de la app: `run()` es el factory real del core (main.rs solo delega).
 
 pub mod audio;
+pub mod config;
 pub mod prayer;
 pub mod scheduler;
 
@@ -11,6 +12,8 @@ use tauri::{
     tray::TrayIconBuilder,
     Manager, WindowEvent,
 };
+
+use config::SharedConfig;
 
 /// Logs con prefijo para depurar el tray/AppIndicator fácilmente (solo debug)
 #[cfg(debug_assertions)]
@@ -44,6 +47,37 @@ fn test_adhan() -> Result<(), String> {
     audio::play_mock_adhan(audio::MOCK_VOLUME)
 }
 
+// Contratos IPC de config (Spike de config): leer y guardar hot-reload
+#[tauri::command]
+fn get_config(state: tauri::State<SharedConfig>) -> Result<config::Config, String> {
+    state.read().map(|c| c.clone()).map_err(|e| format!("config envenenado: {e}"))
+}
+
+#[tauri::command]
+fn set_config(
+    cfg: config::Config,
+    state: tauri::State<SharedConfig>,
+    sched_tx: tauri::State<mpsc::Sender<scheduler::Trigger>>,
+) -> Result<config::Config, String> {
+    log!("set_config: guardar + recalcular en caliente");
+    config::save(&cfg)?;
+    *state.write().map_err(|e| format!("config envenenado: {e}"))? = cfg.clone();
+    let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
+    Ok(cfg)
+}
+
+// Toggle real de autostart del plugin (checkbox de la tab Avanzado)
+#[tauri::command]
+fn set_autostart(enabled: bool, app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let autostart = app.autolaunch();
+    if enabled {
+        autostart.enable().map_err(|e| format!("autostart enable: {e}"))
+    } else {
+        autostart.disable().map_err(|e| format!("autostart disable: {e}"))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -61,7 +95,9 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
-        .invoke_handler(tauri::generate_handler![greet, get_schedule, test_adhan])
+        .invoke_handler(tauri::generate_handler![
+            greet, get_schedule, test_adhan, get_config, set_config, set_autostart
+        ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -125,13 +161,20 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Estado compartido scheduler ↔ IPC
+            // Estado compartido scheduler ↔ IPC + config persistente
+            let cfg = config::load_or_init();
+            let config_state: SharedConfig = std::sync::Arc::new(std::sync::RwLock::new(cfg.clone()));
+            app.manage(config_state.clone());
+
             let state: scheduler::SharedState =
-                std::sync::Arc::new(std::sync::Mutex::new(scheduler::SharedStateInner::new()));
+                std::sync::Arc::new(std::sync::Mutex::new(
+                    scheduler::SharedStateInner::new(&cfg),
+                ));
             app.manage(state.clone());
 
             // scheduler (tick 1 s) + watcher del login1 (trigger resume del sleep)
             let (tx, rx) = mpsc::channel::<scheduler::Trigger>();
+            app.manage(tx.clone());
             scheduler::spawn_login1_watcher(tx);
             let app2 = app.handle().clone();
             std::thread::spawn(move || {
@@ -141,10 +184,11 @@ pub fn run() {
                     countdown_item: countdown,
                     rx,
                     state,
+                    config: config_state,
                 });
             });
 
-            log!("setup ok: tray + scheduler con triggers (medianoche/resume) corriendo");
+            log!("setup ok: tray + scheduler + config ({}) corriendo", config::config_path().display());
             Ok(())
         })
         .run(tauri::generate_context!())

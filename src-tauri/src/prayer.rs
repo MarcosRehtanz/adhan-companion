@@ -11,11 +11,11 @@ use std::sync::Mutex;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Method { Mwl, Isna, Egypt, Makkah, Karachi, Tehran, Jafari, Custom }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Madhab { Shafi, Hanafi }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Madhab { #[default] Shafi, Hanafi }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HighLatRule { None, MiddleOfNight, AngleBased, AqrabAlAyyam, AqrabAlBilad, OneSeventh, FixedAngle }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum HighLatRule { None, MiddleOfNight, AngleBased, #[default] AqrabAlAyyam, AqrabAlBilad, OneSeventh, FixedAngle }
 
 impl Method {
     fn as_c(self) -> c_int { self as i32 } // el orden del enum C ya es el mismo por diseño
