@@ -16,16 +16,21 @@ use tauri::{
 
 use config::SharedConfig;
 
-/// Logs con prefijo para depurar el tray/AppIndicator fácilmente (solo debug)
-#[cfg(debug_assertions)]
+/// Logs con prefijo para depurar el tray/AppIndicator fácilmente (solo debug).
+/// Un único macro: en release compila a no-op (conserva el consumo de los
+/// argumentos para no generar warnings de variables sin usar).
 #[macro_export]
 macro_rules! log {
-    ($($arg:tt)*) => { println!("[adhan] {}", format_args!($($arg)*)) };
-}
-#[cfg(not(debug_assertions))]
-#[macro_export]
-macro_rules! log {
-    ($($arg:tt)*) => {};
+    ($($arg:tt)*) => {{
+        #[cfg(debug_assertions)]
+        {
+            println!("[adhan] {}", format_args!($($arg)*));
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            let _ = format_args!($($arg)*);
+        }
+    }};
 }
 
 #[tauri::command]
