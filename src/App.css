@@ -31,8 +31,19 @@ header h1 { font-size: 17px; margin: 12px 0; }
   display: flex; gap: 12px; align-items: baseline;
   font-size: 14px;
 }
-.proximo { color: var(--acento); font-weight: 600; }
-.countdown { color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.barra-rezos { display: flex; gap: 6px; }
+.rezo {
+  border: 1px solid var(--borde); border-radius: 6px;
+  background: var(--tarjeta); color: var(--texto);
+  font-size: 12.5px; padding: 5px 9px; cursor: pointer;
+}
+.rezo:hover { border-color: var(--acento); }
+.rezo.marcado {
+  background: var(--acento); color: #fff; border-color: var(--acento);
+}
+.rezo.proximo:not(.marcado) {
+  border-color: var(--acento); font-weight: 600;
+}
 .status { margin-left: auto; font-size: 12.5px; color: var(--acento); }
 
 .tabs {

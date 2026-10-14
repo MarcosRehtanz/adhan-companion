@@ -3,6 +3,7 @@
 pub mod audio;
 pub mod config;
 pub mod prayer;
+pub mod registro;
 pub mod scheduler;
 
 use std::sync::mpsc;
@@ -47,7 +48,22 @@ fn test_adhan() -> Result<(), String> {
     audio::play_mock_adhan(audio::MOCK_VOLUME)
 }
 
-// Contratos IPC de config (Spike de config): leer y guardar hot-reload
+// Contrato IPC del spec: marcar rezado — index 0..4 sobre los 5 del schedule
+#[tauri::command]
+fn mark_prayed(
+    idx: usize,
+    sched_tx: tauri::State<mpsc::Sender<scheduler::Trigger>>,
+) -> Result<String, String> {
+    if idx >= scheduler::PRAYERS.len() {
+        return Err(format!("rezo idx {idx} fuera de rango"));
+    }
+    sched_tx
+        .send(scheduler::Trigger::Pray(idx))
+        .map_err(|e| format!("scheduler no disponible: {e}"))?;
+    Ok(scheduler::PRAYERS[idx].to_string())
+}
+
+// Contracts IPC de config (Spike de config): leer y guardar hot-reload
 #[tauri::command]
 fn get_config(state: tauri::State<SharedConfig>) -> Result<config::Config, String> {
     state.read().map(|c| c.clone()).map_err(|e| format!("config envenenado: {e}"))
@@ -96,7 +112,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            greet, get_schedule, test_adhan, get_config, set_config, set_autostart
+            greet, get_schedule, test_adhan, get_config, set_config, set_autostart, mark_prayed
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
@@ -107,7 +123,8 @@ pub fn run() {
             }
         })
         .setup(move |app| {
-            // Menú según el spec: countdown arriba (info, no acción), luego acciones
+            // Menú según el spec: countdown arriba, los 5 horarios (clic = marcar rezado),
+            // test de audio, configuración y salir
             let countdown = MenuItem::with_id(
                 app,
                 "countdown",
@@ -115,13 +132,29 @@ pub fn run() {
                 false, // no clickable: es info, no acción
                 None::<&str>,
             )?;
-            let config = MenuItem::with_id(app, "config", "Configuración…", true, None::<&str>)?;
+            let mut prayer_items = Vec::new();
+            for (idx, name) in scheduler::PRAYERS.iter().enumerate() {
+                let mi = MenuItem::with_id(
+                    app,
+                    &format!("pray:{idx}"),
+                    format!("{name}"),
+                    true, // clic → marca rezado (el texto lo refresca el scheduler con hhmm/✓)
+                    None::<&str>,
+                )?;
+                prayer_items.push(((*name).to_string(), mi));
+            }
             let test_adhan =
                 MenuItem::with_id(app, "test_adhan", "Reproducir adhan ahora (test)", true, None::<&str>)?;
+            let config = MenuItem::with_id(app, "config", "Configuración…", true, None::<&str>)?;
             let salir = MenuItem::with_id(app, "exit", "Salir", true, None::<&str>)?;
 
-            let menu = MenuBuilder::new(app)
+            let mut menu = MenuBuilder::new(app)
                 .item(&countdown)
+                .separator();
+            for (_, mi) in &prayer_items {
+                menu = menu.item(mi);
+            }
+            let menu = menu
                 .separator()
                 .item(&test_adhan)
                 .item(&config)
@@ -129,11 +162,17 @@ pub fn run() {
                 .item(&salir)
                 .build()?;
 
+            // canal de triggers del scheduler: existe ANTES del tray para que
+            // el handler del menú pueda mandar Pray
+            let (tx, rx) = mpsc::channel::<scheduler::Trigger>();
+            let pray_tx = tx.clone();
+            app.manage(tx.clone());
+
             let tray = TrayIconBuilder::with_id("tray")
                 .icon(scheduler::icon_for(32, scheduler::AZUL))
                 .menu(&menu)
                 .tooltip("Adhan Companion")
-                .on_menu_event(|app, ev| match ev.id().as_ref() {
+                .on_menu_event(move |app, ev| match ev.id().as_ref() {
                     "test_adhan" => {
                         match crate::audio::play_mock_adhan(crate::audio::MOCK_VOLUME) {
                             Ok(()) => log!("adhan (test) desde el menú: audio por ALSA ok"),
@@ -149,6 +188,15 @@ pub fn run() {
                     "exit" => {
                         log!("salir desde el tray");
                         app.exit(0);
+                    }
+                    id if id.starts_with("pray:") => {
+                        // marcar rezado — el scheduler lo procesa y registra
+                        if let Ok(idx) = id["pray:".len()..].parse::<usize>() {
+                            // el closure es move: usa el pray_tx poseído
+                            if let Err(e) = pray_tx.send(scheduler::Trigger::Pray(idx)) {
+                                log!("marcado no entrego al scheduler: {e}");
+                            }
+                        }
                     }
                     _ => {}
                 })
@@ -173,8 +221,6 @@ pub fn run() {
             app.manage(state.clone());
 
             // scheduler (tick 1 s) + watcher del login1 (trigger resume del sleep)
-            let (tx, rx) = mpsc::channel::<scheduler::Trigger>();
-            app.manage(tx.clone());
             scheduler::spawn_login1_watcher(tx);
             let app2 = app.handle().clone();
             std::thread::spawn(move || {
@@ -182,6 +228,7 @@ pub fn run() {
                     app: app2,
                     tray,
                     countdown_item: countdown,
+                    prayer_items,
                     rx,
                     state,
                     config: config_state,

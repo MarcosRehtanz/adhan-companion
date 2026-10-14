@@ -99,17 +99,28 @@ export default function App() {
         <h1>Adhan Companion</h1>
         {schedule && (
           <div className="resumen-dia">
-            <span className="proximo">
-              {schedule.next ? `${schedule.next}: ${schedule.prayers.find(p => p.name === schedule.next)?.hhmm}` : "Los 5 ya pasaron — hasta medianoche"}
-            </span>
-            {schedule.countdown_secs != null && schedule.countdown_secs > 0 && (
-              <span className="countdown">
-                en {Math.floor(schedule.countdown_secs / 3600)}:{String((schedule.countdown_secs % 3600) / 60 | 0).padStart(2, "0")}
-              </span>
-            )}
+            <div className="barra-rezos">
+              {PRAYERS.map((name) => {
+                const slot = schedule.prayers.find((p) => p.name === name);
+                const marcado = schedule.marked.includes(name);
+                return (
+                  <button
+                    key={name}
+                    className={`rezo ${marcado ? "marcado" : ""} ${schedule.next === name ? "proximo" : ""}`}
+                    title={marcado ? "ya marcado rezado" : `marcar ${name} rezado`}
+                    onClick={() => {
+                      const idx = PRAYERS.indexOf(name);
+                      invoke("mark_prayed", { idx }).catch((e) => setStatus("mark: " + e));
+                    }}
+                  >
+                    {marcado ? "✓ " : ""}{name} {slot?.hhmm ?? ""}
+                  </button>
+                );
+              })}
+            </div>
+            <span className="status">{status}</span>
           </div>
         )}
-        <span className="status">{status}</span>
       </header>
 
       <nav className="tabs">

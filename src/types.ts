@@ -13,4 +13,6 @@ export interface Schedule {
   next: string | null;
   /** null cuando no queda ninguno, o el adhan ya sonó */
   countdown_secs: number | null;
+  /** rezos ya marcados como rezados hoy */
+  marked: string[];
 }

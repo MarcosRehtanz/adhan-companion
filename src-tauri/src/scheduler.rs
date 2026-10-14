@@ -42,6 +42,8 @@ pub struct Schedule {
     pub next: Option<String>,
     /// Segundos hasta el próximo rezo; None si no queda ninguno o el adhan ya sonó
     pub countdown_secs: Option<i64>,
+    /// Rezos de hoy marcados como rezados (copia del registro.jsonl del día)
+    pub marked: Vec<String>,
 }
 
 /// Estado compartido con el mundo IPC (`get_schedule` / `schedule_changed`)
@@ -79,6 +81,8 @@ pub enum Trigger {
     Resume,
     /// el config cambió (IPC set_config) → recalcular
     ConfigChanged,
+    /// el usuario marcó el rezo idx como rezado (menú del tray o IPC mark_prayed)
+    Pray(usize),
 }
 
 /// Horarios REALES vía FFI al C, con el config del usuario (o default).
@@ -107,11 +111,19 @@ pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
             }
         })
         .collect();
+    let date = now.format("%Y-%m-%d").to_string();
+    let marked = PRAYERS
+        .iter()
+        .filter(|n| crate::registro::is_prayer_marked(&date, n))
+        .cloned()
+        .map(String::from)
+        .collect();
     Schedule {
-        date: now.format("%Y-%m-%d").to_string(),
+        date,
         prayers,
         next: Some(PRAYERS[0].into()),
         countdown_secs: None,
+        marked,
     }
 }
 
@@ -203,9 +215,39 @@ pub struct SchedulerLoop {
     pub app: tauri::AppHandle,
     pub tray: tauri::tray::TrayIcon<tauri::Wry>,
     pub countdown_item: tauri::menu::MenuItem<tauri::Wry>,
+    /// ítems del menú por rezo: (nombre, handle) — texto con ✓ si marcado
+    pub prayer_items: Vec<(String, tauri::menu::MenuItem<tauri::Wry>)>,
     pub rx: mpsc::Receiver<Trigger>,
     pub state: SharedState,
     pub config: SharedConfig,
+}
+
+/// Texto de un ítem de rezo en el menú: "✓ Fajr 04:47" si marcado
+fn prayer_item_text(name: &str, marked: &[String], schedule: &Schedule) -> String {
+    let hhmm = schedule
+        .prayers
+        .iter()
+        .find(|p| p.name == name)
+        .map(|p| p.hhmm.clone())
+        .unwrap_or_default();
+    if marked.contains(&name.to_string()) {
+        format!("✓ {name} {hhmm}")
+    } else {
+        format!("{name}  {hhmm}")
+    }
+}
+
+/// Actualiza los 5 ítems del menú (en el main thread); se llama en
+/// recompute, al marcar y al avanzar el día
+fn refresh_prayer_items(s: &SchedulerLoop, schedule: &Schedule) {
+    let items = s.prayer_items.clone();
+    let sched = schedule.clone();
+    let _ = s.app.run_on_main_thread(move || {
+        for (name, item) in items {
+            let text = prayer_item_text(&name, &sched.marked, &sched);
+            let _ = item.set_text(text);
+        }
+    });
 }
 
 pub fn run(s: SchedulerLoop) {
@@ -214,12 +256,14 @@ pub fn run(s: SchedulerLoop) {
     let mut date = schedule.date.clone();
     // Edge del disparo: suena una sola vez por rezo al entrar en zona verde
     let mut adhan_announced = false;
+    refresh_prayer_items(&s, &schedule);
 
     loop {
         std::thread::sleep(Duration::from_secs(1));
 
-        // Trigger: resume del sleep / cambio de config (IPC set_config)
+        // Trigger: resume del sleep / cambio de config (IPC set_config) / marcar rezado
         let mut recal: Option<&str> = None;
+        let mut pray: Option<usize> = None;
         while let Ok(t) = s.rx.try_recv() {
             match t {
                 Trigger::Resume => {
@@ -230,6 +274,7 @@ pub fn run(s: SchedulerLoop) {
                     crate::log!("trigger: cambio de config → recalcular con el config nuevo");
                     recal = Some("config");
                 }
+                Trigger::Pray(idx) => pray = Some(idx),
             }
         }
         if let Some(via) = recal {
@@ -238,7 +283,25 @@ pub fn run(s: SchedulerLoop) {
             fired = 0;
             adhan_announced = false;
             date = schedule.date.clone();
+            refresh_prayer_items(&s, &schedule);
             let _ = s.app.emit("schedule_changed", &schedule);
+        }
+        if let Some(idx) = pray {
+            if idx < PRAYERS.len() {
+                let name = PRAYERS[idx];
+                let result = crate::registro::append(&schedule.date, name, "rezado");
+                crate::log!("marcado rezado {name}: {}", result.is_ok());
+                if !schedule.marked.contains(&name.to_string()) {
+                    schedule.marked.push(name.to_string());
+                }
+                refresh_prayer_items(&s, &schedule);
+                {
+                    let mut st = s.state.lock().unwrap();
+                    st.schedule.marked = schedule.marked.clone();
+                    st.schedule.next = schedule.next.clone();
+                }
+                let _ = s.app.emit("schedule_changed", &schedule);
+            }
         }
 
         // Trigger: medianoche (cambió la fecha local)
@@ -250,6 +313,7 @@ pub fn run(s: SchedulerLoop) {
             fired = 0;
             adhan_announced = false;
             date = today;
+            refresh_prayer_items(&s, &schedule);
             let _ = s.app.emit("schedule_changed", &schedule);
         }
 
@@ -288,6 +352,10 @@ pub fn run(s: SchedulerLoop) {
         // (secs < -ADHAN_SECS ya avanzó arriba sin tocar el audio).
         if secs < 0 && !adhan_announced {
             adhan_announced = true;
+            // registro del spec: el disparo queda asentado (status "adhan")
+            if let Err(e) = crate::registro::append(&schedule.date, PRAYERS[fired], "adhan") {
+                crate::log!("registro del disparo falló: {e}");
+            }
             match crate::audio::play_mock_adhan(crate::audio::MOCK_VOLUME) {
                 Ok(()) => crate::log!("🔊 adhan (mock beep 3.9 s) sonando por ALSA — volumen 0.70"),
                 Err(e) => crate::log!("audio falló en el disparo: {e}"),
