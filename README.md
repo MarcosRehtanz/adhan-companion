@@ -4,16 +4,16 @@ App de escritorio **tray-first** para Ubuntu: el tray es la app — horarios de 
 
 ## Estado
 
-🚧 En desarrollo (MVP). Actual: tray con estados dinámicos validado en GNOME/Wayland. Pipeline de spikes en curso: scheduler 24/7 → audio → FFI al cálculo ritual.
+🚧 **MVP funcional** — tray con estados, scheduler 24/7 (recalculo al reanudar del sleep), adhan real con confirmación, calendario de seguimiento retroactivo, notificaciones + preaviso y cálculo local por FFI. En proceso: packaging `.deb` release y validación CI contra portales oficiales.
 
-## Qué va a hacer (MVP)
+## Qué hace hoy
 
-- **Cálculo local** de los 5 horarios con [PrayTimes C](https://github.com/hamidzz/praytimes) compilado en el core Rust por FFI — sin red, usando el mismo código que el firmware del nodo hermano (proyecto "Adhan Companion — Alarma de Salat": ESP32-S3 con pantalla e-ink).
+- **Cálculo 100% local** de los 5 horarios con [PrayTimes C](https://github.com/crodesrepos/praytimes) compilado en el core Rust por FFI — sin red, mismo código que el firmware del nodo hermano ("Adhan Companion — Alarma de Salat", ESP32-S3).
 - **Icono del tray** con estados (silenciado / día / próximo < 15 min / adhan sonando) y menú con countdown + horarios del día.
-- **Preaviso + adhan**: notificación y audio con volumen propio, opción de silenciar.
-- **Marcar rezado** con registro local append-only.
-- Config: ubicación, método (MWL/ISNA/Egypt/UmmAlQura/Karachi/Diyanet), madhab, offsets — ventana de configuración normal.
-- 24/7 real: autostart, single-instance, recálculo al reanudar del sleep.
+- **Preaviso + adhan real** (grabación de dominio público) con volumen propio; confirmás "ya recé" desde el tray o silenciás.
+- **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
+- Config: ubicación (sugerencia por IP), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
+- 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
 
 ## Stack
 
