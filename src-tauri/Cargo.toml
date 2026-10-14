@@ -30,6 +30,7 @@ chrono = { version = "0.4", features = ["clock"] }
 # se usa con la API blocking en un thread dedicado (spike 2)
 zbus = { version = "5", features = ["blocking"] }
 rodio = { version = "0.23", default-features = false, features = ["playback", "wav"] }
+tauri-plugin-notification = "2.6.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

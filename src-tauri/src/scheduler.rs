@@ -211,6 +211,18 @@ pub const AZUL: (u8, u8, u8) = (0x21, 0x96, 0xf3);
 const AMBAR: (u8, u8, u8) = (0xff, 0x98, 0x00);
 const VERDE: (u8, u8, u8) = (0x4c, 0xaf, 0x50);
 
+/// Notificación freedesktop desde el core (plugin notification)
+fn notify(app: &tauri::AppHandle, title: &str, body: &str) {
+    use tauri_plugin_notification::NotificationExt;
+    let _ = app.notification().builder().title(title).body(body).show();
+    crate::log!("notificación: {title} — {body}");
+}
+
+/// test del canal para el comando IPC / menú
+pub fn notify_test(app: &tauri::AppHandle) {
+    notify(app, "Adhan Companion", "Notificación de prueba — así te avisamos el preaviso y el adhan");
+}
+
 pub struct SchedulerLoop {
     pub app: tauri::AppHandle,
     pub tray: tauri::tray::TrayIcon<tauri::Wry>,
@@ -256,6 +268,8 @@ pub fn run(s: SchedulerLoop) {
     let mut date = schedule.date.clone();
     // Edge del disparo: suena una sola vez por rezo al entrar en zona verde
     let mut adhan_announced = false;
+    // Edge del preaviso: una sola vez por rezo cuando entra en ventada notice
+    let mut notice_announced = false;
     refresh_prayer_items(&s, &schedule);
 
     loop {
@@ -282,6 +296,7 @@ pub fn run(s: SchedulerLoop) {
             schedule = compute_schedule(&snapshot(&s.config));
             fired = 0;
             adhan_announced = false;
+            notice_announced = false;
             date = schedule.date.clone();
             refresh_prayer_items(&s, &schedule);
             let _ = s.app.emit("schedule_changed", &schedule);
@@ -312,6 +327,7 @@ pub fn run(s: SchedulerLoop) {
             schedule = compute_schedule(&snapshot(&s.config));
             fired = 0;
             adhan_announced = false;
+            notice_announced = false;
             date = today;
             refresh_prayer_items(&s, &schedule);
             let _ = s.app.emit("schedule_changed", &schedule);
@@ -343,6 +359,7 @@ pub fn run(s: SchedulerLoop) {
             );
             fired += 1;
             adhan_announced = false;
+            notice_announced = false;
             let _ = s.app.emit("schedule_changed", &schedule);
             continue;
         }
@@ -356,10 +373,26 @@ pub fn run(s: SchedulerLoop) {
             if let Err(e) = crate::registro::append(&schedule.date, PRAYERS[fired], "adhan") {
                 crate::log!("registro del disparo falló: {e}");
             }
+            notify(&s.app, "Adhan — hora de orar", format!("{} ({})", PRAYERS[fired], schedule.prayers[fired].hhmm).as_str());
             match crate::audio::play_mock_adhan(crate::audio::MOCK_VOLUME) {
                 Ok(()) => crate::log!("🔊 adhan (mock beep 3.9 s) sonando por ALSA — volumen 0.70"),
                 Err(e) => crate::log!("audio falló en el disparo: {e}"),
             }
+        }
+
+        // Preaviso del spec: N min antes (notice.minutes_before del config),
+        // UNA vez por rezo (edge), solo si el rezo todavía no disparó
+        let notice_secs = snapshot(&s.config).notice.minutes_before as i64 * 60;
+        if secs > 0 && secs <= notice_secs && !notice_announced {
+            notice_announced = true;
+            notify(
+                &s.app,
+                "Preaviso",
+                format!("{} — {} en {} min", PRAYERS[fired].to_uppercase(), schedule.prayers[fired].hhmm, secs / 60).as_str(),
+            );
+        }
+        if secs <= 0 {
+            notice_announced = false;
         }
 
         // Estados del spec: azul (>15m) → ámbar (≤15m) → verde (adhan sonando ADHAN_SECS)

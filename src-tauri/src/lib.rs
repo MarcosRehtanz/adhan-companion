@@ -48,6 +48,15 @@ fn test_adhan() -> Result<(), String> {
     audio::play_mock_adhan(audio::MOCK_VOLUME)
 }
 
+// Notificación de prueba: valida el canal freedesktop UI-agnostic
+#[tauri::command]
+fn test_notification(app: tauri::AppHandle) -> Result<(), String> {
+    log!("test_notification (IPC)");
+    // reuso el helper del scheduler
+    scheduler::notify_test(&app);
+    Ok(())
+}
+
 // Contrato IPC del spec: marcar rezado — index 0..4 sobre los 5 del schedule
 #[tauri::command]
 fn mark_prayed(
@@ -98,6 +107,8 @@ fn set_autostart(enabled: bool, app: tauri::AppHandle) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // Notificaciones freedesktop: preaviso + disparo del adhan (core-side)
+        .plugin(tauri_plugin_notification::init())
         // Una segunda instancia enfoca a la viva, nunca duplica el tray
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             log!("segunda instancia detectada; enfocando la viva");
@@ -112,7 +123,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            greet, get_schedule, test_adhan, get_config, set_config, set_autostart, mark_prayed
+            greet, get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
@@ -145,6 +156,8 @@ pub fn run() {
             }
             let test_adhan =
                 MenuItem::with_id(app, "test_adhan", "Reproducir adhan ahora (test)", true, None::<&str>)?;
+            let test_notif =
+                MenuItem::with_id(app, "test_notification", "Notificación de prueba", true, None::<&str>)?;
             let config = MenuItem::with_id(app, "config", "Configuración…", true, None::<&str>)?;
             let salir = MenuItem::with_id(app, "exit", "Salir", true, None::<&str>)?;
 
@@ -157,6 +170,7 @@ pub fn run() {
             let menu = menu
                 .separator()
                 .item(&test_adhan)
+                .item(&test_notif)
                 .item(&config)
                 .separator()
                 .item(&salir)
@@ -179,6 +193,7 @@ pub fn run() {
                             Err(e) => log!("audio falló: {e}"),
                         }
                     }
+                    "test_notification" => scheduler::notify_test(app),
                     "config" => {
                         if let Some(w) = app.get_webview_window("main") {
                             let _ = w.show();
