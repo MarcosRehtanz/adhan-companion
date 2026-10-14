@@ -54,6 +54,6 @@ pnpm tauri build
 
 ## Estado actual
 
-- Tests: no hay todavía (primer FFI/calculo será donde nazcan). CI: no hay.
+- Tests: **`cargo test --test ffi_praytimes`** (en `src-tauri/`) — suite de precisión ritual: 6 tests + paridad contra PrayTimes.js. CI aún no.
 - El `README.md` está en español y mantiene el estado del proyecto al público (no dejarlo volver a boilerplate).
-- Progreso: scaffold + **Spike 1 (tray) validado**, **Spike 2 (scheduler 24/7) validado en vivo (suspend real vía zbus)**, **Spike 3 (audio rodio) validado en vivo** — con contratos IPC `get_schedule`/`schedule_changed`/`test_adhan` definidos. Pendientes: Spike 4 FFI (`praytimes.c` por `cc`), luego config.json real (set_config), registro (mark_prayed), notificaciones.
+- Progreso: **los 4 spikes de riesgo cerrados y validados** — tray (1), scheduler 24/7 con zbus (2), audio rodio (3), FFI PrayTimes C (4, con paridad 10/10 el min vs JS y 6 tests). Los horarios son REALES (FFI) con config default constante (BA/MWL/Shafi) hasta que exista config.json. Próximo hito producto: config.json + IPC `set_config` + ventana de settings React; después `mark_prayed`/registro.jsonl, notificaciones, assets reales, validación contra portales oficiales y `.deb` final.
