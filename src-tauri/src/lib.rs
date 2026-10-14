@@ -33,11 +33,6 @@ macro_rules! log {
     }};
 }
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 // Contrato IPC del spec: el frontend pide el schedule actual.
 // Error → String: MVP plano y depurable (se endurece cuando haya errores de dominio)
 #[tauri::command]
@@ -152,7 +147,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            greet, get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for
+            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {

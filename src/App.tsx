@@ -45,6 +45,9 @@ interface Config {
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
+/// Componente raíz: header (logo + día + horarios), tabs, y la card del tab activo.
+/// El estado vive en Rust (core); acá se lee por IPC (`get_config`, `get_schedule`)
+/// y se empuja por eventos (`schedule_changed`).
 export default function App() {
   const [tab, setTab] = useState<Tabs>("ubicacion");
   const [cfg, setCfg] = useState<Config | null>(null);
@@ -318,6 +321,9 @@ export default function App() {
   );
 }
 
+/// Calendario mensual de seguimiento: grid del mes con indicador de completado,
+/// navegación por meses y panel del día seleccionado (los 5 rezos en fila).
+/// Marca/desmarca = toggle sobre el registro (último evento gana).
 function Calendario({ schedule, onToggle }: {
   schedule: Schedule | null;
   onToggle: (date: string, prayer: string) => void;
@@ -442,15 +448,18 @@ function Calendario({ schedule, onToggle }: {
   );
 }
 
+/// "YYYY-MM-DD" local (sin UTC — las fechas son del calendario de seguimiento)
 function fmt(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/// "YYYY-MM-DD" → "13 oct 2026" para el título del día seleccionado
 function fmtBonito(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   return `${d} ${MESES[m - 1]} ${y}`;
 }
 
+/// Toggle de autostart (plugin tauri, habilitado por el usuario)
 function AutostartBox() {
   const [on, setOn] = useState(false);
   const toggle = (v: boolean) => {
