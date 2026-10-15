@@ -290,51 +290,53 @@ export default function App() {
               <input type="range" min="0" max="100" value={cfg.audio.volume}
                 onChange={(e) => updAudio({ volume: +e.target.value })} />
             </label>
-            <div>
-              <div className="grupo-tit" style={{ fontSize: 11, color: "var(--texto-tenue)", fontWeight: 600, marginBottom: 8 }}>
-                Rezos con adhan
-              </div>
-              <div className="fila" style={{ gap: 12, flexWrap: "wrap" }}>
-                {PRAYERS.map((p) => (
-                  <label key={p} className="check">
-                    <input type="checkbox" checked={cfg.audio.enabled[p.toLowerCase()] ?? true}
-                      onChange={(e) => updAudio({ enabled: { ...cfg.audio.enabled, [p.toLowerCase()]: e.target.checked } })} />
-                    {p}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="grupo-tit" style={{ fontSize: 11, color: "var(--texto-tenue)", fontWeight: 600, marginBottom: 8 }}>
-                Muecín por rezo
-              </div>
-              <div className="fila" style={{ gap: 12, flexWrap: "wrap" }}>
+            <div className="audio-por-rezo">
+              <div className="grupo-tit">Adhan por rezo</div>
+              <div className="audio-filas">
                 {PRAYERS.map((p) => {
                   const key = p.toLowerCase();
                   const elegido = cfg.audio.muecinPorRezo?.[key] ?? "default";
+                  const slot = schedule?.prayers.find((s) => s.name === p);
+                  const deshabilitado = cfg.audio.enabled[key] === false;
                   return (
-                    <label key={p} className="check">
-                      {p}
-                      <select value={elegido}
+                    <div className={`audio-fila ${deshabilitado ? "off" : ""}`} key={p}>
+                      <label className="check" title={deshabilitado ? `${p}: adhan silenciado` : `${p}: adhan activo`}>
+                        <input type="checkbox" checked={cfg.audio.enabled[key] ?? true}
+                          onChange={(e) => updAudio({ enabled: { ...cfg.audio.enabled, [key]: e.target.checked } })} />
+                      </label>
+                      <span className="audio-rezo">
+                        {p}
+                        {slot?.hhmm ? <span className="audio-hora">· {slot.hhmm}</span> : null}
+                      </span>
+                      <select className="audio-select" value={elegido} disabled={deshabilitado}
+                        title={deshabilitado ? "silenciado — activá el checkbox" : "muecín que suena en " + p}
                         onChange={(e) => updAudio({ muecinPorRezo: { ...cfg.audio.muecinPorRezo, [key]: e.target.value } })}>
                         {(muecines.length ? muecines : ["default"]).map((m) => (
-                          <option key={m} value={m}>{m}</option>
+                          <option key={m} value={m}>{m === "default" ? "Por defecto (embebido)" : m}</option>
                         ))}
                       </select>
-                    </label>
+                      {!deshabilitado && (
+                        <button className="mini-play" title={`Probar el muecín de ${p} (clic de nuevo detiene)`}
+                          onClick={() => invoke("test_adhan", { muecin: elegido }).catch((e) => flash("test: " + e, "error"))}>
+                          <Play size={13} strokeWidth={2.4} />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
             </div>
-            <button className="test" onClick={() => invoke("test_adhan").catch((e) => flash("test: " + e, "error"))}>
+            <button className="test" onClick={() => invoke("test_adhan", { muecin: null }).catch((e) => flash("test: " + e, "error"))}>
               <Play size={14} strokeWidth={2.4} />
-              Probar adhan (clic para reproducir / detener)
+              Probar adhan del próximo rezo (clic para reproducir / detener)
             </button>
             <p className="nota">
-              El botón Probar toca el muecín del <b>próximo rezo</b> (test del
-              ciclo completo). Agregar muezzines: pegá WAVs <code>mono 22.05&nbsp;kHz</code> en
-              <code> ~/.config/adhan-companion/muecines/</code> y reiniciá la
-              ventana — el adhan default es el de Doha, dominio público (ver <code>CREDITS.md</code>).
+              Catálogo: muecines instalados con la app (colección Doha, dominio
+              público — <code>CREDITS.md</code>) más los tuyos: pegá WAVs{" "}
+              <code>mono 22.05&nbsp;kHz</code> en{" "}
+              <code>~/.config/adhan-companion/muecines/</code> y reabrí esta
+              pestaña para verlos. "Por defecto" es el respaldo embebido que
+              suena cuando un rezo no tiene selección (o su archivo no aparece).
             </p>
           </section>
         )}

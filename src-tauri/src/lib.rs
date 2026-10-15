@@ -47,15 +47,16 @@ fn get_schedule(state: tauri::State<scheduler::SharedState>) -> Result<scheduler
 // sin próximo (día pasado) cae al default embebido.
 #[tauri::command]
 fn test_adhan(
+    muecin: Option<String>,
     state: tauri::State<SharedConfig>,
     sched: tauri::State<scheduler::SharedState>,
 ) -> Result<(), String> {
-    log!("test_adhan (IPC): toggle del adhan real");
     let cfg = state.read().map(|c| c.clone()).map_err(|e| format!("config: {e}"))?;
-    let muecin = proximo_muecin(&sched, &cfg);
-    log!("test con muecín '{}'", muecin.as_deref().unwrap_or("default"));
+    // muecin None → el del próximo rezo (ciclo real del día); Some → preview de
+    // una fila específica de la tab Audio (el muecín elegido para ese rezo)
+    let muecin = muecin.or_else(|| proximo_muecin(&sched, &cfg));
     let estado = audio::toggle_adhan(cfg.audio.volume as f32 / 100.0, muecin.as_deref())?;
-    log!("adhan: {estado}");
+    log!("test_adhan: {estado} (muecín '{}')", muecin.unwrap_or_else(|| "default".into()));
     Ok(())
 }
 

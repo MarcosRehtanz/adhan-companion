@@ -270,6 +270,40 @@ button.test:disabled { opacity: 0.5; cursor: default; }
 .nota {
   font-size: 11px; color: var(--texto-tenue); margin: 2px 0 0; line-height: 1.55;
 }
+
+/* ---------- tab Audio: adhan por rezo ---------- */
+
+.audio-por-rezo {
+  border: 1px solid var(--borde); border-radius: var(--r-control);
+  background: var(--bg); padding: 12px 14px;
+}
+.audio-filas {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 10px;
+}
+.audio-fila {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px;
+  background: var(--tarjeta);
+  border: 1px solid var(--borde); border-radius: var(--r-control);
+}
+.audio-fila.off { opacity: 0.55; }
+.audio-rezo {
+  width: 96px; font-size: 13px; font-weight: 600; color: var(--texto);
+}
+.audio-hora {
+  font-weight: 400; font-size: 12px; color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+.audio-select { width: 200px; height: auto; padding: 6px 9px; font-size: 12.5px; }
+.mini-play {
+  margin-left: auto;
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--borde); border-radius: var(--r-control);
+  background: #fff; color: var(--acento); cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.mini-play:hover { background: var(--chip); border-color: var(--acento); }
 .nota code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 10.5px; }
 .nota a { color: var(--acento); }
 
