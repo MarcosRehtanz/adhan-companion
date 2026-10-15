@@ -86,21 +86,57 @@ export default function App() {
   }, []);
 
   // Sugerencia de ubicación por IP (única pieza de red del spec)
+  // Cadena de proveedores: si uno falla o no trae ciudad, se prueba el próximo.
+  // Nota de precisión: la geolocalización de IP es a nivel subnet del ISP —
+  // a veces devuelve el hub/nodo del proveedor (ej. Buenos Aires) en vez del
+  // pueblo/ciudad. Es una *sugerencia*: la revisión manual es parte del diseño.
   const [detectando, setDetectando] = useState(false);
   const detectarPorIP = async () => {
     setDetectando(true);
     try {
-      const res = await fetch("https://ipapi.co/json/");
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const j = await res.json();
+      type Rta = { city: string; lat: number; lon: number; tz: string; pais: string };
+      const proveedores: { url: string; parse: (j: any) => Rta | null }[] = [
+        { // ipwho.is — success explícito, lat/lon numéricos
+          url: "https://ipwho.is/",
+          parse: (j) =>
+            j.success !== false && j.city
+              ? { city: String(j.city), lat: Number(j.latitude), lon: Number(j.longitude), tz: String(j.timezone.id), pais: String(j.country) }
+              : null,
+        },
+        { // geojs — json plano sin rate limit duro
+          url: "https://get.geojs.io/v1/ip/geo.json",
+          parse: (j) =>
+            j.city
+              ? { city: String(j.city), lat: Number(j.latitude), lon: Number(j.longitude), tz: String(j.timezone), pais: String(j.country) }
+              : null,
+        },
+        { // ipapi.co — el original; a veces rate-limita (HTTP 429)
+          url: "https://ipapi.co/json/",
+          parse: (j) =>
+            j.city && !j.error
+              ? { city: String(j.city), lat: Number(j.latitude), lon: Number(j.longitude), tz: String(j.timezone), pais: String(j.country_name) }
+              : null,
+        },
+      ];
+      let rta: Rta | null = null;
+      let ultimoError: unknown = null;
+      for (const p of proveedores) {
+        try {
+          const res = await fetch(p.url);
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const parsed = p.parse(await res.json());
+          if (parsed) { rta = parsed; break; }
+        } catch (e) { ultimoError = e; }
+      }
+      if (!rta) throw (ultimoError ?? new Error("ningún proveedor devolvió ciudad"));
       if (!cfg) throw new Error("config aún sin cargar");
       upd({
-        city: String(j.city ?? cfg.city),
-        lat: Number(j.latitude ?? cfg.lat),
-        lon: Number(j.longitude ?? cfg.lon),
-        tz: String(j.timezone ?? cfg.tz),
+        city: rta.city,
+        lat: Number.isFinite(rta.lat) ? rta.lat : cfg.lat,
+        lon: Number.isFinite(rta.lon) ? rta.lon : cfg.lon,
+        tz: rta.tz || cfg.tz,
       });
-      flash(`Sugerencia por IP: ${j.city}, ${j.country_name} — revisá y guardá`, "ok");
+      flash(`Sugerencia por IP: ${rta.city}, ${rta.pais} (${rta.lat.toFixed(3)}, ${rta.lon.toFixed(3)}) — revisá y guardá`, "ok");
     } catch (e) {
       flash("No se pudo detectar: " + e + " — cargá lat/lon manual", "error");
     } finally {
@@ -170,10 +206,15 @@ export default function App() {
               </label>
               <span className="hint">del sistema</span>
             </div>
-            <button className="test" disabled={!detectando} onClick={detectarPorIP}>
+            <button className="test" disabled={detectando} onClick={detectarPorIP}>
               <LocateFixed size={14} strokeWidth={2.4} />
               {detectando ? "Detectando…" : "Detectar por IP (sugerencia)"}
             </button>
+            <p className="nota">
+              El cálculo es 100% local — la red se usa solo para sugerir la
+              ubicación. Manual: clic derecho en Google Maps copiá los números;
+              latitud con <code>−</code> al sur, longitud con <code>−</code> al oeste.
+            </p>
             <p className="nota">
               El cálculo es 100% local — la red se usa solo para sugerir la
               ubicación. Manual: clic derecho en Google Maps copiá los números;
