@@ -9,6 +9,11 @@ El **spec de producto vive fuera del repo**, en el vault Obsidian (ahora en un p
 - Fallback (copia en disco): `/home/usuario/Documentos/Obsidian/Ingeniería/Proyectos/Adhan Companion — App de Escritorio.md`
 Consultarlo antes de decidir UX/config/scheduler. Nota hermana con gotchas de Tauri: `02 Frameworks/Desktop/Tauri.md` (mismo vault). Si un path no existe (pendrive desmontado), usar el otro.
 
+El **conocimiento de dominio islámico** vive en otro vault (mismo esquema USB + fallback):
+- Principal: `/run/media/usuario/MARCOSUSB/Obsidian/Islam`
+- Fallback: `/home/usuario/Documentos/Obsidian/Islam`
+Relevante para esta app: `08 Práctica/Rezos/` (una ficha por rezo: Fajr/Dhuhr/Asr/Maghrib/Isha), el adhan y el rito en `08 Práctica/Práctica de la salat.md`, y `06 Conceptos/Salat.md`. Leerlo antes de tocar nombres de rezos, textos del adhan o criterios de método/madhab.
+
 ## Estructura (Tauri 2 + React/TS)
 
 - `src-tauri/` — **core Rust, corre siempre**: tray, scheduler, audio, FFI. El punto real de la app es `src-tauri/src/lib.rs` (`run()`); `main.rs` solo delega.
