@@ -4,9 +4,10 @@
 
 App de escritorio **tray-first** para Ubuntu (GNOME/Wayland): "Adhan Companion" — horarios de rezo, preaviso + adhan, registro de rezos. MVP Linux; futuro: agente local de un nodo ESP32 (hermano de hardware).
 
-El **spec de producto vive fuera del repo**, en el vault Obsidian:
-`/home/usuario/Documentos/Obsidian/Ingeniería/Proyectos/Adhan Companion — App de Escritorio.md`
-Consultarlo antes de decidir UX/config/scheduler. Nota hermana con gotchas de Tauri: `02 Frameworks/Desktop/Tauri.md` (mismo vault).
+El **spec de producto vive fuera del repo**, en el vault Obsidian (ahora en un pendrive; el path depende del montaje):
+- Principal (pendrive SanDisk): `/run/media/usuario/MARCOSUSB/Obsidian/Ingenieria/Proyectos/Adhan Companion — App de Escritorio.md`
+- Fallback (copia en disco): `/home/usuario/Documentos/Obsidian/Ingeniería/Proyectos/Adhan Companion — App de Escritorio.md`
+Consultarlo antes de decidir UX/config/scheduler. Nota hermana con gotchas de Tauri: `02 Frameworks/Desktop/Tauri.md` (mismo vault). Si un path no existe (pendrive desmontado), usar el otro.
 
 ## Estructura (Tauri 2 + React/TS)
 
