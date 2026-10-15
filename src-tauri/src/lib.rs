@@ -162,7 +162,7 @@ fn set_autostart(enabled: bool, app: tauri::AppHandle) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         // Notificaciones freedesktop: preaviso + disparo del adhan (core-side)
         .plugin(tauri_plugin_notification::init())
         // Una segunda instancia enfoca a la viva, nunca duplica el tray
@@ -217,12 +217,43 @@ pub fn run() {
                 )?;
                 prayer_items.push(((*name).to_string(), mi));
             }
-            let test_adhan =
-                MenuItem::with_id(app, "test_adhan", "Reproducir adhan ahora (test)", true, None::<&str>)?;
+            let test_adhan: Option<MenuItem<tauri::Wry>> = {
+                #[cfg(debug_assertions)]
+                {
+                    Some(MenuItem::with_id(
+                        app,
+                        "test_adhan",
+                        "Reproducir adhan ahora (test)",
+                        true,
+                        None::<&str>,
+                    )?)
+                }
+                // dev-tool del spike 3 que quedó en el canal: en prod el usuario
+                // prueba su muecín desde la tab Audio (via get_qibla... via
+                // test_adhan del IPC — solo para validación dev)
+                #[cfg(not(debug_assertions))]
+                {
+                    None
+                }
+            };
             let silenciar =
                 MenuItem::with_id(app, "silence_adhan", "Silenciar adhan", true, None::<&str>)?;
-            let test_notif =
-                MenuItem::with_id(app, "test_notification", "Notificación de prueba", true, None::<&str>)?;
+            let test_notif: Option<MenuItem<tauri::Wry>> = {
+                #[cfg(debug_assertions)]
+                {
+                    Some(MenuItem::with_id(
+                        app,
+                        "test_notification",
+                        "Notificación de prueba",
+                        true,
+                        None::<&str>,
+                    )?)
+                }
+                #[cfg(not(debug_assertions))]
+                {
+                    None
+                }
+            };
             let config = MenuItem::with_id(app, "config", "Configuración…", true, None::<&str>)?;
             let salir = MenuItem::with_id(app, "exit", "Salir", true, None::<&str>)?;
 
@@ -232,15 +263,20 @@ pub fn run() {
             for (_, mi) in &prayer_items {
                 menu = menu.item(mi);
             }
-            let menu = menu
+            menu = menu
                 .separator()
-                .item(&test_adhan)
                 .item(&silenciar)
-                .item(&test_notif)
                 .item(&config)
                 .separator()
-                .item(&salir)
-                .build()?;
+                .item(&salir);
+            // Herramientas de dev solo aparecen con debug_assertions; el
+            // .deb / the release nunca los ve (cliente prod limpio)
+            for extra in [&test_adhan, &test_notif].into_iter().flatten() {
+                menu = menu
+                    .separator()
+                    .item(extra);
+            }
+            let menu = menu.build()?;
 
             // canal de triggers del scheduler: existe ANTES del tray para que
             // el handler del menú pueda mandar Pray
@@ -253,6 +289,9 @@ pub fn run() {
                 .menu(&menu)
                 .tooltip("Adhan Companion")
                 .on_menu_event(move |app, ev| match ev.id().as_ref() {
+                    // (los ítems test_adhan/test_notification solo existen en
+                    // dev — en release estas arm llegan solo si el IPC los
+                    // dispara directo, no desde el menú)
                     "test_adhan" => {
                         // mismo criterio que el IPC: muecín del próximo rezo
                         let cfg = app.state::<SharedConfig>().read().ok().map(|c| c.clone());
