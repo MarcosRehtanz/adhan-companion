@@ -42,13 +42,38 @@ fn get_schedule(state: tauri::State<scheduler::SharedState>) -> Result<scheduler
 }
 
 // Contrato IPC del spec: test de audio — el futuro botón "Probar" de la tab Audio
+// Toca el muecín que sonaría en el PRÓXIMO rezo (test del ciclo completo real);
+// sin próximo (día pasado) cae al default embebido.
 #[tauri::command]
-fn test_adhan(state: tauri::State<SharedConfig>) -> Result<(), String> {
+fn test_adhan(
+    state: tauri::State<SharedConfig>,
+    sched: tauri::State<scheduler::SharedState>,
+) -> Result<(), String> {
     log!("test_adhan (IPC): toggle del adhan real");
     let cfg = state.read().map(|c| c.clone()).map_err(|e| format!("config: {e}"))?;
-    let estado = audio::toggle_adhan(cfg.audio.volume as f32 / 100.0)?;
+    let muecin = proximo_muecin(&sched, &cfg);
+    log!("test con muecín '{}'", muecin.as_deref().unwrap_or("default"));
+    let estado = audio::toggle_adhan(cfg.audio.volume as f32 / 100.0, muecin.as_deref())?;
     log!("adhan: {estado}");
     Ok(())
+}
+
+/// Nombre del muecín que sonaría en el próximo rezo según `audio.muecinPorRezo`
+/// (None o mapping vacío → default embebido).
+fn proximo_muecin(
+    sched: &tauri::State<scheduler::SharedState>,
+    cfg: &config::Config,
+) -> Option<String> {
+    let st = sched.lock().ok()?;
+    let next = st.schedule.next.as_deref()?.to_lowercase();
+    cfg.audio.muecinPorRezo.get(&next).cloned()
+}
+
+// Catálogo de muecines disponibles: default embebido + disco (usuario y
+// resources). Lo consumen los selectores por rezo de la tab Audio.
+#[tauri::command]
+fn list_muecines() -> Vec<String> {
+    audio::list()
 }
 
 // Notificación de prueba: valida el canal freedesktop UI-agnostic
@@ -147,7 +172,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for
+            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, list_muecines
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
@@ -158,6 +183,13 @@ pub fn run() {
             }
         })
         .setup(move |app| {
+            // Muecines instalados con el .deb (resources): registro su path
+            // una vez para que audio.rs los resuelva. En dev puede no
+            // resolverse — la biblioteca queda solo con el default embebido.
+            if let Ok(dir) = app.path().resolve("assets/muecin", tauri::path::BaseDirectory::Resource) {
+                crate::audio::set_resource_dir(dir);
+            }
+
             // Menú según el spec: countdown arriba, los 5 horarios (clic = marcar rezado),
             // test de audio, configuración y salir
             let countdown = MenuItem::with_id(
@@ -215,12 +247,18 @@ pub fn run() {
                 .tooltip("Adhan Companion")
                 .on_menu_event(move |app, ev| match ev.id().as_ref() {
                     "test_adhan" => {
-                        let vol = app
-                            .state::<SharedConfig>()
-                            .read()
+                        // mismo criterio que el IPC: muecín del próximo rezo
+                        let cfg = app.state::<SharedConfig>().read().ok().map(|c| c.clone());
+                        let muecin = {
+                            let sched = app.state::<scheduler::SharedState>();
+                            cfg.as_ref()
+                                .and_then(|c| proximo_muecin(&sched, c))
+                        };
+                        let vol = cfg
+                            .as_ref()
                             .map(|c| c.audio.volume as f32 / 100.0)
                             .unwrap_or(0.7);
-                        match crate::audio::toggle_adhan(vol) {
+                        match crate::audio::toggle_adhan(vol, muecin.as_deref()) {
                             Ok(estado) => log!("adhan (test) desde el menú: {estado}"),
                             Err(e) => log!("audio falló: {e}"),
                         }

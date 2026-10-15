@@ -38,7 +38,7 @@ interface Config {
   madhab: string;
   highLatRule: string;
   offsets: { fajr: number; dhuhr: number; asr: number; maghrib: number; isha: number };
-  audio: { volume: number; enabled: Record<string, boolean>; muecin: Record<string, string> };
+  audio: { volume: number; enabled: Record<string, boolean>; muecin: Record<string, string>; muecinPorRezo: Record<string, string> };
   notice: { minutes_before: number };
   agent: { mqtt: boolean; broker: string };
 }
@@ -55,9 +55,14 @@ export default function App() {
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [status, setStatus] = useState<{ text: string; kind: "ok" | "error" } | null>(null);
 
+  // Catálogo de muecines disponibles (default embebido + disco), para los
+  // selectores por rezo de la tab Audio.
+  const [muecines, setMuecines] = useState<string[]>([]);
+
   useEffect(() => {
     invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
     invoke<Schedule>("get_schedule").then(setSchedule).catch(() => {});
+    invoke<string[]>("list_muecines").then(setMuecines).catch(() => {});
     const un = listen<Schedule>("schedule_changed", (ev) => setSchedule(ev.payload));
     return () => { un.then((f) => f()); };
   }, []);
@@ -288,11 +293,38 @@ export default function App() {
                 ))}
               </div>
             </div>
+            <div>
+              <div className="grupo-tit" style={{ fontSize: 11, color: "var(--texto-tenue)", fontWeight: 600, marginBottom: 8 }}>
+                Muecín por rezo
+              </div>
+              <div className="fila" style={{ gap: 12, flexWrap: "wrap" }}>
+                {PRAYERS.map((p) => {
+                  const key = p.toLowerCase();
+                  const elegido = cfg.audio.muecinPorRezo?.[key] ?? "default";
+                  return (
+                    <label key={p} className="check">
+                      {p}
+                      <select value={elegido}
+                        onChange={(e) => updAudio({ muecinPorRezo: { ...cfg.audio.muecinPorRezo, [key]: e.target.value } })}>
+                        {(muecines.length ? muecines : ["default"]).map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <button className="test" onClick={() => invoke("test_adhan").catch((e) => flash("test: " + e, "error"))}>
               <Play size={14} strokeWidth={2.4} />
               Probar adhan (clic para reproducir / detener)
             </button>
-            <p className="nota">Muecín actual: adhan de Doha, dominio público (ver <code>CREDITS.md</code>). Biblioteca por rezo en v1.1.</p>
+            <p className="nota">
+              El botón Probar toca el muecín del <b>próximo rezo</b> (test del
+              ciclo completo). Agregar muezzines: pegá WAVs <code>mono 22.05&nbsp;kHz</code> en
+              <code> ~/.config/adhan-companion/muecines/</code> y reiniciá la
+              ventana — el adhan default es el de Doha, dominio público (ver <code>CREDITS.md</code>).
+            </p>
           </section>
         )}
 

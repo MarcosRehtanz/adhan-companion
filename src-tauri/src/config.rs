@@ -127,6 +127,12 @@ pub struct AudioConfig {
     pub enabled: Enabled,
     #[serde(default)]
     pub muecin: MuecinMap,
+    // muecín por rezo — camelCase como el resto del schema compatible MQTT
+    // (`highLatRule`): clave = rezo en minúscula ("fajr"), value = nombre del
+    // muecín del catálogo. Ausente / "default" → default.wav embebido.
+    #[allow(non_snake_case)]
+    #[serde(default)]
+    pub muecinPorRezo: MuecinMap,
 }
 
 impl Default for AudioConfig {
@@ -142,6 +148,7 @@ impl Default for AudioConfig {
             muecin: [("default".to_string(), "default.wav".to_string())]
                 .into_iter()
                 .collect(),
+            muecinPorRezo: MuecinMap::new(),
         }
     }
 }
