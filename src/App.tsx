@@ -7,7 +7,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
   MapPin, Calculator, Volume2, Network, Settings, Play,
-  Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, type LucideIcon,
+  Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, Compass, type LucideIcon,
 } from "lucide-react";
 import type { Schedule, MarkedDay } from "./types";
 import logo from "./assets/logo.png";
@@ -54,6 +54,8 @@ export default function App() {
   const [guardada, setGuardada] = useState<Config | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [status, setStatus] = useState<{ text: string; kind: "ok" | "error" } | null>(null);
+  // qibla del config actual (grados desde el norte — referencia)
+  const [qibla, setQibla] = useState<number | null>(null);
 
   // Catálogo de muecines disponibles (default embebido + disco), para los
   // selectores por rezo de la tab Audio.
@@ -62,6 +64,7 @@ export default function App() {
   useEffect(() => {
     invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
     invoke<Schedule>("get_schedule").then(setSchedule).catch(() => {});
+    invoke<number>("get_qibla").then(setQibla).catch(() => {});
     invoke<string[]>("list_muecines").then(setMuecines).catch(() => {});
     const un = listen<Schedule>("schedule_changed", (ev) => setSchedule(ev.payload));
     return () => { un.then((f) => f()); };
@@ -78,6 +81,7 @@ export default function App() {
       const saved = await invoke<Config>("set_config", { cfg });
       setCfg(saved);
       setGuardada(saved);
+      invoke<number>("get_qibla").then(setQibla).catch(() => {});
       setStatus({ text: "Guardado", kind: "ok" });
     } catch (e) {
       setStatus({ text: "Error al guardar: " + e, kind: "error" });
@@ -211,6 +215,13 @@ export default function App() {
               </label>
               <span className="hint">del sistema</span>
             </div>
+            {qibla != null && (
+              <p className="nota">
+                <Compass size={11} strokeWidth={2.2} style={{ verticalAlign: "-1px" }} />{" "}
+                <b>Qibla:</b> {qibla.toFixed(1)}° desde el norte — referencia, no
+                una brújula (no hay magnetómetro en la laptop).
+              </p>
+            )}
             <button className="test" disabled={detectando} onClick={detectarPorIP}>
               <LocateFixed size={14} strokeWidth={2.4} />
               {detectando ? "Detectando…" : "Detectar por IP (sugerencia)"}

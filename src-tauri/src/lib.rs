@@ -3,6 +3,7 @@
 pub mod audio;
 pub mod config;
 pub mod prayer;
+pub mod qibla;
 pub mod registro;
 pub mod scheduler;
 
@@ -85,6 +86,13 @@ fn test_notification(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// Qibla: rumbo desde el norte hacia la Qaaba, con la ubicación del config real
+#[tauri::command]
+fn get_qibla(state: tauri::State<SharedConfig>) -> Result<f64, String> {
+    let cfg = state.read().map(|c| c.clone()).map_err(|e| format!("config: {e}"))?;
+    Ok(qibla::bearing(cfg.lat, cfg.lon))
+}
+
 // Contrato IPC del spec: marcar/desmarcar rezado por fecha (toggle, last-wins)
 #[tauri::command]
 fn mark_prayed(
@@ -109,8 +117,7 @@ fn get_marked(month: String) -> Result<Vec<registro::MarkedDay>, String> {
 
 // Horarios de una fecha (pasado) para el calendario retroactivo
 #[tauri::command]
-fn get_schedule_for(date: String, state: tauri::State<SharedConfig>) -> Result<Vec<scheduler::PrayerSlot>, String> {
-    let parts: Vec<&str> = date.split('-').collect();
+fn get_schedule_for(date: String, state: tauri::State<SharedConfig>) -> Result<Vec<scheduler::PrayerSlot>, String> {    let parts: Vec<&str> = date.split('-').collect();
     if parts.len() != 3 {
         return Err(format!("fecha inválida: {date} (esperado YYYY-MM-DD)"));
     }
@@ -172,7 +179,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, list_muecines
+            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, list_muecines, get_qibla
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
