@@ -24,7 +24,18 @@ static void pt_apply_method(int method)
 	case PT_METHOD_EGYPT:   set_calc_method(Egypt);   break;
 	case PT_METHOD_MAKKAH:  set_calc_method(Makkah);  break;
 	case PT_METHOD_KARACHI: set_calc_method(Karachi); break;
-	case PT_METHOD_TEHRAN:  /* Tehran = Jafari en PrayTimes */
+	case PT_METHOD_TEHRAN:
+		/* Tehran = params OFICIALES de la Universidad de Tehran:
+		 * fajr 17.7°, maghrib 4.5°, isha 14.1° (validados por el fixer de
+		 * alAdhan en tests/validate_official.rs). El "Jafari" del port usa
+		 * 16/4/14 — es la variante Ithna-Ashari del linaje PrayTimes 1.1. */
+		set_calc_method(Jafari);
+		method_params[Jafari].fajr_angle = 17.7;
+		method_params[Jafari].maghrib_is_minutes = false;
+		method_params[Jafari].maghrib_value = 4.5;
+		method_params[Jafari].isha_is_minutes = false;
+		method_params[Jafari].isha_value = 14.1;
+		break;
 	case PT_METHOD_JAFARI:  set_calc_method(Jafari);  break;
 	case PT_METHOD_CUSTOM:  set_calc_method(Custom);  break;
 	default:                set_calc_method(MWL);     break;
@@ -91,13 +102,26 @@ void pt_tune(PrayTimes* pt, const char* name, int minutes)
 void pt_set_fajr_angle(PrayTimes* pt, double angle)
 {
 	(void)pt;
-	set_fajr_angle(angle);
+	/* El setter del port altera calc_method→Custom, lo que PISA el método
+	 * activo (ej: Makkah pierde su isha 90-min). Para seguir el contrato del
+	 * spec (override manteniendo el método), parcheamos el campo directo. */
+	method_params[calc_method].fajr_angle = angle;
 }
 
 void pt_set_isha_angle(PrayTimes* pt, double angle)
 {
 	(void)pt;
-	set_isha_angle(angle);
+	method_params[calc_method].isha_is_minutes = false;
+	method_params[calc_method].isha_value = angle;
+}
+
+/* maghrib como ángulo, preservando el método activo (el setter del port
+ * también clobber a Custom — misma trampa que set_fajr_angle) */
+void pt_set_maghrib_angle(PrayTimes* pt, double angle)
+{
+	(void)pt;
+	method_params[calc_method].maghrib_is_minutes = false;
+	method_params[calc_method].maghrib_value = angle;
 }
 
 void pt_get_times(PrayTimes* pt,

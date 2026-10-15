@@ -261,6 +261,7 @@ impl From<&Config> for crate::prayer::PrayerConfig {
             high_lat_rule: cfg.highLatRule,
             fajr_angle: None,
             isha_angle: None,
+            maghrib_angle: None,
             offsets: [cfg.offsets.fajr, cfg.offsets.dhuhr, cfg.offsets.asr, cfg.offsets.maghrib, cfg.offsets.isha],
             dhuhr_minutes: 0,
         }

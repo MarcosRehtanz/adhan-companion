@@ -37,6 +37,8 @@ pub struct PrayerConfig {
     pub high_lat_rule: HighLatRule,
     pub fajr_angle: Option<f64>,
     pub isha_angle: Option<f64>,
+    /// maghrib como ángulo (Tehran oficial usa 4.5°) — default: usa el método
+    pub maghrib_angle: Option<f64>,
     /// offsets por rezo en minutos: Fajr..Isha (post-proceso en Rust)
     pub offsets: [i32; 5],
     /// minutes después del mid-day para Dhuhr (viaja al C vía pt_tune)
@@ -51,6 +53,7 @@ impl Default for PrayerConfig {
             high_lat_rule: HighLatRule::AqrabAlAyyam,
             fajr_angle: None,
             isha_angle: None,
+            maghrib_angle: None,
             offsets: [0; 5],
             dhuhr_minutes: 0,
         }
@@ -66,6 +69,7 @@ unsafe extern "C" {
     fn pt_tune(pt: *const std::ffi::c_void, name: *const c_char, minutes: c_int);
     fn pt_set_fajr_angle(pt: *mut std::ffi::c_void, angle: c_double);
     fn pt_set_isha_angle(pt: *mut std::ffi::c_void, angle: c_double);
+    fn pt_set_maghrib_angle(pt: *mut std::ffi::c_void, angle: c_double);
     fn pt_get_times(
         pt: *const std::ffi::c_void,
         year: c_int, month: c_int, day: c_int,
@@ -120,6 +124,9 @@ pub fn calc_times(
         }
         if let Some(a) = cfg.isha_angle {
             pt_set_isha_angle(pt, a);
+        }
+        if let Some(a) = cfg.maghrib_angle {
+            pt_set_maghrib_angle(pt, a);
         }
         if cfg.dhuhr_minutes != 0 {
             let name = b"dhuhr\0".as_ptr() as *const c_char;
