@@ -191,11 +191,45 @@ pub fn run() {
             }
         })
         .setup(move |app| {
-            // Muecines instalados con el .deb (resources): registro su path
-            // una vez para que audio.rs los resuelva. En dev puede no
-            // resolverse — la biblioteca queda solo con el default embebido.
-            if let Ok(dir) = app.path().resolve("assets/muecin", tauri::path::BaseDirectory::Resource) {
-                crate::audio::set_resource_dir(dir);
+            // Muecines: RESOLUCIÓN POR SANIDAD, no por suposición:
+            // - release (.deb instalado): `BaseDirectory::Resource` trae el set completo
+            //   (la validación es simple: el dir existe y tiene .wav)
+            // - dev: los resources van a `target/debug/assets/muecin` de forma
+            //   parciálmente staged (bug del staging de tauri dev) → usamos la
+            //   biblioteca del repo vía CARGO_MANIFEST_DIR, que SIEMPRE está completa
+            let tiene_wav = |p: &std::path::Path| {
+                p.is_dir()
+                    && std::fs::read_dir(p)
+                        .map(|rd| {
+                            rd.filter_map(Result::ok).any(|e| {
+                                e.path()
+                                    .extension()
+                                    .is_some_and(|x| x.eq_ignore_ascii_case("wav"))
+                            })
+                        })
+                        .unwrap_or(false)
+            };
+            let mut muecines_dir: Option<std::path::PathBuf> = None;
+            if let Ok(p) = app.path().resolve("assets/muecin", tauri::path::BaseDirectory::Resource) {
+                if tiene_wav(&p) {
+                    muecines_dir = Some(p);
+                }
+            }
+            #[cfg(debug_assertions)]
+            if muecines_dir.is_none() {
+                let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/muecin");
+                if tiene_wav(&repo) {
+                    muecines_dir = Some(repo);
+                }
+            }
+            match muecines_dir {
+                Some(p) => {
+                    crate::log!("muecines dir: {}", p.display());
+                    crate::audio::set_resource_dir(p);
+                }
+                None => {
+                    crate::log!("muecines: sin biblioteca en disco — solo default embebido");
+                }
             }
 
             // Menú según el spec: countdown arriba, los 5 horarios (clic = marcar rezado),
