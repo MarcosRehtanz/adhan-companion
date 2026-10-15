@@ -24,3 +24,15 @@ Los otros adhanes del **mismo conjunto Doha** (mismo muezzin, mismo registro
 Todos convertidos a WAV mono 22.05 kHz 16-bit (2.65 MB/min). El usuario puede
 agregar más muezzines tipo WAV a `~/.config/adhan-companion/muecines/` — con
 prioridad sobre los instalados y el embebido.
+
+## Voz adicional — Aaqib Azeez (2026-10-15)
+
+El muecín `aaqib-azeez.wav` proviene de la grabación del muezzin **Aaqib
+Azeez** publicada en Wikimedia Commons por el usuario **Atcovi** (2020-12-23)
+bajo **CC BY-SA 4.0**.
+
+- Fuente: https://commons.wikimedia.org/wiki/File:The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3
+- Autor de la grabación: Aaqib Azeez — edición en Commons: Atcovi
+- Licencia: **CC BY-SA 4.0** — https://creativecommons.org/licenses/by-sa/4.0/
+- La conversión a WAV mono 22.05 kHz mantiene la licencia en la
+  redistribución (ShareAlike) — atribución requerida si se usa este archivo.
