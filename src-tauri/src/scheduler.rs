@@ -215,16 +215,20 @@ pub fn icon_de(estado: IconoEstado) -> tauri::image::Image<'static> {
         .expect("PNG del tray debe decodificar (generados por scripts/gen-icons.py)")
 }
 
-/// Notificación freedesktop desde el core (plugin notification)
+/// Notificación freedesktop desde el core con texto arbitrario (updater)
+pub fn notify_standard(app: &tauri::AppHandle, title: &str, body: &str) {
+    notify(app, title, body);
+}
+
+/// Notificación de prueba del canal (validación dev)
+pub fn notify_test(app: &tauri::AppHandle) {
+    notify(app, "Adhan Companion", "Notificación de prueba — así te avisamos el preaviso y el adhan");
+}
+
 fn notify(app: &tauri::AppHandle, title: &str, body: &str) {
     use tauri_plugin_notification::NotificationExt;
     let _ = app.notification().builder().title(title).body(body).show();
     crate::log!("notificación: {title} — {body}");
-}
-
-/// test del canal para el comando IPC / menú
-pub fn notify_test(app: &tauri::AppHandle) {
-    notify(app, "Adhan Companion", "Notificación de prueba — así te avisamos el preaviso y el adhan");
 }
 
 pub struct SchedulerLoop {

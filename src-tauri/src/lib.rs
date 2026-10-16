@@ -6,6 +6,7 @@ pub mod prayer;
 pub mod qibla;
 pub mod registro;
 pub mod scheduler;
+pub mod updater;
 
 use std::sync::mpsc;
 
@@ -74,6 +75,22 @@ fn test_notification(app: tauri::AppHandle) -> Result<(), String> {
     // reuso el helper del scheduler
     scheduler::notify_test(&app);
     Ok(())
+}
+
+// Actualizador: versión actual + chequeo + instalación (AppImage self-update)
+#[tauri::command]
+fn version_actual() -> String {
+    updater::versión_actual()
+}
+
+#[tauri::command]
+fn check_update() -> Result<Option<updater::Disponible>, String> {
+    updater::verificar()
+}
+
+#[tauri::command]
+fn instalar_update() -> Result<(), String> {
+    updater::instalar()
 }
 
 // Qibla: rumbo desde el norte hacia la Qaaba, con la ubicación del config real
@@ -158,7 +175,6 @@ fn set_autostart(enabled: bool, app: tauri::AppHandle) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_notification::init())
         // Notificaciones freedesktop: preaviso + disparo del adhan (core-side)
         .plugin(tauri_plugin_notification::init())
         // Una segunda instancia enfoca a la viva, nunca duplica el tray
@@ -175,7 +191,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla, get_stats
+            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla, get_stats, version_actual, check_update, instalar_update
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
@@ -226,6 +242,27 @@ pub fn run() {
                     crate::log!("muecines: sin biblioteca en disco — solo default embebido");
                 }
             }
+
+            // auto-check del updater: thread deferrado para no competir con el arranque
+            let up = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(8));
+                match updater::verificar() {
+                    Ok(Some(info)) => {
+                        log!("updater: disponible v{}", info.version);
+                        scheduler::notify_standard(
+                            &up,
+                            "Actualización disponible",
+                            &format!(
+                                "v{} está publicada — verificá Activaciones en la app o descargásela de Releases",
+                                info.version
+                            ),
+                        );
+                    }
+                    Ok(None) => log!("updater: al día"),
+                    Err(e) => log!("updater: {e}"),
+                }
+            });
 
             // Menú según el spec: countdown arriba, los 5 horarios (clic = marcar rezado),
             // test de audio, configuración y salir

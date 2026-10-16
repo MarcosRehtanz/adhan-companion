@@ -10,7 +10,7 @@ import {
   Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, Compass,
   Flame, Trophy, CalendarCheck, type LucideIcon,
 } from "lucide-react";
-import type { Schedule, MarkedDay, Stats } from "./types";
+import type { Schedule, MarkedDay, Stats, UpdateDisponible } from "./types";
 import logo from "./assets/logo.png";
 import "./App.css";
 
@@ -59,12 +59,17 @@ export default function App() {
   const [qibla, setQibla] = useState<number | null>(null);
   // rachas y stats del registro (v1.2 — refetch en cada movimiento del calendario)
   const [stats, setStats] = useState<Stats | null>(null);
+  // actualizaciones (self-updater: GitHub Releases + AppImage)
+  const [verActual, setVerActual] = useState<string>("");
+  const [update, setUpdate] = useState<UpdateDisponible | null | undefined>(undefined); // undefined = sin chequear
+  const [checando, setChecando] = useState(false);
 
   useEffect(() => {
     invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
     invoke<Schedule>("get_schedule").then(setSchedule).catch(() => {});
     invoke<number>("get_qibla").then(setQibla).catch(() => {});
     invoke<Stats>("get_stats").then(setStats).catch(() => {});
+    invoke<string>("version_actual").then(setVerActual).catch(() => {});
     const un = listen<Schedule>("schedule_changed", (ev) => {
       setSchedule(ev.payload);
       invoke<Stats>("get_stats").then(setStats).catch(() => {});
@@ -95,6 +100,21 @@ export default function App() {
     setStatus({ text, kind });
     setTimeout(() => setStatus(null), 3000);
   }, []);
+
+  // self-updater: chequeo manual (el arranque ya hace checker automático)
+  const verificarUpdates = useCallback(async () => {
+    setChecando(true);
+    try {
+      const r = await invoke<UpdateDisponible | null>("check_update");
+      setUpdate(r);
+      if (r) flash(`v${r.version} disponible`, "ok");
+      else setStatus({ text: "Estás al día", kind: "ok" });
+    } catch (e) {
+      setStatus({ text: "chequeo falló: " + e, kind: "error" });
+    }
+    setChecando(false);
+    setTimeout(() => setStatus(null), 3000);
+  }, [flash]);
 
   // Sugerencia de ubicación por IP (única pieza de red del spec)
   // Cadena de proveedores: si uno falla o no trae ciudad, se prueba el próximo.
@@ -398,6 +418,37 @@ export default function App() {
               <input type="number" value={cfg.notice.minutes_before}
                 onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} />
             </label>
+            <div className="audio-por-rezo">
+              <div className="grupo-tit">Actualizaciones {verActual && <span style={{ fontWeight: 400 }}>— hoy: v{verActual}</span>}</div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
+                <button className="test" disabled={checando} onClick={verificarUpdates}>
+                  {checando ? "verificando…" : "Verificar actualizaciones"}
+                </button>
+                {update === null && !checando && (
+                  <span className="nota" style={{ margin: 0 }}>Estás al día ✓</span>
+                )}
+              </div>
+              {update && (
+                <div style={{ background: "var(--chip)", padding: "10px 12px", borderRadius: "var(--r-control)", fontSize: 12.5 }}>
+                  <b>v{update.version} disponible</b> — {update.notas}
+                  <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
+                    {update.appimage && (
+                      <button className="test" onClick={() => invoke("instalar_update").catch((e) => flash("instalación: " + e, "error"))}>
+                        <Play size={13} strokeWidth={2.4} />
+                        Actualizar ahora
+                      </button>
+                    )}
+                    {!update.appimage && (
+                      <span className="nota" style={{ margin: 0 }}>
+                        Si corrés el <code>.deb</code>: descargá el release de
+                        <code>&nbsp;{update.url}</code> e instalá con{" "}
+                        <code>dpkg -i</code>. Para el auto-update usá la AppImage.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <p className="nota">
               Config persistido en <code>~/.config/adhan-companion/config.json</code> —
               schema compatible con <code>casa/adhan/config</code> del nodo.

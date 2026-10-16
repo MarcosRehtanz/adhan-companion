@@ -31,3 +31,10 @@ export interface Stats {
   dias_completos: number;
   rezos_marcados: number;
 }
+
+export interface UpdateDisponible {
+  version: string;
+  url: string;
+  appimage: string | null;
+  notas: string;
+}
