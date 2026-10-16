@@ -83,6 +83,12 @@ fn get_qibla(state: tauri::State<SharedConfig>) -> Result<f64, String> {
     Ok(qibla::bearing(cfg.lat, cfg.lon))
 }
 
+// Rachas y stats sobre el registro — la pieza v1.2 del spec (App Vida como Juego)
+#[tauri::command]
+fn get_stats() -> registro::Stats {
+    registro::stats()
+}
+
 // Contrato IPC del spec: marcar/desmarcar rezado por fecha (toggle, last-wins)
 #[tauri::command]
 fn mark_prayed(
@@ -169,7 +175,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla
+            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla, get_stats
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {

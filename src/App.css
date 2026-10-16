@@ -271,6 +271,22 @@ button.test:disabled { opacity: 0.5; cursor: default; }
   font-size: 11px; color: var(--texto-tenue); margin: 2px 0 0; line-height: 1.55;
 }
 
+/* ---------- seguimiento: banda de stats ---------- */
+
+.stats {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.stat-card {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 13px;
+  background: var(--tarjeta);
+  border: 1px solid var(--borde); border-radius: var(--r-control);
+  font-size: 12px; color: var(--texto-suave);
+}
+.stat-card svg { color: var(--acento); flex-shrink: 0; }
+.stat-card b { font-size: 15px; color: var(--texto); font-variant-numeric: tabular-nums; }
+.stat-card b + span { margin-left: 1px; }
+
 /* ---------- tab Audio: adhan por rezo ---------- */
 
 .audio-por-rezo {

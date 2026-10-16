@@ -21,3 +21,13 @@ export interface MarkedDay {
   date: string;
   prayers: string[];
 }
+
+export interface Stats {
+  /** días consecutivos completos hasta hoy (o ayer si hoy no cerró) */
+  racha_actual: number;
+  /** true si hoy ya completa los 5 */
+  activa_hoy: boolean;
+  mejor_racha: number;
+  dias_completos: number;
+  rezos_marcados: number;
+}

@@ -7,9 +7,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
   MapPin, Calculator, Volume2, Network, Settings, Play,
-  Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, Compass, type LucideIcon,
+  Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, Compass,
+  Flame, Trophy, CalendarCheck, type LucideIcon,
 } from "lucide-react";
-import type { Schedule, MarkedDay } from "./types";
+import type { Schedule, MarkedDay, Stats } from "./types";
 import logo from "./assets/logo.png";
 import "./App.css";
 
@@ -56,12 +57,18 @@ export default function App() {
   const [status, setStatus] = useState<{ text: string; kind: "ok" | "error" } | null>(null);
   // qibla del config actual (grados desde el norte — referencia)
   const [qibla, setQibla] = useState<number | null>(null);
+  // rachas y stats del registro (v1.2 — refetch en cada movimiento del calendario)
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
     invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
     invoke<Schedule>("get_schedule").then(setSchedule).catch(() => {});
     invoke<number>("get_qibla").then(setQibla).catch(() => {});
-    const un = listen<Schedule>("schedule_changed", (ev) => setSchedule(ev.payload));
+    invoke<Stats>("get_stats").then(setStats).catch(() => {});
+    const un = listen<Schedule>("schedule_changed", (ev) => {
+      setSchedule(ev.payload);
+      invoke<Stats>("get_stats").then(setStats).catch(() => {});
+    });
     return () => { un.then((f) => f()); };
   }, []);
 
@@ -330,8 +337,32 @@ export default function App() {
         {tab === "seguimiento" && (
           <section>
             <h2>Seguimiento
-              <span className="desc">Marcá los rezos del día (pasados o hoy) — alimenta tu registro y las rachas de v1.2.</span>
+              <span className="desc">Marcá los rezos del día (pasados o hoy) — alimenta tu registro y las rachas.</span>
             </h2>
+            {stats && (
+              <div className="stats">
+                <div className="stat-card" title="días consecutivos con los 5 rezos marcados">
+                  <Flame size={16} strokeWidth={2.2} />
+                  <b>{stats.racha_actual}</b>
+                  <span>{stats.activa_hoy ? "días — en curso" : "días — la última"}</span>
+                </div>
+                <div className="stat-card" title="tu mejor racha histórica">
+                  <Trophy size={16} strokeWidth={2.2} />
+                  <b>{stats.mejor_racha}</b>
+                  <span>mejor racha</span>
+                </div>
+                <div className="stat-card" title="días completos en todo el historial">
+                  <CalendarCheck size={16} strokeWidth={2.2} />
+                  <b>{stats.dias_completos}</b>
+                  <span>días completos</span>
+                </div>
+                <div className="stat-card" title="rezos marcados en estado final (todo el historial)">
+                  <Check size={16} strokeWidth={2.6} />
+                  <b>{stats.rezos_marcados}</b>
+                  <span>rezos marcados</span>
+                </div>
+              </div>
+            )}
             <Calendario schedule={schedule}
               onToggle={(date, prayer) => invoke("mark_prayed", { date, prayer }).catch((e) => flash("mark: " + e, "error"))} />
           </section>
