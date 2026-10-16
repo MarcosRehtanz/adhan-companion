@@ -402,7 +402,9 @@ pub fn run(s: SchedulerLoop) {
                 ).as_str(),
             );
             // audio del config: volumen + toggle enabled por rezo + muecín
-            // elegible del catálogo (por rezo; default si no eligió)
+            // asignación fija del spec: cada rezo suena el adhan de SU hora
+            // (colección Doha: fajr.wav para Fajr, maghrib.wav para Maghrib...).
+            // Sin selector — decisión de producto 2026-10-15.
             let cfg = snapshot(&s.config);
             let volumen = cfg.audio.volume as f32 / 100.0;
             let habilitado = cfg
@@ -411,17 +413,12 @@ pub fn run(s: SchedulerLoop) {
                 .get(&PRAYERS[fired].to_lowercase())
                 .copied()
                 .unwrap_or(true);
-            let muecin = cfg
-                .audio
-                .muecinPorRezo
-                .get(&PRAYERS[fired].to_lowercase())
-                .cloned();
+            let muecin = PRAYERS[fired].to_lowercase();
             if habilitado {
-                match crate::audio::play_adhan(volumen, muecin.as_deref()) {
+                match crate::audio::play_adhan(volumen, Some(&muecin)) {
                     Ok(()) => crate::log!(
-                        "adhan por ALSA — muecín '{}' — volumen {}%",
-                        muecin.as_deref().unwrap_or("default"),
-                        cfg.audio.volume
+                        "adhan por ALSA — muecín '{}' (rezo propio) — volumen {}%",
+                        muecin, cfg.audio.volume
                     ),
                     Err(e) => crate::log!("audio falló en el disparo: {e}"),
                 }

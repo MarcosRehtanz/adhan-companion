@@ -125,36 +125,24 @@ pub struct AudioConfig {
     pub volume: u8,
     #[serde(default)]
     pub enabled: Enabled,
-    #[serde(default)]
-    pub muecin: MuecinMap,
-    // muecín por rezo — camelCase como el resto del schema compatible MQTT
-    // (`highLatRule`): clave = rezo en minúscula ("fajr"), value = nombre del
-    // muecín del catálogo. Ausente / "default" → default.wav embebido.
-    #[allow(non_snake_case)]
-    #[serde(default)]
-    pub muecinPorRezo: MuecinMap,
+    // asignación de muecín: FIJA por rezo (colección Doha — cada oración suena
+    // su propio adhan). Sin selector ni mapas de config — decisión 2026-10-15.
 }
 
 impl Default for AudioConfig {
     fn default() -> Self {
-        // Defaults del schema del spec: volumen 70, los 5 rezos habilitados
-        // y el muecín default del archivo default.wav (WAV mono 22.05 kHz)
+        // Defaults del schema del spec: volumen 70 y los 5 rezos habilitados
         Self {
             volume: default_volume(),
             enabled: crate::scheduler::PRAYERS
                 .iter()
                 .map(|p| (p.to_lowercase(), true))
                 .collect(),
-            muecin: [("default".to_string(), "default.wav".to_string())]
-                .into_iter()
-                .collect(),
-            muecinPorRezo: MuecinMap::new(),
         }
     }
 }
 
 pub type Enabled = std::collections::BTreeMap<String, bool>;
-pub type MuecinMap = std::collections::BTreeMap<String, String>;
 
 fn default_volume() -> u8 { 70 }
 

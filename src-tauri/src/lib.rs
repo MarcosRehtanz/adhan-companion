@@ -52,30 +52,19 @@ fn test_adhan(
     sched: tauri::State<scheduler::SharedState>,
 ) -> Result<(), String> {
     let cfg = state.read().map(|c| c.clone()).map_err(|e| format!("config: {e}"))?;
-    // muecin None → el del próximo rezo (ciclo real del día); Some → preview de
-    // una fila específica de la tab Audio (el muecín elegido para ese rezo)
-    let muecin = muecin.or_else(|| proximo_muecin(&sched, &cfg));
+    // muecin None → el adhan del próximo rezo (ciclo real del día); Some →
+    // preview de una fila específica de la tab Audio (el muecín asignado a ese rezo)
+    let muecin = muecin.or_else(|| proximo_rezo(&sched));
     let estado = audio::toggle_adhan(cfg.audio.volume as f32 / 100.0, muecin.as_deref())?;
     log!("test_adhan: {estado} (muecín '{}')", muecin.unwrap_or_else(|| "default".into()));
     Ok(())
 }
 
-/// Nombre del muecín que sonaría en el próximo rezo según `audio.muecinPorRezo`
-/// (None o mapping vacío → default embebido).
-fn proximo_muecin(
-    sched: &tauri::State<scheduler::SharedState>,
-    cfg: &config::Config,
-) -> Option<String> {
+/// Nombre del próximo rezo (la asignación de muecín es fija por rezo: cada
+/// oración suena su propio adhan de la colección — sin selector)
+fn proximo_rezo(sched: &tauri::State<scheduler::SharedState>) -> Option<String> {
     let st = sched.lock().ok()?;
-    let next = st.schedule.next.as_deref()?.to_lowercase();
-    cfg.audio.muecinPorRezo.get(&next).cloned()
-}
-
-// Catálogo de muecines disponibles: default embebido + disco (usuario y
-// resources). Lo consumen los selectores por rezo de la tab Audio.
-#[tauri::command]
-fn list_muecines() -> Vec<String> {
-    audio::list()
+    st.schedule.next.as_deref().map(|n| n.to_lowercase())
 }
 
 // Notificación de prueba: valida el canal freedesktop UI-agnostic
@@ -180,7 +169,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, list_muecines, get_qibla
+            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
@@ -328,19 +317,20 @@ pub fn run() {
                     // dev — en release estas arm llegan solo si el IPC los
                     // dispara directo, no desde el menú)
                     "test_adhan" => {
-                        // mismo criterio que el IPC: muecín del próximo rezo
+                        // mismo criterio que el IPC: el adhan del próximo rezo
                         let cfg = app.state::<SharedConfig>().read().ok().map(|c| c.clone());
-                        let muecin = {
+                        let muecin: Option<String> = {
                             let sched = app.state::<scheduler::SharedState>();
-                            cfg.as_ref()
-                                .and_then(|c| proximo_muecin(&sched, c))
+                            sched.lock().ok().and_then(|s| {
+                                s.schedule.next.as_deref().map(|n| n.to_lowercase())
+                            })
                         };
                         let vol = cfg
                             .as_ref()
                             .map(|c| c.audio.volume as f32 / 100.0)
                             .unwrap_or(0.7);
                         match crate::audio::toggle_adhan(vol, muecin.as_deref()) {
-                            Ok(estado) => log!("adhan (test) desde el menú: {estado}"),
+                            Ok(estado) => log!("adhan (test) desde el menú con muecín '{}': {estado}", muecin.unwrap_or_else(|| "default".into())),
                             Err(e) => log!("audio falló: {e}"),
                         }
                     }

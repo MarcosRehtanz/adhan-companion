@@ -4,7 +4,10 @@
 //! Formato del spec: **WAV mono 22.05 kHz** — mismo formato que LittleFS del
 //! nodo (el archivo se reutiliza entre app y firmware).
 //!
-//! Biblioteca de muecines (v1.1): resolución en runtime con prioridad
+//! Biblioteca de muecines: **asignación fija por rezo** (2026-10-15, decisión
+//! de producto: sin selector) — cada oración suena el adhan de su propia hora
+//! de la colección Doha (`fajr.wav` → Fajr, `maghrib.wav` → Maghrib, etc.).
+//! resolución en runtime con prioridad
 //!   1. carpeta de usuario `~/.config/adhan-companion/muecines/<nombre>.wav`
 //!   2. muecines instalados con el `.deb` (resources → `$RESOURCE/assets/muecin`)
 //!   3. default.wav embebido en el binario (grabación Doha, Public Domain —
@@ -125,36 +128,6 @@ pub fn stop_adhan() {
         p.stop();
     }
     PLAYING.store(false, Ordering::SeqCst);
-}
-
-/// Catálogo de muecines disponibles (nombres sin extensión): el default
-/// embebido + los `.wav` de la carpeta de usuario y los instalados con el
-/// `.deb` (resources). `default` va SIEMPRE primero.
-pub fn list() -> Vec<String> {
-    let mut nombres: Vec<String> = Vec::new();
-    for dir in dirs() {
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("wav")
-                    || path.extension().and_then(|e| e.to_str()) == Some("WAV")
-                {
-                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                        nombres.push(stem.to_string());
-                    }
-                }
-            }
-        }
-    }
-    nombres.sort();
-    nombres.dedup();
-    let mut out = vec![String::from("default")];
-    for n in nombres {
-        if !n.eq_ignore_ascii_case("default") {
-            out.push(n);
-        }
-    }
-    out
 }
 
 /// Test desde la UI: reproduce o detiene según el estado actual.

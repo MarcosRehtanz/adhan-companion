@@ -38,7 +38,7 @@ interface Config {
   madhab: string;
   highLatRule: string;
   offsets: { fajr: number; dhuhr: number; asr: number; maghrib: number; isha: number };
-  audio: { volume: number; enabled: Record<string, boolean>; muecin: Record<string, string>; muecinPorRezo: Record<string, string> };
+  audio: { volume: number; enabled: Record<string, boolean> };
   notice: { minutes_before: number };
   agent: { mqtt: boolean; broker: string };
 }
@@ -57,15 +57,10 @@ export default function App() {
   // qibla del config actual (grados desde el norte — referencia)
   const [qibla, setQibla] = useState<number | null>(null);
 
-  // Catálogo de muecines disponibles (default embebido + disco), para los
-  // selectores por rezo de la tab Audio.
-  const [muecines, setMuecines] = useState<string[]>([]);
-
   useEffect(() => {
     invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
     invoke<Schedule>("get_schedule").then(setSchedule).catch(() => {});
     invoke<number>("get_qibla").then(setQibla).catch(() => {});
-    invoke<string[]>("list_muecines").then(setMuecines).catch(() => {});
     const un = listen<Schedule>("schedule_changed", (ev) => setSchedule(ev.payload));
     return () => { un.then((f) => f()); };
   }, []);
@@ -295,7 +290,6 @@ export default function App() {
               <div className="audio-filas">
                 {PRAYERS.map((p) => {
                   const key = p.toLowerCase();
-                  const elegido = cfg.audio.muecinPorRezo?.[key] ?? "default";
                   const slot = schedule?.prayers.find((s) => s.name === p);
                   const deshabilitado = cfg.audio.enabled[key] === false;
                   return (
@@ -308,16 +302,9 @@ export default function App() {
                         {p}
                         {slot?.hhmm ? <span className="audio-hora">· {slot.hhmm}</span> : null}
                       </span>
-                      <select className="audio-select" value={elegido} disabled={deshabilitado}
-                        title={deshabilitado ? "silenciado — activá el checkbox" : "muecín que suena en " + p}
-                        onChange={(e) => updAudio({ muecinPorRezo: { ...cfg.audio.muecinPorRezo, [key]: e.target.value } })}>
-                        {(muecines.length ? muecines : ["default"]).map((m) => (
-                          <option key={m} value={m}>{m === "default" ? "Por defecto (embebido)" : m}</option>
-                        ))}
-                      </select>
                       {!deshabilitado && (
-                        <button className="mini-play" title={`Probar el muecín de ${p} (clic de nuevo detiene)`}
-                          onClick={() => invoke("test_adhan", { muecin: elegido }).catch((e) => flash("test: " + e, "error"))}>
+                        <button className="mini-play" title={`Probar el adhan de ${p} (clic de nuevo detiene)`}
+                          onClick={() => invoke("test_adhan", { muecin: key }).catch((e) => flash("test: " + e, "error"))}>
                           <Play size={13} strokeWidth={2.4} />
                         </button>
                       )}
@@ -331,12 +318,11 @@ export default function App() {
               Probar adhan del próximo rezo (clic para reproducir / detener)
             </button>
             <p className="nota">
-              Catálogo: muecines instalados con la app (colección Doha, dominio
-              público — <code>CREDITS.md</code>) más los tuyos: pegá WAVs{" "}
-              <code>mono 22.05&nbsp;kHz</code> en{" "}
-              <code>~/.config/adhan-companion/muecines/</code> y reabrí esta
-              pestaña para verlos. "Por defecto" es el respaldo embebido que
-              suena cuando un rezo no tiene selección (o su archivo no aparece).
+              Cada rezo ya tiene asignado su propio adhan de la colección Doha
+              (mismos muezzin y mezquita, dominio público — <code>CREDITS.md</code>),
+              el ▶ de cada fila lo reproduce. Conectado al formato del nodo: los
+              archivos son WAV <code>mono 22.05&nbsp;kHz</code>, los mismos que
+              usaría el firmware.
             </p>
           </section>
         )}
