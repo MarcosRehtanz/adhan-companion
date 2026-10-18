@@ -12,6 +12,7 @@ fn main() {
         .file("native/praytimes_compat.c")
         .include("native")
         .define("_DEFAULT_SOURCE", None) // para M_PI en math.h con -std=c99
+        .define("_USE_MATH_DEFINES", None) // M_PI en el runtime de Microsoft C
         .flag_if_supported("-std=c99")
         .warnings(false)
         .compile("praytimes");

@@ -1,4 +1,4 @@
-//! El adhan que suena: `rodio` 0.23 por ALSA/PipeWire con stream propio y
+//! El adhan que suena: `rodio` 0.23 con stream propio y
 //! volumen separado del sistema.
 //!
 //! Formato del spec: **WAV mono 22.05 kHz** — mismo formato que LittleFS del
@@ -8,8 +8,8 @@
 //! de producto: sin selector) — cada oración suena el adhan de su propia hora
 //! de la colección Doha (`fajr.wav` → Fajr, `maghrib.wav` → Maghrib, etc.).
 //! resolución en runtime con prioridad
-//!   1. carpeta de usuario `~/.config/adhan-companion/muecines/<nombre>.wav`
-//!   2. muecines instalados con el `.deb` (resources → `$RESOURCE/assets/muecin`)
+//!   1. carpeta de usuario (`config_dir()/muecines/<nombre>.wav`)
+//!   2. muecines incluidos en el paquete (resources → `$RESOURCE/assets/muecin`)
 //!   3. default.wav embebido en el binario (grabación Doha, Public Domain —
 //!      ver `assets/muecin/CREDITS.md`) — fallback universal, siempre existe
 
@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 const ADHAN_DEFAULT: &[u8] =
     include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/muecin/default.wav"));
 
-/// Directorio de/resources muecines instalados por el .deb — lo instancia el
+/// Directorio de muecines incluidos en el paquete — lo instancia el
 /// setup de lib.rs resolviendo `BaseDirectory::Resource`; en dev puede quedar
 /// None y la resolución cae en el default embebido. Ver `dirs()`.
 static RESOURCE_DIR: OnceLock<Option<PathBuf>> = OnceLock::new();

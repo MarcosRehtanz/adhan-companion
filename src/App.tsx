@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
-  MapPin, Calculator, Volume2, Network, Settings, Play,
+  Home, Clock3, Volume2, Settings, Play, Pencil,
   Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, Compass,
   Flame, Trophy, CalendarCheck, type LucideIcon,
 } from "lucide-react";
@@ -19,15 +19,15 @@ const MADHAB_OPTIONS = ["Shafi", "Hanafi"];
 const HIGH_LAT_OPTIONS = ["None", "MiddleOfNight", "AngleBased", "AqrabAlAyyam", "AqrabAlBilad", "OneSeventh", "FixedAngle"];
 const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
-type Tabs = "ubicacion" | "calculo" | "audio" | "seguimiento" | "agente" | "avanzado";
-const TABS: { id: Tabs; label: string; Icon: LucideIcon }[] = [
-  { id: "ubicacion", label: "Ubicación", Icon: MapPin },
-  { id: "calculo", label: "Cálculo", Icon: Calculator },
-  { id: "audio", label: "Audio", Icon: Volume2 },
-  { id: "seguimiento", label: "Seguimiento", Icon: ListChecks },
-  { id: "agente", label: "Agente", Icon: Network },
-  { id: "avanzado", label: "Avanzado", Icon: Settings },
+type Page = "hoy" | "horarios" | "adhan" | "registro" | "sistema";
+type EditBlock = "ubicacion" | "calculo" | "adhan" | null;
+const PAGES: { id: Page; label: string; Icon: LucideIcon }[] = [
+  { id: "hoy", label: "Hoy", Icon: Home },
+  { id: "horarios", label: "Horarios", Icon: Clock3 },
+  { id: "adhan", label: "Adhan y avisos", Icon: Volume2 },
+  { id: "registro", label: "Registro", Icon: ListChecks },
 ];
+const SYSTEM_PAGE: { id: Page; label: string; Icon: LucideIcon } = { id: "sistema", label: "Sistema", Icon: Settings };
 
 interface Config {
   version: number;
@@ -46,14 +46,17 @@ interface Config {
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
-/// Componente raíz: header (logo + día + horarios), tabs, y la card del tab activo.
-/// El estado vive en Rust (core); acá se lee por IPC (`get_config`, `get_schedule`)
-/// y se empuja por eventos (`schedule_changed`).
+/// Ventana principal: dashboard diario y preferencias en modo lectura por defecto.
+/// El estado vive en Rust (core) y se actualiza por IPC/eventos.
 export default function App() {
-  const [tab, setTab] = useState<Tabs>("ubicacion");
+  const [page, setPage] = useState<Page>("hoy");
+  const [editando, setEditando] = useState<EditBlock>(null);
+  const [snapshotEdicion, setSnapshotEdicion] = useState<Config | null>(null);
   const [cfg, setCfg] = useState<Config | null>(null);
   const [guardada, setGuardada] = useState<Config | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
+  const [scheduleAt, setScheduleAt] = useState(Date.now());
+  const [, setTick] = useState(0);
   const [status, setStatus] = useState<{ text: string; kind: "ok" | "error" } | null>(null);
   // qibla del config actual (grados desde el norte — referencia)
   const [qibla, setQibla] = useState<number | null>(null);
@@ -61,20 +64,30 @@ export default function App() {
   const [stats, setStats] = useState<Stats | null>(null);
   // actualizaciones (self-updater: GitHub Releases + AppImage)
   const [verActual, setVerActual] = useState<string>("");
+  const [esAppImage, setEsAppImage] = useState(false);
+  const [esWindows, setEsWindows] = useState(false);
   const [update, setUpdate] = useState<UpdateDisponible | null | undefined>(undefined); // undefined = sin chequear
   const [checando, setChecando] = useState(false);
 
   useEffect(() => {
     invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
-    invoke<Schedule>("get_schedule").then(setSchedule).catch(() => {});
+    invoke<Schedule>("get_schedule").then((s) => { setSchedule(s); setScheduleAt(Date.now()); }).catch(() => {});
     invoke<number>("get_qibla").then(setQibla).catch(() => {});
     invoke<Stats>("get_stats").then(setStats).catch(() => {});
     invoke<string>("version_actual").then(setVerActual).catch(() => {});
+    invoke<boolean>("ejecutando_appimage").then(setEsAppImage).catch(() => {});
+    invoke<boolean>("ejecutando_windows").then(setEsWindows).catch(() => {});
     const un = listen<Schedule>("schedule_changed", (ev) => {
       setSchedule(ev.payload);
+      setScheduleAt(Date.now());
       invoke<Stats>("get_stats").then(setStats).catch(() => {});
     });
     return () => { un.then((f) => f()); };
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   const pendiente = useMemo(
@@ -88,6 +101,8 @@ export default function App() {
       const saved = await invoke<Config>("set_config", { cfg });
       setCfg(saved);
       setGuardada(saved);
+      setEditando(null);
+      setSnapshotEdicion(null);
       invoke<number>("get_qibla").then(setQibla).catch(() => {});
       setStatus({ text: "Guardado", kind: "ok" });
     } catch (e) {
@@ -180,282 +195,159 @@ export default function App() {
   const upd = (patch: Partial<Config>) => setCfg({ ...cfg, ...patch });
   const updAudio = (patch: Partial<Config["audio"]>) => setCfg({ ...cfg, audio: { ...cfg.audio, ...patch } });
 
+  const iniciarEdicion = (block: Exclude<EditBlock, null>) => {
+    setSnapshotEdicion(cfg);
+    setEditando(block);
+  };
+  const cancelarEdicion = () => {
+    if (snapshotEdicion && editando) {
+      setCfg((actual) => {
+        if (!actual) return actual;
+        if (editando === "ubicacion") return { ...actual, city: snapshotEdicion.city, lat: snapshotEdicion.lat, lon: snapshotEdicion.lon, tz: snapshotEdicion.tz };
+        if (editando === "calculo") return { ...actual, method: snapshotEdicion.method, madhab: snapshotEdicion.madhab, highLatRule: snapshotEdicion.highLatRule, offsets: snapshotEdicion.offsets };
+        return { ...actual, audio: snapshotEdicion.audio, notice: snapshotEdicion.notice };
+      });
+    }
+    setEditando(null);
+    setSnapshotEdicion(null);
+  };
+
   const hoy = schedule?.date ?? "";
-  const diaLabel = hoy
-    ? `Hoy · ${Number(hoy.slice(8))} ${MESES[Number(hoy.slice(5, 7)) - 1]}`
-    : "Hoy";
+  const nextPrayer = schedule?.next;
+  const nextSlot = schedule?.prayers.find((p) => p.name === nextPrayer);
+  const countdown = schedule?.countdown_secs == null
+    ? null
+    : Math.max(0, schedule.countdown_secs - Math.floor((Date.now() - scheduleAt) / 1000));
+  const markedToday = new Set(schedule?.marked ?? []);
+  const activoCount = PRAYERS.filter((p) => cfg.audio.enabled[p.toLowerCase()] !== false).length;
+  const pageTitle = [...PAGES, SYSTEM_PAGE].find((item) => item.id === page)?.label ?? "Hoy";
 
   return (
     <div className="App-root">
-      <header>
-        <img src={logo} className="logo" alt="" />
-        <span className="dia">{diaLabel}</span>
-        <div className="resumen-dia">
-          <div className="barra-rezos">
-            {PRAYERS.map((name) => {
-              const slot = schedule?.prayers.find((p) => p.name === name);
-              const proximo = schedule?.next === name;
-              return (
-                <span key={name} className={`rezo ${proximo ? "proximo" : ""}`}>
-                  {name} {slot?.hhmm ?? ""}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      </header>
-
-      <nav className="tabs">
-        {TABS.map(({ id, label, Icon }) => (
-          <button key={id} className={tab === id ? "activa" : ""} onClick={() => setTab(id)}>
-            <Icon size={15} strokeWidth={2.2} />
-            {label}
+      <aside className="sidebar">
+        <div className="brand"><img src={logo} className="logo" alt="" /><span>Adhan<br />Companion</span></div>
+        <nav className="nav-main" aria-label="Navegación principal">
+          {PAGES.map(({ id, label, Icon }) => (
+            <button key={id} className={"nav-item " + (page === id ? "activa" : "")} onClick={() => setPage(id)}>
+              <Icon size={17} strokeWidth={2} /><span>{label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="nav-bottom">
+          <button className={"nav-item " + (page === SYSTEM_PAGE.id ? "activa" : "")} onClick={() => setPage(SYSTEM_PAGE.id)}>
+            <Settings size={17} strokeWidth={2} /><span>Sistema</span>
           </button>
-        ))}
-      </nav>
+          <span className="sidebar-version">v{verActual || "0.1.7"}</span>
+        </div>
+      </aside>
 
-      <main>
-        {tab === "ubicacion" && (
-          <section>
-            <h2>Ubicación
-              <span className="desc">De acá salen las coordenadas para el cálculo — todo lo demás es local.</span>
-            </h2>
-            <label>Ciudad
-              <input value={cfg.city} onChange={(e) => upd({ city: e.target.value })} />
-            </label>
-            <div className="fila">
-              <label>Latitud
-                <input type="number" step="0.001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} />
-              </label>
-              <label>Longitud
-                <input type="number" step="0.001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} />
-              </label>
+      <div className="workspace">
+        <header className="topbar">
+          <div><span className="eyebrow">Adhan Companion</span><h1>{pageTitle}</h1></div>
+          <div className="topbar-meta">
+            {page === "hoy" && <span className="today-date">{hoy ? fmtBonito(hoy) : "Cargando horarios…"}</span>}
+          </div>
+        </header>
+
+        <main className="page-content">
+          {page === "hoy" && (
+            <div className="page-stack">
+              <section className="hero-card">
+                <div className="hero-kicker">PRÓXIMO REZO</div>
+                <div className="hero-main">
+                  <div><h2>{nextPrayer ?? "Sin próximos rezos"}</h2><p>{nextSlot ? "Hoy a las " + nextSlot.hhmm : "Se actualizará con el próximo horario"}</p></div>
+                  <div className="countdown">{countdown == null ? "—" : formatoCuenta(countdown)}</div>
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panel-heading"><div><h2>Horarios de hoy</h2><p>Según la ubicación configurada.</p></div><button className="link-button" onClick={() => setPage("horarios")}>Ver configuración</button></div>
+                <div className="prayer-list">
+                  {PRAYERS.map((name) => {
+                    const slot = schedule?.prayers.find((p) => p.name === name);
+                    return <div className={"prayer-row " + (schedule?.next === name ? "proximo" : "")} key={name}>
+                      <span className="prayer-name">{name}</span>
+                      <span className="prayer-time">{slot?.hhmm ?? "—"}</span>
+                      <span className={"prayer-state " + (markedToday.has(name) ? "hecho" : "")}>{markedToday.has(name) ? "Realizado" : schedule?.next === name ? "Siguiente" : ""}</span>
+                    </div>;
+                  })}
+                </div>
+                <div className="day-progress"><span>{markedToday.size} de 5 rezos registrados</span><div className="progreso-bar"><div className="progreso-fill" style={{ width: Math.min(markedToday.size, 5) * 20 + "%" }} /></div><button className="link-button" onClick={() => setPage("registro")}>Abrir registro</button></div>
+              </section>
+              <section className="qibla-card"><Compass size={19} /><div><b>Qibla</b><span>{qibla == null ? "Calculando…" : qibla.toFixed(1) + "° desde el norte"}</span></div><small>Referencia de orientación; no es una brújula.</small></section>
             </div>
-            <div className="lectura">
-              <label>Zona horaria
-                <input value={cfg.tz} disabled />
-              </label>
-              <span className="hint">del sistema</span>
+          )}
+
+          {page === "horarios" && (
+            <div className="page-stack">
+              <div className="page-intro"><h2>Ubicación y cálculo</h2><p>Estos valores determinan los horarios de rezo.</p></div>
+              <section className="panel setting-panel">
+                <div className="panel-heading"><div><h2>Ubicación</h2><p>Ciudad y coordenadas usadas para calcular los horarios.</p></div>{editando !== "ubicacion" && <button className="edit-button" onClick={() => iniciarEdicion("ubicacion")}><Pencil size={14} />Editar ubicación</button>}</div>
+                {editando === "ubicacion" ? <div className="editor">
+                  <label>Ciudad<input value={cfg.city} onChange={(e) => upd({ city: e.target.value })} /></label>
+                  <div className="fila"><label>Latitud<input type="number" step="0.001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} /></label><label>Longitud<input type="number" step="0.001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} /></label></div>
+                  <div className="read-grid"><div><span>Zona horaria de la ciudad</span><b>{cfg.tz}</b></div></div>
+                  <button className="test" disabled={detectando} onClick={detectarPorIP}><LocateFixed size={14} />{detectando ? "Detectando…" : "Sugerir ubicación por IP"}</button>
+                  <p className="nota">La detección es una sugerencia: revisá ciudad y coordenadas antes de guardar. Para este cálculo, la zona horaria del sistema debe coincidir con la ubicación.</p>
+                  <div className="editor-actions"><button className="secondary-button" disabled={detectando} onClick={cancelarEdicion}>Cancelar</button></div>
+                </div> : <div className="read-grid"><div><span>Ciudad</span><b>{cfg.city || "Sin configurar"}</b></div><div><span>Coordenadas</span><b>{cfg.lat.toFixed(4)}, {cfg.lon.toFixed(4)}</b></div><div><span>Zona horaria guardada</span><b>{cfg.tz}</b></div><p className="nota read-note">El cálculo usa la zona horaria local del sistema. Asegurate de que coincida con esta ubicación.</p></div>}
+              </section>
+
+              <section className="panel setting-panel">
+                <div className="panel-heading"><div><h2>Método de cálculo</h2><p>Método, escuela de Asr y ajustes manuales.</p></div>{editando !== "calculo" && <button className="edit-button" onClick={() => iniciarEdicion("calculo")}><Pencil size={14} />Editar método</button>}</div>
+                {editando === "calculo" ? <div className="editor">
+                  <label>Método<select value={cfg.method} onChange={(e) => upd({ method: e.target.value })}>{METHOD_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
+                  <label>Madhab para Asr<select value={cfg.madhab} onChange={(e) => upd({ madhab: e.target.value })}>{MADHAB_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
+                  <label>Regla de latitud alta<select value={cfg.highLatRule} onChange={(e) => upd({ highLatRule: e.target.value })}>{HIGH_LAT_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
+                  <div className="offsets"><div className="grupo"><div className="grupo-tit">Ajuste por rezo (minutos)</div><div className="fila-5">{PRAYERS.map((p) => { const key = p.toLowerCase() as keyof Config["offsets"]; return <div className="campo" key={p}><label>{p}</label><input type="number" step="1" value={cfg.offsets[key] ?? 0} onChange={(e) => upd({ offsets: { ...cfg.offsets, [key]: +e.target.value } })} /><span className="min">min</span></div>; })}</div></div></div>
+                  <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button></div>
+                </div> : <div className="read-grid read-grid-four"><div><span>Método</span><b>{cfg.method}</b></div><div><span>Madhab para Asr</span><b>{cfg.madhab}</b></div><div><span>Latitud alta</span><b>{cfg.highLatRule}</b></div><div><span>Ajustes manuales</span><b>{PRAYERS.filter((p) => (cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0) !== 0).length ? PRAYERS.filter((p) => (cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0) !== 0).length + " rezos ajustados" : "Ninguno"}</b></div></div>}
+              </section>
             </div>
-            {qibla != null && (
-              <p className="nota">
-                <Compass size={11} strokeWidth={2.2} style={{ verticalAlign: "-1px" }} />{" "}
-                <b>Qibla:</b> {qibla.toFixed(1)}° desde el norte — referencia, no
-                una brújula (no hay magnetómetro en la laptop).
-              </p>
-            )}
-            <button className="test" disabled={detectando} onClick={detectarPorIP}>
-              <LocateFixed size={14} strokeWidth={2.4} />
-              {detectando ? "Detectando…" : "Detectar por IP (sugerencia)"}
-            </button>
-            <p className="nota">
-              El cálculo es 100% local — la red se usa solo para sugerir la
-              ubicación. Manual: clic derecho en Google Maps copiá los números;
-              latitud con <code>−</code> al sur, longitud con <code>−</code> al oeste.
-            </p>
-            <p className="nota">
-              El cálculo es 100% local — la red se usa solo para sugerir la
-              ubicación. Manual: clic derecho en Google Maps copiá los números;
-              latitud con <code>−</code> al sur, longitud con <code>−</code> al oeste.
-            </p>
-          </section>
-        )}
+          )}
 
-        {tab === "calculo" && (
-          <section>
-            <h2>Cálculo
-              <span className="desc">Método y criterio que alimentan el PrayTimes C del core.</span>
-            </h2>
-            <label>Método
-              <select value={cfg.method} onChange={(e) => upd({ method: e.target.value })}>
-                {METHOD_OPTIONS.map((m) => <option key={m}>{m}</option>)}
-              </select>
-            </label>
-            <label>Madhab (Asr)
-              <select value={cfg.madhab} onChange={(e) => upd({ madhab: e.target.value })}>
-                {MADHAB_OPTIONS.map((m) => <option key={m}>{m}</option>)}
-              </select>
-            </label>
-            <label>Regla de latitud alta
-              <select value={cfg.highLatRule} onChange={(e) => upd({ highLatRule: e.target.value })}>
-                {HIGH_LAT_OPTIONS.map((m) => <option key={m}>{m}</option>)}
-              </select>
-            </label>
-            <div className="offsets">
-              <div className="grupo">
-                <div className="grupo-tit">Offsets por rezo (minutos ±)</div>
-                <div className="fila-5">
-                  {PRAYERS.map((p) => (
-                    <div className="campo" key={p}>
-                      <label>{p}</label>
-                      <input
-                        type="number" step="1"
-                        value={cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0}
-                        onChange={(e) => upd({ offsets: { ...cfg.offsets, [p.toLowerCase()]: +e.target.value } })}
-                      />
-                      <span className="min">min</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {page === "adhan" && (
+            <div className="page-stack">
+              <div className="page-intro"><h2>Adhan y avisos</h2><p>Preferencias de sonido y notificaciones para cada rezo.</p></div>
+              <section className="panel setting-panel">
+                <div className="panel-heading"><div><h2>Sonido y preaviso</h2><p>El adhan usa volumen propio, separado del sistema.</p></div>{editando !== "adhan" && <button className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
+                {editando === "adhan" ? <div className="editor">
+                  <label>Volumen del adhan · {cfg.audio.volume}%<input type="range" min="0" max="100" value={cfg.audio.volume} onChange={(e) => updAudio({ volume: +e.target.value })} /></label>
+                  <div className="audio-por-rezo"><div className="grupo-tit">Adhan por rezo</div><div className="audio-filas">{PRAYERS.map((p) => { const key = p.toLowerCase(); const deshabilitado = cfg.audio.enabled[key] === false; return <div className={"audio-fila " + (deshabilitado ? "off" : "")} key={p}><label className="check"><input type="checkbox" checked={!deshabilitado} onChange={(e) => updAudio({ enabled: { ...cfg.audio.enabled, [key]: e.target.checked } })} /></label><span className="audio-rezo">{p}</span><span className="audio-state">{deshabilitado ? "Silenciado" : "Activo"}</span><button className="mini-play" disabled={deshabilitado} aria-label={"Probar adhan de " + p} onClick={() => invoke("test_adhan", { muecin: key }).catch((e) => flash("test: " + e, "error"))}><Play size={13} /></button></div>; })}</div></div>
+                  <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>
+                  <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button><button className="test" onClick={() => invoke("test_adhan", { muecin: null }).catch((e) => flash("test: " + e, "error"))}><Play size={14} />Probar adhan del próximo rezo</button></div>
+                  <p className="nota">Cada oración conserva su adhan asignado. La prueba reproduce el próximo adhan y se detiene al volver a pulsarla.</p>
+                </div> : <><div className="read-grid"><div><span>Volumen</span><b>{cfg.audio.volume}%</b></div><div><span>Adhan habilitado</span><b>{activoCount} de 5 rezos</b></div><div><span>Preaviso</span><b>{cfg.notice.minutes_before} min antes</b></div></div><button className="test" onClick={() => invoke("test_adhan", { muecin: null }).catch((e) => flash("test: " + e, "error"))}><Play size={14} />Probar adhan del próximo rezo</button><div className="compact-prayers">{PRAYERS.map((p) => <span key={p} className={cfg.audio.enabled[p.toLowerCase()] === false ? "off" : "on"}>{p} · {cfg.audio.enabled[p.toLowerCase()] === false ? "silenciado" : "activo"}</span>)}</div></>}
+              </section>
             </div>
-          </section>
-        )}
+          )}
 
-        {tab === "audio" && (
-          <section>
-            <h2>Audio
-              <span className="desc">Adhan de muecín con volumen propio, separado del sistema.</span>
-            </h2>
-            <label>
-              Volumen — {cfg.audio.volume}%
-              <input type="range" min="0" max="100" value={cfg.audio.volume}
-                onChange={(e) => updAudio({ volume: +e.target.value })} />
-            </label>
-            <div className="audio-por-rezo">
-              <div className="grupo-tit">Adhan por rezo</div>
-              <div className="audio-filas">
-                {PRAYERS.map((p) => {
-                  const key = p.toLowerCase();
-                  const slot = schedule?.prayers.find((s) => s.name === p);
-                  const deshabilitado = cfg.audio.enabled[key] === false;
-                  return (
-                    <div className={`audio-fila ${deshabilitado ? "off" : ""}`} key={p}>
-                      <label className="check" title={deshabilitado ? `${p}: adhan silenciado` : `${p}: adhan activo`}>
-                        <input type="checkbox" checked={cfg.audio.enabled[key] ?? true}
-                          onChange={(e) => updAudio({ enabled: { ...cfg.audio.enabled, [key]: e.target.checked } })} />
-                      </label>
-                      <span className="audio-rezo">
-                        {p}
-                        {slot?.hhmm ? <span className="audio-hora">· {slot.hhmm}</span> : null}
-                      </span>
-                      {!deshabilitado && (
-                        <button className="mini-play" title={`Probar el adhan de ${p} (clic de nuevo detiene)`}
-                          onClick={() => invoke("test_adhan", { muecin: key }).catch((e) => flash("test: " + e, "error"))}>
-                          <Play size={13} strokeWidth={2.4} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <button className="test" onClick={() => invoke("test_adhan", { muecin: null }).catch((e) => flash("test: " + e, "error"))}>
-              <Play size={14} strokeWidth={2.4} />
-              Probar adhan del próximo rezo (clic para reproducir / detener)
-            </button>
-            <p className="nota">
-              Cada rezo ya tiene asignado su propio adhan de la colección Doha
-              (mismos muezzin y mezquita, dominio público — <code>CREDITS.md</code>),
-              el ▶ de cada fila lo reproduce. Conectado al formato del nodo: los
-              archivos son WAV <code>mono 22.05&nbsp;kHz</code>, los mismos que
-              usaría el firmware.
-            </p>
-          </section>
-        )}
-
-        {tab === "seguimiento" && (
-          <section>
-            <h2>Seguimiento
-              <span className="desc">Marcá los rezos del día (pasados o hoy) — alimenta tu registro y las rachas.</span>
-            </h2>
-            {stats && (
-              <div className="stats">
-                <div className="stat-card" title="días consecutivos con los 5 rezos marcados">
-                  <Flame size={16} strokeWidth={2.2} />
-                  <b>{stats.racha_actual}</b>
-                  <span>{stats.activa_hoy ? "días — en curso" : "días — la última"}</span>
-                </div>
-                <div className="stat-card" title="tu mejor racha histórica">
-                  <Trophy size={16} strokeWidth={2.2} />
-                  <b>{stats.mejor_racha}</b>
-                  <span>mejor racha</span>
-                </div>
-                <div className="stat-card" title="días completos en todo el historial">
-                  <CalendarCheck size={16} strokeWidth={2.2} />
-                  <b>{stats.dias_completos}</b>
-                  <span>días completos</span>
-                </div>
-                <div className="stat-card" title="rezos marcados en estado final (todo el historial)">
-                  <Check size={16} strokeWidth={2.6} />
-                  <b>{stats.rezos_marcados}</b>
-                  <span>rezos marcados</span>
-                </div>
-              </div>
-            )}
-            <Calendario schedule={schedule}
-              onToggle={(date, prayer) => invoke("mark_prayed", { date, prayer }).catch((e) => flash("mark: " + e, "error"))} />
-          </section>
-        )}
-
-        {tab === "agente" && (
-          <section>
-            <h2>Agente
-              <span className="desc">El rol de esta app como agente local del nodo hardware — v1.1.</span>
-            </h2>
-            <label className="check">
-              <input type="checkbox" checked={cfg.agent.mqtt}
-                onChange={(e) => upd({ agent: { ...cfg.agent, mqtt: e.target.checked } })} />
-              MQTT (agente del nodo — v1.1)
-            </label>
-            <label>
-              Broker
-              <input value={cfg.agent.broker} placeholder="casa.local:1883"
-                onChange={(e) => upd({ agent: { ...cfg.agent, broker: e.target.value } })} />
-            </label>
-            <p className="nota">Push de schedule + onboarding del nodo entra con la v1.1.</p>
-          </section>
-        )}
-
-        {tab === "avanzado" && (
-          <section>
-            <h2>Avanzado
-              <span className="desc">Autostart, preaviso y la ruta real del config.</span>
-            </h2>
-            <AutostartBox />
-            <label>
-              Preaviso (min antes)
-              <input type="number" value={cfg.notice.minutes_before}
-                onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} />
-            </label>
-            <div className="audio-por-rezo">
-              <div className="grupo-tit">Actualizaciones {verActual && <span style={{ fontWeight: 400 }}>— hoy: v{verActual}</span>}</div>
-              <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
-                <button className="test" disabled={checando} onClick={verificarUpdates}>
-                  {checando ? "verificando…" : "Verificar actualizaciones"}
-                </button>
-                {update === null && !checando && (
-                  <span className="nota" style={{ margin: 0 }}>Estás al día ✓</span>
-                )}
-              </div>
-              {update && (
-                <div style={{ background: "var(--chip)", padding: "10px 12px", borderRadius: "var(--r-control)", fontSize: 12.5 }}>
-                  <b>v{update.version} disponible</b> — {update.notas}
-                  <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
-                    {update.appimage && (
-                      <button className="test" onClick={() => invoke("instalar_update").catch((e) => flash("instalación: " + e, "error"))}>
-                        <Play size={13} strokeWidth={2.4} />
-                        Actualizar ahora
-                      </button>
-                    )}
-                    {!update.appimage && (
-                      <span className="nota" style={{ margin: 0 }}>
-                        Si corrés el <code>.deb</code>: descargá el release de
-                        <code>&nbsp;{update.url}</code> e instalá con{" "}
-                        <code>dpkg -i</code>. Para el auto-update usá la AppImage.
-                      </span>
-                    )}
-                  </div>
+          {page === "registro" && (
+            <div className="page-stack">
+              <div className="page-intro"><h2>Registro</h2><p>Historial, rezos marcados y rachas.</p></div>
+              {stats && (
+                <div className="stats">
+                  <div className="stat-card" title="días consecutivos con los 5 rezos marcados"><Flame size={16} strokeWidth={2.2} /><b>{stats.racha_actual}</b><span>{stats.activa_hoy ? "días — en curso" : "días — la última"}</span></div>
+                  <div className="stat-card" title="tu mejor racha histórica"><Trophy size={16} strokeWidth={2.2} /><b>{stats.mejor_racha}</b><span>mejor racha</span></div>
+                  <div className="stat-card" title="días completos en todo el historial"><CalendarCheck size={16} strokeWidth={2.2} /><b>{stats.dias_completos}</b><span>días completos</span></div>
+                  <div className="stat-card" title="rezos marcados en estado final"><Check size={16} strokeWidth={2.6} /><b>{stats.rezos_marcados}</b><span>rezos marcados</span></div>
                 </div>
               )}
+              <section className="panel"><Calendario schedule={schedule} onToggle={(date, prayer) => invoke("mark_prayed", { date, prayer }).catch((e) => flash("mark: " + e, "error"))} /></section>
             </div>
-            <p className="nota">
-              Config persistido en <code>~/.config/adhan-companion/config.json</code> —
-              schema compatible con <code>casa/adhan/config</code> del nodo.
-            </p>
-          </section>
-        )}
-      </main>
+          )}
+
+          {page === "sistema" && (
+            <div className="page-stack">
+              <div className="page-intro"><h2>Sistema</h2><p>Inicio de sesión y mantenimiento de la aplicación.</p></div>
+              <section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartBox /></section>
+              <section className="panel setting-panel"><div className="panel-heading"><div><h2>Actualizaciones</h2><p>Versión instalada: {verActual ? "v" + verActual : "consultando…"}</p></div><button className="test" disabled={checando} onClick={verificarUpdates}>{checando ? "Verificando…" : "Buscar actualizaciones"}</button></div>
+                {update === null && !checando && <p className="success-note">La aplicación está al día.</p>}
+                {update && <div className="update-card"><b>v{update.version} disponible</b><p>{update.notas}</p>{update.appimage && esAppImage && <button className="test" onClick={() => invoke("instalar_update").catch((e) => flash("instalación: " + e, "error"))}><Play size={13} />Actualizar ahora</button>}{esWindows && <p className="nota">Descargá el instalador de Windows desde <a href={update.windows_installer || update.url} target="_blank" rel="noreferrer">GitHub Releases</a> y ejecutalo para actualizar.</p>}{!esWindows && !esAppImage && <p className="nota">Para actualizar la instalación <code>.deb</code>, descargá el release en <a href={update.url} target="_blank" rel="noreferrer">GitHub Releases</a> e instalalo con <code>dpkg -i</code>. La actualización automática está disponible con AppImage.</p>}{esAppImage && !update.appimage && <p className="nota">Este release no incluye una AppImage descargable.</p>}</div>}
+              </section>
+              <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{esWindows ? "%APPDATA%\\Adhan Companion\\config.json" : "~/.config/adhan-companion/config.json"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
+            </div>
+          )}
+        </main>
 
       <footer>
         {pendiente && <span className="estado pendiente">Cambios sin guardar</span>}
@@ -468,9 +360,10 @@ export default function App() {
         <button className="guardar" disabled={!pendiente}
           title={pendiente ? "" : "No hay cambios para guardar"}
           onClick={save}>
-          Guardar configuración
+          Guardar cambios
         </button>
       </footer>
+      </div>
     </div>
   );
 }
@@ -613,20 +506,32 @@ function fmtBonito(iso: string): string {
   return `${d} ${MESES[m - 1]} ${y}`;
 }
 
-/// Toggle de autostart (plugin tauri, habilitado por el usuario)
+function formatoCuenta(segundos: number): string {
+  const h = Math.floor(segundos / 3600);
+  const m = Math.floor((segundos % 3600) / 60);
+  const s = segundos % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+}
+
+/// Estado de autoinicio en lectura; la acción actualiza el plugin inmediatamente.
 function AutostartBox() {
   const [on, setOn] = useState(false);
-  const toggle = (v: boolean) => {
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => {
+    invoke<boolean>("get_autostart").then(setOn).catch((e) => console.error("autostart status:", e)).finally(() => setCargando(false));
+  }, []);
+  const toggle = () => {
+    const v = !on;
+    const anterior = on;
     setOn(v);
+    setGuardando(true);
     invoke("set_autostart", { enabled: v }).catch((e) => {
-      setOn(!v);
+      setOn(anterior);
       console.error("autostart:", e);
-    });
+    }).finally(() => setGuardando(false));
   };
   return (
-    <label className="check">
-      <input type="checkbox" checked={on} onChange={(e) => toggle(e.target.checked)} />
-      Iniciar sesión automáticamente
-    </label>
+    <div className="system-state"><div><span>Iniciar sesión automáticamente</span><b>{cargando ? "Consultando estado…" : on ? "Activado" : "Desactivado"}</b></div><button className="edit-button" disabled={cargando || guardando} onClick={toggle}>{guardando ? "Aplicando…" : on ? "Desactivar" : "Activar"}</button></div>
   );
 }

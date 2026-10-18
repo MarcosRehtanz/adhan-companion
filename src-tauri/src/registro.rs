@@ -1,6 +1,7 @@
 //! registro.jsonl — append-only, {date, prayer, status} según el spec.
-//! Estados: adhan (disparó) | rezado (marcado por el usuario) |
-//! desmarcado (toggle que deshace un rezado) | silenciado (cuando exista mute).
+//! Estados: adhan (disparó) | perdido (la app no estuvo activa al horario) |
+//! rezado (marcado por el usuario) | desmarcado (toggle que deshace un rezado) |
+//! silenciado (cuando exista mute).
 //! Sin base de datos: JSONL con filas; lectura con semántica last-wins.
 
 use std::io::Write;
@@ -104,10 +105,15 @@ pub fn marked_for_month(month: &str) -> Vec<MarkedDay> {
     let Ok(m) = parts[1].parse::<u32>() else {
         return Vec::new();
     };
-    let days = chrono::NaiveDate::from_ymd_opt(y, m + 1, 1)
+    if !(1..=12).contains(&m) {
+        return Vec::new();
+    }
+    let (next_y, next_m) = if m == 12 { (y.checked_add(1), 1) } else { (Some(y), m + 1) };
+    let days = next_y
+        .and_then(|year| chrono::NaiveDate::from_ymd_opt(year, next_m, 1))
         .and_then(|d| d.pred_opt())
         .map(|d| d.day())
-        .unwrap_or(30);
+        .unwrap_or(0);
     let mut out = Vec::new();
     for d in 1..=days {
         let date = format!("{month}-{d:02}");

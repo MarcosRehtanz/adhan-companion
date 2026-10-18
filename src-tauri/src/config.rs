@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
+use chrono::{Local, NaiveDate, TimeZone};
 use serde::{Deserialize, Serialize};
 
 use crate::prayer::{HighLatRule, Madhab, Method};
@@ -11,8 +12,25 @@ use crate::prayer::{HighLatRule, Madhab, Method};
 /// directorio del config: el spec fija `~/.config/adhan-companion/` (no el
 /// appid de Tauri) para que el schema del config sea idéntico al nodo
 pub fn config_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    PathBuf::from(home).join(".config").join("adhan-companion")
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(app_data) = std::env::var_os("APPDATA") {
+            return PathBuf::from(app_data).join("Adhan Companion");
+        }
+        if let Some(profile) = std::env::var_os("USERPROFILE") {
+            return PathBuf::from(profile)
+                .join("AppData")
+                .join("Roaming")
+                .join("Adhan Companion");
+        }
+        return std::env::temp_dir().join("Adhan Companion");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        PathBuf::from(home).join(".config").join("adhan-companion")
+    }
 }
 
 pub fn config_path() -> PathBuf {
@@ -213,30 +231,53 @@ impl Default for Config {
     }
 }
 
-/// offset TZ horario desde el `tz` string del config (schema del nodo esperado
-/// IANA): desktop lo toma de chrono (el cambio de TZ del sistema dispara
-/// recálculo por trigger) — helper para conversión simple latitud/longitud
+/// La zona IANA del config se conserva para compatibilidad con el schema del
+/// nodo. En desktop el cálculo sigue la zona local del sistema, según el spec.
 impl Config {
-    /// Offset decimal del tz guardado: IANA → decimales vía chrono
-    pub fn tz_offset_hours(&self) -> f64 {
-        chrono::Local::now().offset().local_minus_utc() as f64 / 3600.0
+    /// Offset local del sistema para la fecha calculada. Usar el mediodía de
+    /// esa fecha evita aplicar el offset DST de hoy al consultar días pasados.
+    pub fn tz_offset_hours_for_date(year: i32, month: i32, day: i32) -> f64 {
+        let Some(date) = NaiveDate::from_ymd_opt(year, month as u32, day as u32) else {
+            return Local::now().offset().local_minus_utc() as f64 / 3600.0;
+        };
+        let Some(noon) = date.and_hms_opt(12, 0, 0) else {
+            return Local::now().offset().local_minus_utc() as f64 / 3600.0;
+        };
+        Local
+            .from_local_datetime(&noon)
+            .earliest()
+            .map(|dt| dt.offset().local_minus_utc() as f64 / 3600.0)
+            .unwrap_or_else(|| Local::now().offset().local_minus_utc() as f64 / 3600.0)
     }
 }
 
 pub type SharedConfig = Arc<RwLock<Config>>;
 
-/// Carga el config si existe, o escribe el default en el disco para que el
-/// usuario lo recorba/edite manualmente a la primera correspondencia.
+/// Carga el config si existe; solo crea el archivo cuando todavía no existe.
+/// Si está dañado o no se puede leer, usa defaults en memoria y preserva el
+/// archivo para que el usuario pueda recuperarlo.
 pub fn load_or_init() -> Config {
     let path = config_path();
-    if let Some(bytes) = std::fs::read(&path).ok() {
-        if let Ok(cfg) = serde_json::from_slice::<Config>(&bytes) {
-            return cfg;
+    match std::fs::read(&path) {
+        Ok(bytes) => match serde_json::from_slice::<Config>(&bytes) {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                crate::log!("config inválido en {}: {e}; se usarán defaults sin sobrescribir el archivo", path.display());
+                Config::default()
+            }
+        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let cfg = Config::default();
+            if let Err(save_err) = save(&cfg) {
+                crate::log!("no se pudo crear config inicial: {save_err}");
+            }
+            cfg
+        }
+        Err(e) => {
+            crate::log!("no se pudo leer config {}: {e}; se usarán defaults sin sobrescribir el archivo", path.display());
+            Config::default()
         }
     }
-    let cfg = Config::default();
-    let _ = save(&cfg);
-    cfg
 }
 
 pub fn save(cfg: &Config) -> Result<(), String> {
@@ -245,7 +286,12 @@ pub fn save(cfg: &Config) -> Result<(), String> {
         std::fs::create_dir_all(parent).map_err(|e| format!("mkdir del config: {e}"))?;
     }
     let json = serde_json::to_string_pretty(cfg).map_err(|e| format!("serializer del config: {e}"))?;
-    std::fs::write(&path, json).map_err(|e| format!("write del config: {e}"))
+    let tmp = path.with_extension(format!("json.tmp-{}", std::process::id()));
+    std::fs::write(&tmp, json).map_err(|e| format!("write temporal del config: {e}"))?;
+    std::fs::rename(&tmp, &path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("reemplazo del config: {e}")
+    })
 }
 
 impl From<&Config> for crate::prayer::PrayerConfig {

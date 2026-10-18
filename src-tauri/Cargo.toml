@@ -1,7 +1,7 @@
 [package]
 name = "adhan-companion"
-version = "0.1.6"
-description = "App de escritorio tray-first para Ubuntu: horarios de rezo, adhan y seguimiento — cálculo 100% local"
+version = "0.1.7"
+description = "App de escritorio tray-first para Linux y Windows: horarios de rezo, adhan y seguimiento — cálculo 100% local"
 authors = ["Marcos Rehtanz"]
 edition = "2024"
 
@@ -25,11 +25,12 @@ tauri-plugin-autostart = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["clock"] }
-# zbus: D-Bus — la conexión de login1 (org.freedesktop.login1 PrepareForSleep)
-# se usa con la API blocking en un thread dedicado (spike 2)
-zbus = { version = "5", features = ["blocking"] }
 rodio = { version = "0.23", default-features = false, features = ["playback", "wav"] }
 tauri-plugin-notification = "2.6.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# D-Bus login1 permite realinear el scheduler cuando Linux vuelve de suspensión.
+zbus = { version = "5", features = ["blocking"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

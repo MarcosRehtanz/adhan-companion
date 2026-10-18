@@ -36,5 +36,6 @@ export interface UpdateDisponible {
   version: string;
   url: string;
   appimage: string | null;
+  windows_installer: string | null;
   notas: string;
 }

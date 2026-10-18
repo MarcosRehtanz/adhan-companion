@@ -57,17 +57,45 @@ pub struct SharedStateInner {
 
 impl SharedStateInner {
     pub fn new(cfg: &crate::config::Config) -> Self {
-        let schedule = compute_schedule(cfg);
+        let mut schedule = compute_schedule(cfg);
         let now = chrono::Local::now();
-        let now_h = now.hour() as f64 + now.minute() as f64 / 60.0;
-        // next = el primer rezo del día todavía no pasado (sino, ya dispararon todos)
-        let fired = PRAYERS
-            .iter()
-            .zip(schedule.prayers.iter())
-            .position(|(_, p)| p.dec > now_h)
-            .unwrap_or(PRAYERS.len());
+        let now_h = now.hour() as f64 + now.minute() as f64 / 60.0 + now.second() as f64 / 3600.0;
+        let fired = align_after_recompute(&mut schedule, now_h);
         Self { schedule, fired }
     }
+}
+
+/// Al arrancar o realinear el scheduler, nunca reproducir un rezo cuyo horario
+/// ya pasó. La ventana de 60 s solo aplica a un scheduler que estaba vivo cuando
+/// llegó el horario; no a un reinicio, resume o cambio de configuración.
+fn first_future_prayer(schedule: &Schedule, now_h: f64) -> usize {
+    schedule
+        .prayers
+        .iter()
+        .position(|p| p.dec > now_h)
+        .unwrap_or(PRAYERS.len())
+}
+
+/// Alinea el índice después de boot/resume/config. Los horarios anteriores se
+/// registran como perdidos si no hay ya un evento para ese rezo; no se disparan
+/// tarde aunque hayan pasado menos de ADHAN_SECS.
+fn align_after_recompute(schedule: &mut Schedule, now_h: f64) -> usize {
+    let fired = first_future_prayer(schedule, now_h);
+    for slot in schedule.prayers.iter().take(fired) {
+        if crate::registro::last_status_for(&schedule.date, &slot.name).is_none() {
+            if let Err(e) = crate::registro::append(&schedule.date, &slot.name, "perdido") {
+                crate::log!("no se pudo registrar {} como perdido: {e}", slot.name);
+            }
+        }
+    }
+    if let Some(slot) = schedule.prayers.get(fired) {
+        schedule.next = Some(slot.name.clone());
+        schedule.countdown_secs = Some(((slot.dec - now_h) * 3600.0).round().max(0.0) as i64);
+    } else {
+        schedule.next = None;
+        schedule.countdown_secs = None;
+    }
+    fired
 }
 
 /// Snapshot seguro del config (panics en poison nunca deben pisar el tray)
@@ -92,7 +120,7 @@ pub fn prayer_slots_for(y: i32, m: i32, d: i32, cfg: &crate::config::Config) -> 
     let pcfg = crate::prayer::PrayerConfig::from(cfg);
     let times7 = crate::prayer::calc_times(
         y, m, d,
-        cfg.lat, cfg.lon, cfg.tz_offset_hours(),
+        cfg.lat, cfg.lon, crate::config::Config::tz_offset_hours_for_date(y, m, d),
         &pcfg,
     );
     PRAYERS
@@ -128,7 +156,7 @@ pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
     Schedule {
         date,
         prayers,
-        next: Some(PRAYERS[0].into()),
+        next: None,
         countdown_secs: None,
         marked,
     }
@@ -137,6 +165,7 @@ pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
 /// Círculo RGBA por estado — movido de lib.rs para que scheduler y tray
 /// usen el mismo source mientras no existan assets reales.
 /// Macro `log!` exportada desde lib.rs; acá se usa como `crate::log!`.
+#[cfg(target_os = "linux")]
 pub fn spawn_login1_watcher(tx: mpsc::Sender<Trigger>) {
     std::thread::spawn(move || {
         let conn = match zbus::blocking::Connection::system() {
@@ -188,6 +217,12 @@ pub fn spawn_login1_watcher(tx: mpsc::Sender<Trigger>) {
     });
 }
 
+#[cfg(not(target_os = "linux"))]
+pub fn spawn_login1_watcher(_tx: mpsc::Sender<Trigger>) {
+    // Windows/macOS no exponen login1. El loop del scheduler recalcula en cada tick.
+}
+
+#[cfg(target_os = "linux")]
 fn log_watcher_ready() {
     crate::log!("zbus conectado a login1 — escuchando PrepareForSleep");
 }
@@ -215,7 +250,7 @@ pub fn icon_de(estado: IconoEstado) -> tauri::image::Image<'static> {
         .expect("PNG del tray debe decodificar (generados por scripts/gen-icons.py)")
 }
 
-/// Notificación freedesktop desde el core con texto arbitrario (updater)
+/// Notificación del sistema desde el core con texto arbitrario (updater)
 pub fn notify_standard(app: &tauri::AppHandle, title: &str, body: &str) {
     notify(app, title, body);
 }
@@ -271,8 +306,14 @@ fn refresh_prayer_items(s: &SchedulerLoop, schedule: &Schedule) {
 }
 
 pub fn run(s: SchedulerLoop) {
-    let mut schedule = compute_schedule(&snapshot(&s.config));
-    let mut fired: usize = 0;
+    let mut cfg = snapshot(&s.config);
+    let mut schedule = compute_schedule(&cfg);
+    let now = chrono::Local::now();
+    let mut last_local_offset = now.offset().local_minus_utc();
+    let mut fired = align_after_recompute(
+        &mut schedule,
+        now.hour() as f64 + now.minute() as f64 / 60.0 + now.second() as f64 / 3600.0,
+    );
     let mut date = schedule.date.clone();
     // Edge del disparo: suena una sola vez por rezo al entrar en zona verde
     let mut adhan_announced = false;
@@ -301,8 +342,13 @@ pub fn run(s: SchedulerLoop) {
         }
         if let Some(via) = recal {
             crate::log!("recalculando vía {via}");
-            schedule = compute_schedule(&snapshot(&s.config));
-            fired = 0;
+            cfg = snapshot(&s.config);
+            schedule = compute_schedule(&cfg);
+            let now = chrono::Local::now();
+            fired = align_after_recompute(
+                &mut schedule,
+                now.hour() as f64 + now.minute() as f64 / 60.0 + now.second() as f64 / 3600.0,
+            );
             adhan_announced = false;
             notice_announced = false;
             date = schedule.date.clone();
@@ -345,11 +391,31 @@ pub fn run(s: SchedulerLoop) {
 
         // Trigger: medianoche (cambió la fecha local)
         let now = chrono::Local::now();
+        let local_offset = now.offset().local_minus_utc();
+        if local_offset != last_local_offset {
+            crate::log!("trigger: cambió el offset local/DST → recalcular horarios");
+            cfg = snapshot(&s.config);
+            schedule = compute_schedule(&cfg);
+            fired = align_after_recompute(
+                &mut schedule,
+                now.hour() as f64 + now.minute() as f64 / 60.0 + now.second() as f64 / 3600.0,
+            );
+            adhan_announced = false;
+            notice_announced = false;
+            date = schedule.date.clone();
+            last_local_offset = local_offset;
+            refresh_prayer_items(&s, &schedule);
+            let _ = s.app.emit("schedule_changed", &schedule);
+        }
         let today = now.format("%Y-%m-%d").to_string();
         if today != date {
             crate::log!("trigger: medianoche → recalcular el día");
-            schedule = compute_schedule(&snapshot(&s.config));
-            fired = 0;
+            cfg = snapshot(&s.config);
+            schedule = compute_schedule(&cfg);
+            fired = align_after_recompute(
+                &mut schedule,
+                now.hour() as f64 + now.minute() as f64 / 60.0 + now.second() as f64 / 3600.0,
+            );
             adhan_announced = false;
             notice_announced = false;
             date = today;
@@ -381,6 +447,11 @@ pub fn run(s: SchedulerLoop) {
                 "adhan de {} terminó (verde {} s) / o sin ventana vivida → marca en el registro y avanza",
                 PRAYERS[fired], ADHAN_SECS
             );
+            if crate::registro::last_status_for(&schedule.date, PRAYERS[fired]).is_none() {
+                if let Err(e) = crate::registro::append(&schedule.date, PRAYERS[fired], "perdido") {
+                    crate::log!("no se pudo registrar {} como perdido: {e}", PRAYERS[fired]);
+                }
+            }
             fired += 1;
             adhan_announced = false;
             notice_announced = false;

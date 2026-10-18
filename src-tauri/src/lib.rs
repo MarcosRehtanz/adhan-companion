@@ -10,6 +10,7 @@ pub mod updater;
 
 use std::sync::mpsc;
 
+use chrono::Datelike;
 use tauri::{
     menu::{MenuBuilder, MenuItem},
     tray::TrayIconBuilder,
@@ -84,6 +85,16 @@ fn version_actual() -> String {
 }
 
 #[tauri::command]
+fn ejecutando_appimage() -> bool {
+    updater::es_appimage()
+}
+
+#[tauri::command]
+fn ejecutando_windows() -> bool {
+    updater::es_windows()
+}
+
+#[tauri::command]
 fn check_update() -> Result<Option<updater::Disponible>, String> {
     updater::verificar()
 }
@@ -116,6 +127,11 @@ fn mark_prayed(
     if !scheduler::PRAYERS.contains(&prayer.as_str()) {
         return Err(format!("rezo desconocido: {prayer}"));
     }
+    let parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|_| format!("fecha inválida: {date} (esperado YYYY-MM-DD)"))?;
+    if parsed > chrono::Local::now().date_naive() {
+        return Err("no se pueden marcar rezos de fechas futuras".into());
+    }
     sched_tx
         .send(scheduler::Trigger::Pray { date, prayer: prayer.clone() })
         .map_err(|e| format!("scheduler no disponible: {e}"))?;
@@ -130,13 +146,10 @@ fn get_marked(month: String) -> Result<Vec<registro::MarkedDay>, String> {
 
 // Horarios de una fecha (pasado) para el calendario retroactivo
 #[tauri::command]
-fn get_schedule_for(date: String, state: tauri::State<SharedConfig>) -> Result<Vec<scheduler::PrayerSlot>, String> {    let parts: Vec<&str> = date.split('-').collect();
-    if parts.len() != 3 {
-        return Err(format!("fecha inválida: {date} (esperado YYYY-MM-DD)"));
-    }
-    let y = parts[0].parse::<i32>().map_err(|_| "año inválido")?;
-    let m = parts[1].parse::<i32>().map_err(|_| "mes inválido")?;
-    let d = parts[2].parse::<i32>().map_err(|_| "día inválido")?;
+fn get_schedule_for(date: String, state: tauri::State<SharedConfig>) -> Result<Vec<scheduler::PrayerSlot>, String> {
+    let parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|_| format!("fecha inválida: {date} (esperado YYYY-MM-DD)"))?;
+    let (y, m, d) = (parsed.year(), parsed.month() as i32, parsed.day() as i32);
     let cfg = state.read().map(|c| c.clone()).map_err(|e| format!("config: {e}"))?;
     Ok(scheduler::prayer_slots_for(y, m, d, &cfg))
 }
@@ -172,6 +185,14 @@ fn set_autostart(enabled: bool, app: tauri::AppHandle) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch()
+        .is_enabled()
+        .map_err(|e| format!("autostart status: {e}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -191,7 +212,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla, get_stats, version_actual, check_update, instalar_update
+            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, get_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla, get_stats, version_actual, ejecutando_appimage, ejecutando_windows, check_update, instalar_update
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {

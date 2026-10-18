@@ -29,8 +29,11 @@ pnpm tauri dev
 # solo compilar el core
 cd src-tauri && cargo build
 
-# build de producción → produce .deb (único target declarado)
+# build de producción → produce los bundles de la plataforma actual
 pnpm tauri build
+
+# Windows (runner Windows; instalador NSIS)
+pnpm tauri build --bundles nsis
 ```
 
 ⚠️ En shells no interactivos `cargo` puede no estar en PATH: `export PATH="$HOME/.cargo/bin:$PATH"` o `source ~/.cargo/env`. Sin esto `pnpm tauri dev` falla con "failed to run cargo metadata".
@@ -47,19 +50,19 @@ pnpm tauri build
 
 - Logs Rust con la macro `log!` (prefijo `[adhan]`, solo debug) — no usar `println!` directo.
 - rodio 0.23 (API renombrada respecto a ejemplos viejos): `Sink`→`Player`, `OutputStreamBuilder`→`DeviceSinkBuilder::open_default_sink()`, features `["playback","wav"]`. Si el drop del sink es intencional, llamar `log_on_drop(false)` o ensucia el log con un "audio will stop" engañoso.
-- El tray cicla estados de icono dibujando círculos RGBA con `circle_icon()` en `lib.rs`; los assets reales los reemplazan cuando se defina el set de iconos (matriz estado×icono en el spec).
+- El tray cicla estados con los PNG de `src-tauri/assets/tray/`.
 - Nombre de crate `adhan-companion`, lib `"adhan_companion_lib"` (el sufijo `_lib` es necesario, no renombrar).
 - No quitar `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]` de `main.rs` (necesario para Windows en release).
 
 ## Decisiones vigentes (ver spec para detalle)
 
-- **Local-first**: el cálculo no toca red; la fuente única será **FFI al `praytimes.c`** (mismo C que el firmware ESP32) — plan declarado, no implementado todavía.
-- Distribución: **solo .deb**; Flatpak descartado (tray en sandbox), AppImage diferido.
+- **Local-first**: el cálculo no toca red; la fuente única es **FFI al PrayTimes C** compartido con el firmware ESP32. La sugerencia de ubicación y la consulta de releases sí usan red.
+- Distribución Linux: **.deb y AppImage**; Windows: instalador **NSIS por usuario**. Flatpak descartado (tray en sandbox).
 - Identifier: `io.github.marcosrehtanz.adhan-companion` en `src-tauri/tauri.conf.json` — cambiarlo rompe coherencia del tray con el `.desktop`.
 - Audio del adhan: WAV mono 22.05 kHz (mismo formato que el firmware del nodo).
 
 ## Estado actual
 
-- Tests: **12 en `src-tauri/`** (`cargo test`) — 6 paridad (`ffi_praytimes`), 1 horarios vs alAdhan (`validate_official`, ±60s), 1 qibla (`validate_qibla`, ±0.5°) y 4 unit de stats/rachas. CI aún no.
+- Tests: 12 en `src-tauri/` (`cargo test`) — 6 paridad (`ffi_praytimes`), 1 horarios vs alAdhan (`validate_official`, ±60s), 1 qibla (`validate_qibla`, ±0.5°) y 4 unit de stats/rachas. El workflow de release ejecuta la suite en Linux y Windows antes de empaquetar y publicar.
 - El `README.md` está en español y mantiene el estado del proyecto al público (no dejarlo volver a boilerplate).
-- Progreso: **MVP cerrado + v1.1.4 publicado por pipeline** (`v0.1.4` Latest en Releases): tray, scheduler 24/7, adhan real con confirmación, calendario retroacto, notificaciones + preaviso, validación vs alAdhan con fixes del C (TU único, Tehran oficial 17.7/4.5/14.1), **muecines con asignación FIJA por rezo** (colección Doha: cada oración suena su propio adhan — sin selector ni mapas de config, decisión de usuario 2026-10-15), **pipeline CI/CD `tag→release`** (`.github/workflows/release.yml` — para publicar: `git tag vX.Y.Z && git push origin vX.Y.Z`; no re-runs de corridas viejas), **qibla validada** (9/10 ciudades 0.00° vs alAdhan), **limpieza prod** (test del tray solo con `debug_assertions` + opener fuera), y **rachas/stats** (`075b06f`, v1.2 temprano: `registro::stats_from` puro + 4 unit + IPC `get_stats` + banda de stats en Seguimiento). Contratos: `get_schedule`/`get_schedule_for`/`get_marked`/`set_config`/`get_config`/`test_adhan`/`test_notification`/`mark_prayed`/`schedule_changed`. Muecines: colección Doha dominio público (`assets/muecin/CREDITS.md`). Restante v1.1: Ramadán (imsak/iftar), MQTT agente (bloqueado en hardware), spot-checks portales oficiales.
+- Progreso: el checkout está en **v0.1.7**. Incluye tray, scheduler, adhan con confirmación, calendario retroactivo, notificaciones + preaviso, FFI a PrayTimes C, qibla, rachas/stats, colección Doha con asignación fija por rezo y updater para AppImage. Windows está preparado con ruta de config `%APPDATA%\Adhan Companion`, D-Bus limitado a Linux, build NSIS y descarga manual desde la sección de actualizaciones. El workflow `.github/workflows/release.yml` construye para Linux y Windows; solo publica los artefactos al subir un tag `vX.Y.Z`, ejecuta tests en ambas plataformas, comprueba versiones/notas y publica también SHA256SUMS. La ejecución manual genera artefactos sin publicar. Ver `docs/publicar-release.md`. Restante de producto: Ramadán (imsak/iftar), MQTT agente (bloqueado en hardware) y spot-checks de portales oficiales.

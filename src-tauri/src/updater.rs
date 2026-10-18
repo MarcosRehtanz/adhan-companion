@@ -19,10 +19,12 @@ pub const URL_RELEASES: &str = "https://github.com/MarcosRehtanz/adhan-companion
 pub struct Disponible {
     /// versión nueva (sin 'v'; ej "0.1.6")
     pub version: String,
-    /// URL mandada al release para descarga manual (.deb)
+    /// Página del release para descargas manuales.
     pub url: String,
     /// nombre del asset AppImage si la release lo ofrece, con su URL
     pub appimage: Option<String>,
+    /// instalador NSIS de Windows si el release lo ofrece
+    pub windows_installer: Option<String>,
     /// artistas: notas del release (primera línea)
     pub notas: String,
 }
@@ -74,6 +76,8 @@ fn fetch_latest() -> Result<Release, String> {
     let out = std::process::Command::new("curl")
         .args([
             "-fsSL",
+            "--connect-timeout", "5",
+            "--max-time", "15",
             "-H",
             "Accept: application/vnd.github+json",
             &format!("https://api.github.com/repos/{REPO}/releases/latest"),
@@ -109,6 +113,12 @@ pub fn verificar() -> Result<Option<Disponible>, String> {
             .iter()
             .find(|a| a.name.to_lowercase().ends_with(".appimage"))
             .map(|a| a.url.clone()),
+        windows_installer: release
+            .assets
+            .iter()
+            .find(|a| a.name.to_lowercase().ends_with("-setup.exe"))
+            .or_else(|| release.assets.iter().find(|a| a.name.to_lowercase().ends_with(".msi")))
+            .map(|a| a.url.clone()),
         notas: release.body.unwrap_or_default().lines().next().unwrap_or("").to_string(),
     };
     *estado().lock().unwrap() = Some(info.clone());
@@ -117,15 +127,20 @@ pub fn verificar() -> Result<Option<Disponible>, String> {
 
 /// ¿El binario actual corre como AppImage? (decide si el self-update
 /// puede sustituirse a sí mismo o hay que mandar al manual)
-fn es_appimage() -> bool {
+pub fn es_appimage() -> bool {
     std::env::var("APPIMAGE")
         .map(|v| !v.is_empty())
         .unwrap_or(false)
 }
 
-/// Instalación self-update sobre AppImage: baja el nuevo a /tmp, chmod +x,
+pub fn es_windows() -> bool {
+    cfg!(target_os = "windows")
+}
+
+/// Instalación self-update sobre AppImage: baja junto al archivo actual, chmod +x,
 /// reemplaza el actual y relanza. En una instalación .deb NO aplica —
 /// error manejable en la UI con el instructivo manual.
+#[cfg(target_os = "linux")]
 pub fn instalar() -> Result<(), String> {
     if !es_appimage() {
         return Err(
@@ -142,36 +157,55 @@ pub fn instalar() -> Result<(), String> {
     let appimage_url = info
         .appimage
         .ok_or_else(|| "el release no trae AppImage para el auto-update".to_string())?;
-    let n = appimage_url.rsplit('/').next().unwrap_or("adhan-updating.AppImage");
-    let tmp = format!("/tmp/{n}");
-
+    let appimage = std::env::var_os("APPIMAGE")
+        .map(std::path::PathBuf::from)
+        .ok_or_else(|| "no encuentro la ruta del archivo AppImage actual".to_string())?
+        .canonicalize()
+        .map_err(|e| format!("no pude resolver la ruta de la AppImage: {e}"))?;
+    let tmp = appimage.with_file_name(format!(".adhan-update-{}.AppImage", std::process::id()));
+    let _ = std::fs::remove_file(&tmp);
     descargar(&appimage_url, &tmp)?;
 
-    let exe = std::env::current_exe()
-        .map_err(|e| format!("no pude resolvér el binario: {e}"))?;
-    let exe = exe.canonicalize().map_err(|e| e.to_string())?;
     std::fs::set_permissions(&tmp, {
+        #[cfg(unix)]
+        {
         use std::os::unix::fs::PermissionsExt;
         std::fs::Permissions::from_mode(0o755)
+        }
     })
     .map_err(|e| format!("chmod del nuevo AppImage: {e}"))?;
-    let backup = exe.with_extension("appimage-old");
+    let backup = appimage.with_extension("appimage-old");
     if backup.exists() {
         let _ = std::fs::remove_file(&backup);
     }
-    std::fs::rename(&exe, &backup).map_err(|e| format!("swap del AppImage: {e}"))?;
-    std::fs::rename(&tmp, &exe).map_err(|e| format!("instalar el nuevo AppImage: {e}"))?;
+    std::fs::rename(&appimage, &backup).map_err(|e| format!("respaldo de la AppImage: {e}"))?;
+    if let Err(e) = std::fs::rename(&tmp, &appimage) {
+        let _ = std::fs::rename(&backup, &appimage);
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!("instalar el nuevo AppImage: {e}"));
+    }
 
     log!("updater: v{} instalada — relanzando", info.version);
-    let _ = std::process::Command::new(&exe).spawn();
+    if let Err(e) = std::process::Command::new(&appimage).spawn() {
+        let _ = std::fs::remove_file(&appimage);
+        let _ = std::fs::rename(&backup, &appimage);
+        return Err(format!("no pude iniciar la nueva AppImage: {e}"));
+    }
     std::process::exit(0);
     #[allow(unreachable_code)]
     Ok(())
 }
 
-fn descargar(url: &str, destino: &str) -> Result<(), String> {
+#[cfg(not(target_os = "linux"))]
+pub fn instalar() -> Result<(), String> {
+    Err("la actualización automática solo está disponible para AppImage en Linux".into())
+}
+
+fn descargar(url: &str, destino: &std::path::Path) -> Result<(), String> {
     let out = std::process::Command::new("curl")
-        .args(["-fL", "-o", destino, url])
+        .args(["-fL", "--connect-timeout", "5", "--max-time", "300", "-o"])
+        .arg(destino)
+        .arg(url)
         .status()
         .map_err(|e| format!("curl no disponible: {e}"))?;
     if !out.success() {
