@@ -5,6 +5,7 @@ Edición de prueba para teléfonos Android ARM de 32 y 64 bits, basada en v0.1.8
 ## Incluye
 
 - Interfaz móvil con menú de secciones, controles táctiles y formularios adaptados.
+- Menú hamburguesa siempre visible en Android, sin sidebar de escritorio, y CSS compilado con reglas `max-width` para WebViews anteriores a Chromium 104.
 - Cálculo local de horarios y próximo rezo mediante PrayTimes C.
 - Registro manual, calendario islámico con ajuste y personalización de colores.
 - Lector del Qur’an offline con marcadores y punto de lectura.

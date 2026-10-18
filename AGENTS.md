@@ -20,6 +20,7 @@ Relevante para esta app: `08 Práctica/Rezos/` (una ficha por rezo: Fajr/Dhuhr/A
 - `src/` — frontend React (config + dashboard). Puede morir/crashear sin afectar el core. Solo `Configuración…` del tray abre la ventana.
 - `src-tauri/capabilities/` — permisos frontend→core. En Tauri 2 **todo comando/plugin que use el frontend debe estar declarado acá**; si un comando "no responde", revisar capabilities antes que el código.
 - Android experimental: `src-tauri/src/mobile.rs` inicializa datos privados y consulta/registro sin avisos automáticos. `desktop.rs` mantiene el tray y el arranque de escritorio. Respetar `cfg(desktop)` / `cfg(mobile)` y no incorporar dependencias de tray, autostart o rodio de escritorio en Android. Ver `docs/android-experimental.md`.
+- Frontend Android: siempre menú hamburguesa; no renderizar el sidebar de escritorio. Conservar `build.target` y `build.cssTarget` en `chrome80`: la minificación predeterminada de Vite transforma `max-width` en media queries de rango que WebViews antiguos pueden ignorar. El objetivo de compilación no sustituye la revisión nativa ni añade polyfills de API.
 
 ## Comandos
 

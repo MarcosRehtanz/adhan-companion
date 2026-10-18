@@ -255,7 +255,7 @@ export default function App() {
         </nav>
         <p className="nota">v{verActual || "0.1.8"}{isAndroid ? " · Android experimental" : ""}</p>
       </dialog>
-      <aside className="sidebar">
+      {!isAndroid && <aside className="sidebar">
         <div className="brand"><img src={logo} className="logo" alt="" /><span>Adhan<br />Companion</span></div>
         <nav className="nav-main" aria-label="Navegación principal">
           {PAGES.map(({ id, label, Icon }) => (
@@ -270,7 +270,7 @@ export default function App() {
           </button>
           <span className="sidebar-version">v{verActual || "0.1.8"}</span>
         </div>
-      </aside>
+      </aside>}
 
       <div className="workspace">
         <header className="topbar">

@@ -19,12 +19,15 @@ La app muestra una indicación de **Android experimental** con las funciones dis
 
 ## Estado de la primera compilación
 
-El 18 de octubre de 2026 se completaron la compilación de la interfaz, la comprobación del core de Linux y la generación local del APK Android ARM64 de depuración. El APK inicial ocupa unos 165 MiB e identifica la app como `io.github.marcosrehtanz.adhancompanion.experimental`, versión 0.1.8. La instalación y revisión funcional en un teléfono real siguen pendientes.
+El 18 de octubre de 2026 se completaron la compilación de la interfaz, la comprobación del core de Linux y la generación local del APK Android ARM64 de depuración. El APK inicial ocupa unos 165 MiB e identifica la app como `io.github.marcosrehtanz.adhancompanion.experimental`, versión 0.1.8. En esa primera compilación, la instalación y la revisión funcional en un teléfono real todavía estaban pendientes.
+
+El usuario confirmó después la instalación de la variante ARMv7 en su J7 con Android 8.1.0 y reportó que el sidebar permanecía visible. La revisión del CSS de producción encontró reglas transformadas a `(width <= 720px)`, incompatibles con WebViews anteriores a Chromium 104. La versión exacta del WebView del teléfono no está confirmada. El build ahora fija `target` y `cssTarget` a `chrome80` para conservar `max-width`; la compilación local confirmó esa salida. El diseño completo todavía requiere revisión en el teléfono.
 
 ## Interfaz móvil
 
-- Hasta 720 píxeles de ancho, la navegación lateral se sustituye por un botón de menú y un diálogo con los nombres completos de todas las secciones.
+- En Android siempre se usa un botón hamburguesa con los nombres completos de todas las secciones; el sidebar de escritorio no se renderiza. En escritorio, se conserva el sidebar y se sustituye por el menú hasta 720 píxeles de ancho.
 - El diálogo mantiene el foco en el menú y devuelve el foco al cerrarlo; permite cerrar con su botón o tocando el fondo.
+- El menú tiene desplazamiento vertical y altura de respaldo en `vh` para WebViews sin soporte de `dvh`.
 - El contenido usa todo el ancho disponible, adapta tarjetas y formularios y contempla las áreas seguras de la pantalla.
 - Los controles principales tienen al menos 44 píxeles de altura. Los calendarios conservan sus siete columnas.
 - El registro presenta los cinco rezos como filas para facilitar el marcado táctil.
@@ -32,6 +35,8 @@ El 18 de octubre de 2026 se completaron la compilación de la interfaz, la compr
 - Las preferencias siguen mostrando primero un resumen y abren los campos mediante **Editar**, con **Guardar** y **Cancelar**.
 
 La adaptación también se aplica a ventanas pequeñas de escritorio. Las comprobaciones visuales en un teléfono real siguen pendientes.
+
+La compatibilidad de compilación se basa en las opciones [`build.target` y `build.cssTarget` de Vite](https://vite.dev/config/build-options.html). El cambio de sintaxis de media queries llegó en [Chromium 104](https://blog.chromium.org/2022/06/chrome-104-beta-new-media-query-syntax.html). El objetivo de compilación no añade polyfills para todas las API del navegador ni certifica compatibilidad completa con cualquier WebView antiguo.
 
 ## Separación de plataformas y datos
 

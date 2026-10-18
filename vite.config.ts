@@ -8,6 +8,13 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [react()],
 
+  // WebViews anteriores a Chromium 104 no entienden media queries de rango.
+  // Evitar que la minificación convierta max-width en (width <= ...).
+  build: {
+    target: "chrome80",
+    cssTarget: "chrome80",
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
