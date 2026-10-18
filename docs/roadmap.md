@@ -15,7 +15,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 **Solicitud:** mostrar siempre el próximo rezo, aunque corresponda a mañana.
 
-**Estado:** implementado en el checkout, validado con tests del core; pendiente de revisión manual y publicación.
+**Estado:** incluido en v0.1.8, validado con tests del core; pendiente de ampliar la revisión manual.
 
 **Limitación de v0.1.7:** al terminar los rezos del día, el scheduler deja `next` y `countdown_secs` vacíos hasta medianoche. La tarjeta de Hoy también busca la hora exclusivamente en la lista del día actual y usa el texto fijo «Hoy a las».
 
@@ -31,7 +31,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 ## 2. Ubicación mediante Google Maps
 
-**Estado:** implementado en el checkout; pendiente de revisión manual y publicación. Ver [uso y formatos admitidos](ubicacion-google-maps.md).
+**Estado:** incluido en v0.1.8; pendiente de revisión manual. Ver [uso y formatos admitidos](ubicacion-google-maps.md).
 
 **Solicitud:** usar Google Maps para obtener una ubicación precisa.
 
@@ -51,7 +51,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 ## 3. Alarmas discretas como alternativa al adhan
 
-**Estado:** implementadas localmente, pendientes de prueba manual de audio y publicación. Ver [avisos por rezo](avisos-por-rezo.md).
+**Estado:** incluidas en v0.1.8, pendientes de prueba manual de audio. Ver [avisos por rezo](avisos-por-rezo.md).
 
 **Solicitud:** contar con un aviso sonoro más disimulado.
 
@@ -69,7 +69,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 ## 4. Calendario islámico
 
-**Estado:** implementado localmente; pendiente de revisión visual y publicación. Ver [criterio y uso](calendario-islamico.md).
+**Estado:** incluido en v0.1.8; pendiente de revisión visual. Ver [criterio y uso](calendario-islamico.md).
 
 **Solicitud:** incorporar un calendario islámico a la app.
 
@@ -88,7 +88,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 ## 5. Personalización de colores
 
-**Estado:** implementada localmente; pendiente de revisión visual y publicación.
+**Estado:** incluida en v0.1.8; pendiente de ampliar la revisión visual.
 
 **Solicitud:** permitir personalizar la apariencia.
 
@@ -110,7 +110,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 ## 6. Qur'an (Corán)
 
-**Estado:** lector implementado y [revisado en la app nativa de Linux](revision-lector-quran.md), incluida persistencia en dos reinicios reales. Pendiente de revisión en Windows y publicación. [Uso, datos, contenido y condiciones](lector-quran.md).
+**Estado:** lector implementado y [revisado en la app nativa de Linux](revision-lector-quran.md), incluida persistencia en dos reinicios reales. Incluido en v0.1.8; pendiente de revisión en Windows. [Uso, datos, contenido y condiciones](lector-quran.md).
 
 **Investigación inicial completada (18 de octubre de 2026):** ver [fuentes, comparación y permisos](investigacion-fuentes-quran.md). Selección autorizada: árabe Tanzil Uthmani y versión digital de Bórnez publicada en Tanzil. La edición impresa de origen no está identificada; la app presenta la procedencia digital y conserva los términos no comerciales. Pendiente de revisión editorial. El usuario confirmó que la app es sin fines de lucro: se trabajará con el alcance no comercial de la traducción, manteniendo sus condiciones separadas de la licencia MIT del código.
 
@@ -126,9 +126,9 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 ## Orden sugerido
 
-1. Próximo rezo entre días: corrección implementada localmente; pendiente de publicación.
-2. Ubicación mediante Google Maps: implementada localmente; pendiente de publicación. Avisos discretos implementados localmente; continuar con prueba manual de audio.
-3. Calendario islámico implementado localmente; personalización de colores también implementada localmente. Continuar con revisión visual.
+1. Próximo rezo entre días: corrección incluida en v0.1.8.
+2. Ubicación mediante Google Maps: incluida en v0.1.8. Avisos discretos incluidos en v0.1.8; continuar con prueba manual de audio.
+3. Calendario islámico y personalización de colores incluidos en v0.1.8. Continuar con revisión visual.
 4. Lector del Qur'an revisado en Linux: repetir la revisión nativa en Windows antes de publicar.
 
 El modo Ramadán continúa como propuesta documentada. MQTT/dispositivos continúa condicionado al hardware; estas solicitudes no cambian ese estado.

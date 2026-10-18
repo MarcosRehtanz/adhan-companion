@@ -1,6 +1,6 @@
 # Ubicación mediante Google Maps
 
-Estado: implementado en el checkout; pendiente de revisión manual y publicación.
+Estado: incluido en v0.1.8; pendiente de revisión manual.
 
 ## Uso
 

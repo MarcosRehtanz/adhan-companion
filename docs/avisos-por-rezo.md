@@ -1,6 +1,6 @@
 # Avisos por rezo
 
-Implementados localmente; pendientes de publicación y prueba manual de audio en Linux/Windows.
+Incluidos en v0.1.8. Pendiente de prueba manual de audio en Linux/Windows.
 
 ## Uso
 

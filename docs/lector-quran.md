@@ -1,6 +1,6 @@
 # Lector del Qur'an
 
-Implementado localmente el 18 de octubre de 2026, con revisión nativa en Linux completada; pendiente de revisión en Windows y publicación. El usuario autorizó avanzar con Tanzil y Bórnez para esta app sin fines de lucro.
+Incluido en v0.1.8, con revisión nativa en Linux completada el 18 de octubre de 2026; pendiente de revisión en Windows. El usuario autorizó avanzar con Tanzil y Bórnez para esta app sin fines de lucro.
 
 ## Lectura y navegación
 

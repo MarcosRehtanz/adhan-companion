@@ -1,6 +1,6 @@
 # Calendario islámico
 
-Implementado localmente, pendiente de revisión visual y publicación.
+Incluido en v0.1.8. Pendiente de revisión visual y comparación con el calendario de la comunidad.
 
 **Decisión del usuario del 18 de octubre de 2026:** conservar por ahora el calendario tabular civil con ajuste manual. La integración con una autoridad o comunidad chií queda pendiente; no se ha elegido un marŷaʿ ni una fuente regional.
 
