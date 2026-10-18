@@ -4,13 +4,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.7 para Linux y Windows** — interfaz reorganizada, preferencias en modo lectura con edición explícita, tray con estados, scheduler 24/7, calendario de seguimiento, notificaciones + preaviso, cálculo local por FFI y biblioteca fija de muecines por rezo. Descargas: `.deb`, `.AppImage` e instalador de Windows x64 en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.7.md).
+✅ **v0.1.8 para Linux y Windows** — interfaz reorganizada, preferencias en modo lectura con edición explícita, tray con estados, scheduler 24/7, calendario de seguimiento, notificaciones + preaviso, cálculo local por FFI y biblioteca fija de muecines por rezo. Descargas: `.deb`, `.AppImage` e instalador de Windows x64 en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.8.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.7_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.8_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -37,6 +37,17 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
 
+## Novedades de v0.1.8
+
+- Próximo rezo del día siguiente después de Isha, con fecha y cuenta regresiva correctas.
+- [Ubicación mediante Google Maps](docs/ubicacion-google-maps.md): importar coordenadas o enlaces y revisar antes de guardar.
+- [Avisos por rezo](docs/avisos-por-rezo.md): adhan, tres tonos discretos o solo notificación, con prueba y detención.
+- [Calendario islámico](docs/calendario-islamico.md) tabular local, consulta mensual y ajuste manual de −2 a +2 días.
+- Sistema → Apariencia: temas claro, oscuro o del sistema y cinco colores de acento.
+- [Lector del Qur'an](docs/lector-quran.md): árabe y español offline, marcadores y punto de lectura. Su contenido tiene condiciones independientes, incluida la restricción no comercial de la traducción.
+
+El lector se [revisó en la app nativa de Linux](docs/revision-lector-quran.md), con persistencia en dos reinicios completos. La revisión visual en Windows sigue pendiente. La [recitación en audio](docs/investigacion-audio-quran.md) está en investigación y no se incluye en esta versión. El alcance de las mejoras está en el [roadmap](docs/roadmap.md).
+
 ## Stack
 
 - **Core Rust** ([Tauri 2](https://v2.tauri.app/)): tray, scheduler, audio, FFI — corre siempre, independiente de la ventana.
@@ -62,4 +73,4 @@ Las instrucciones para sesiones con agentes de código están en [AGENTS.md](AGE
 
 ## Licencia
 
-El código propio se distribuye bajo MIT — ver [LICENSE](LICENSE). El código C de PrayTimes incluido en `src-tauri/native/` declara GNU LGPL v3.0 y conserva su aviso de copyright; su licencia también se incluye en los recursos del paquete. Las grabaciones de audio tienen créditos y fuente en [`src-tauri/assets/muecin/CREDITS.md`](src-tauri/assets/muecin/CREDITS.md).
+El código propio se distribuye bajo MIT — ver [LICENSE](LICENSE). El código C de PrayTimes incluido en `src-tauri/native/` declara GNU LGPL v3.0 y conserva su aviso de copyright; su licencia también se incluye en los recursos del paquete. Las grabaciones de audio tienen créditos y fuente en [`src-tauri/assets/muecin/CREDITS.md`](src-tauri/assets/muecin/CREDITS.md). El lector del Qur'an incluye recursos de terceros con condiciones independientes: texto árabe de Tanzil, traducción de Bórnez para uso no comercial, metadatos atribuidos a Tanzil y fuente Amiri Quran bajo SIL OFL 1.1. Ver [`public/quran/README.md`](public/quran/README.md) y los avisos completos incluidos.

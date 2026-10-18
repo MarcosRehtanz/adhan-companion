@@ -14,7 +14,7 @@
 //!      ver `assets/muecin/CREDITS.md`) — fallback universal, siempre existe
 
 use std::io::{BufReader, Cursor};use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+
 use std::sync::{Arc, Mutex, OnceLock};
 
 /// Adhan default embebido (WAV mono 22.05 kHz)
@@ -86,10 +86,10 @@ fn current() -> &'static Mutex<Option<Arc<rodio::Player>>> {
     C.get_or_init(|| Mutex::new(None))
 }
 
-static PLAYING: AtomicBool = AtomicBool::new(false);
+
 
 fn is_playing() -> bool {
-    PLAYING.load(Ordering::SeqCst)
+    current().lock().unwrap().is_some()
 }
 
 /// Reproduce el adhan del muecín elegido con stream propio. Non-blocking:
@@ -97,29 +97,66 @@ fn is_playing() -> bool {
 /// caller queda libre (lo llama el scheduler en el disparo). `volume` en
 /// 0.0..1.0. `muecin` None → default embebido.
 pub fn play_adhan(volume: f32, muecin: Option<&str>) -> Result<(), String> {
+    let source = rodio::Decoder::new(fuente_de(muecin)).map_err(|e| format!("decode WAV: {e}"))?;
+    play_source(volume, source)
+}
+
+fn play_source<S>(volume: f32, source: S) -> Result<(), String>
+where S: rodio::Source + Send + 'static {
     let mut device_sink = rodio::DeviceSinkBuilder::open_default_sink()
         .map_err(|e| format!("dispositivo de audio: {e}"))?;
     device_sink.log_on_drop(false);
     let player = Arc::new(rodio::Player::connect_new(device_sink.mixer()));
     player.set_volume(volume.clamp(0.0, 1.0));
-
-    rodio::Decoder::new(fuente_de(muecin))
-        .and_then(|src| {
-            player.append(src);
-            *current().lock().unwrap() = Some(player.clone());
-            PLAYING.store(true, Ordering::SeqCst);
-            Ok(())
-        })
-        .map_err(|e| format!("decode WAV: {e}"))?;
-
+    // Serializa el reemplazo. Un reproductor anterior nunca borra al nuevo.
+    {
+        let mut slot = current().lock().unwrap();
+        if let Some(previous) = slot.take() { previous.stop(); }
+        player.append(source);
+        *slot = Some(player.clone());
+    }
     std::thread::spawn(move || {
         player.sleep_until_end();
-        drop(player);
+        let mut slot = current().lock().unwrap();
+        if slot.as_ref().is_some_and(|p| Arc::ptr_eq(p, &player)) { *slot = None; }
+        drop(slot);
         drop(device_sink);
-        PLAYING.store(false, Ordering::SeqCst);
-        *current().lock().unwrap() = None;
     });
     Ok(())
+}
+
+pub fn play_alert(config: &crate::config::AudioConfig, prayer: &str) -> Result<(), String> {
+    config.validate()?;
+    let alert = config.alert(prayer);
+    match alert.mode {
+        crate::config::AlertMode::Adhan => play_adhan(config.volume as f32 / 100.0, Some(prayer)),
+        crate::config::AlertMode::Tone => {
+            let source = rodio::buffer::SamplesBuffer::new(std::num::NonZeroU16::new(1).unwrap(), std::num::NonZeroU32::new(22_050).unwrap(), tone_samples(alert.tone, alert.duration_secs));
+            play_source(config.volume as f32 / 100.0, source)
+        }
+        crate::config::AlertMode::Notification => { stop_adhan(); Ok(()) },
+    }
+}
+
+// Tonos originales, generados localmente con entrada/salida suave para evitar clics.
+fn tone_samples(tone: crate::config::Tone, seconds: u8) -> Vec<f32> {
+    use crate::config::Tone;
+    let duration = seconds as f32;
+    (0..22_050 * seconds as usize).map(|i| {
+        let t = i as f32 / 22_050.0;
+        let phase = match tone { Tone::Double => t % 1.0, _ => t };
+        let envelope = (phase / 0.025).min(1.0) * ((duration - t) / 0.1).clamp(0.0, 1.0);
+        let (freq, decay) = match tone {
+            Tone::Soft => (440.0, (-t * 1.5).exp()),
+            Tone::Double => {
+                let pulse = if phase < 0.22 { phase } else { phase - 0.35 };
+                (660.0, (pulse / 0.025).clamp(0.0, 1.0) * ((0.22 - pulse) / 0.025).clamp(0.0, 1.0))
+            },
+            Tone::Bell => (880.0, (-t * 2.0).exp()),
+        };
+        let wave = (std::f32::consts::TAU * freq * t).sin();
+        0.22 * wave * envelope * decay
+    }).collect()
 }
 
 /// Detiene la reproducción en curso (si hay)
@@ -127,7 +164,7 @@ pub fn stop_adhan() {
     if let Some(p) = current().lock().unwrap().take() {
         p.stop();
     }
-    PLAYING.store(false, Ordering::SeqCst);
+
 }
 
 /// Test desde la UI: reproduce o detiene según el estado actual.

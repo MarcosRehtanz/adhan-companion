@@ -7,11 +7,19 @@ export interface PrayerSlot {
   enabled: boolean;
 }
 
+export interface NextPrayer {
+  name: string;
+  date: string;
+  hhmm: string;
+  /** Instante del rezo en segundos Unix. */
+  timestamp: number;
+}
+
 export interface Schedule {
   date: string;
   prayers: PrayerSlot[];
-  next: string | null;
-  /** null cuando no queda ninguno, o el adhan ya sonó */
+  next: NextPrayer | null;
+  /** Incluye el próximo rezo aunque corresponda al día siguiente. */
   countdown_secs: number | null;
   /** rezos ya marcados como rezados hoy */
   marked: string[];

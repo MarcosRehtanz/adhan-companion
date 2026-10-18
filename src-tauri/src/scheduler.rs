@@ -12,7 +12,7 @@
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 
-use chrono::{Datelike, Timelike};
+use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
 use serde::Serialize;
 use tauri::Emitter;
 
@@ -34,13 +34,22 @@ pub struct PrayerSlot {
     pub enabled: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NextPrayer {
+    pub name: String,
+    pub date: String,
+    pub hhmm: String,
+    /// Instante absoluto en segundos Unix, con el offset local de esa fecha.
+    pub timestamp: i64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Schedule {
     pub date: String,
     pub prayers: Vec<PrayerSlot>,
-    /// Nombre del próximo rezo todavía no disparado hoy; None si ya pasaron los 5
-    pub next: Option<String>,
-    /// Segundos hasta el próximo rezo; None si no queda ninguno o el adhan ya sonó
+    /// Próximo evento futuro, independiente de los horarios y registros de hoy.
+    pub next: Option<NextPrayer>,
+    /// Segundos hasta el próximo evento, aunque corresponda al día siguiente.
     pub countdown_secs: Option<i64>,
     /// Rezos de hoy marcados como rezados (copia del registro.jsonl del día)
     pub marked: Vec<String>,
@@ -88,14 +97,63 @@ fn align_after_recompute(schedule: &mut Schedule, now_h: f64) -> usize {
             }
         }
     }
-    if let Some(slot) = schedule.prayers.get(fired) {
-        schedule.next = Some(slot.name.clone());
-        schedule.countdown_secs = Some(((slot.dec - now_h) * 3600.0).round().max(0.0) as i64);
-    } else {
-        schedule.next = None;
-        schedule.countdown_secs = None;
-    }
     fired
+}
+
+/// Convierte un horario civil en un evento fechado. La zona resuelve el offset
+/// para el día del evento, que puede diferir del actual por DST.
+fn future_prayer<Tz: TimeZone>(
+    date: NaiveDate,
+    prayers: &[PrayerSlot],
+    now: &DateTime<Tz>,
+) -> Option<NextPrayer> {
+    prayers
+        .iter()
+        .filter_map(|slot| {
+            if !slot.dec.is_finite() || !(0.0..24.0).contains(&slot.dec) {
+                return None;
+            }
+            let civil = date
+                .and_hms_opt(0, 0, 0)?
+                .checked_add_signed(chrono::Duration::seconds((slot.dec * 3600.0) as i64))?;
+            let at = now.timezone().from_local_datetime(&civil).earliest()?;
+            (at.timestamp() > now.timestamp()).then(|| NextPrayer {
+                name: slot.name.clone(),
+                date: date.to_string(),
+                hhmm: slot.hhmm.clone(),
+                timestamp: at.timestamp(),
+            })
+        })
+        .min_by_key(|event| event.timestamp)
+}
+
+/// Después del último horario se calcula mañana una vez; se reutiliza el evento
+/// hasta medianoche. Boot, resume y cambios de config/TZ crean un schedule nuevo.
+fn refresh_next(
+    schedule: &mut Schedule,
+    cfg: &crate::config::Config,
+    now: &DateTime<chrono::Local>,
+) -> bool {
+    let today = now.date_naive();
+    let previous = schedule.next.clone();
+    let next = future_prayer(today, &schedule.prayers, now).or_else(|| {
+        let tomorrow = today.succ_opt()?;
+        if let Some(cached) = &schedule.next {
+            if cached.date == tomorrow.to_string() && cached.timestamp > now.timestamp() {
+                return Some(cached.clone());
+            }
+        }
+        let prayers = prayer_slots_for(
+            tomorrow.year(),
+            tomorrow.month() as i32,
+            tomorrow.day() as i32,
+            cfg,
+        );
+        future_prayer(tomorrow, &prayers, now)
+    });
+    schedule.countdown_secs = next.as_ref().map(|event| event.timestamp - now.timestamp());
+    schedule.next = next;
+    previous != schedule.next
 }
 
 /// Snapshot seguro del config (panics en poison nunca deben pisar el tray)
@@ -145,7 +203,6 @@ pub fn prayer_slots_for(y: i32, m: i32, d: i32, cfg: &crate::config::Config) -> 
 /// sistema (chrono) — el cambio de TZ del sistema es otro trigger del spec.
 pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
     let now = chrono::Local::now();
-    let prayers = prayer_slots_for(now.year(), now.month() as i32, now.day() as i32, cfg_snapshot);
     let date = now.format("%Y-%m-%d").to_string();
     let marked = PRAYERS
         .iter()
@@ -153,13 +210,23 @@ pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
         .cloned()
         .map(String::from)
         .collect();
-    Schedule {
-        date,
+    let mut schedule = schedule_at(cfg_snapshot, &now);
+    schedule.marked = marked;
+    schedule
+}
+
+/// Construye el día sin consultar ni modificar el registro (también para tests).
+fn schedule_at(cfg: &crate::config::Config, now: &DateTime<chrono::Local>) -> Schedule {
+    let prayers = prayer_slots_for(now.year(), now.month() as i32, now.day() as i32, cfg);
+    let mut schedule = Schedule {
+        date: now.date_naive().to_string(),
         prayers,
         next: None,
         countdown_secs: None,
-        marked,
-    }
+        marked: Vec::new(),
+    };
+    refresh_next(&mut schedule, cfg, now);
+    schedule
 }
 
 /// Círculo RGBA por estado — movido de lib.rs para que scheduler y tray
@@ -305,6 +372,48 @@ fn refresh_prayer_items(s: &SchedulerLoop, schedule: &Schedule) {
     });
 }
 
+fn publish_schedule(s: &SchedulerLoop, schedule: &Schedule) {
+    s.state.lock().unwrap().schedule = schedule.clone();
+    let _ = s.app.emit("schedule_changed", schedule);
+}
+
+fn countdown_label(schedule: &Schedule) -> String {
+    let (Some(next), Some(secs)) = (&schedule.next, schedule.countdown_secs) else {
+        return "Próximo rezo no disponible".into();
+    };
+    let day = if next.date == schedule.date {
+        ""
+    } else {
+        "mañana "
+    };
+    format!(
+        "{} — {day}{} — en {:02}:{:02}:{:02}",
+        next.name.to_uppercase(),
+        next.hhmm,
+        secs / 3600,
+        (secs % 3600) / 60,
+        secs % 60
+    )
+}
+
+fn refresh_tray(s: &SchedulerLoop, schedule: &Schedule, playing: Option<&str>) {
+    let mut label = countdown_label(schedule);
+    let state = if let Some(name) = playing {
+        label = format!("— REZO — {name} · {label}");
+        IconoEstado::Adhan
+    } else if schedule.countdown_secs.is_some_and(|secs| secs <= 15 * 60) {
+        IconoEstado::Proximo
+    } else {
+        IconoEstado::Dia
+    };
+    let cd = s.countdown_item.clone();
+    let tray = s.tray.clone();
+    let _ = s.app.run_on_main_thread(move || {
+        let _ = cd.set_text(label);
+        let _ = tray.set_icon(Some(icon_de(state)));
+    });
+}
+
 pub fn run(s: SchedulerLoop) {
     let mut cfg = snapshot(&s.config);
     let mut schedule = compute_schedule(&cfg);
@@ -320,6 +429,8 @@ pub fn run(s: SchedulerLoop) {
     // Edge del preaviso: una sola vez por rezo cuando entra en ventada notice
     let mut notice_announced = false;
     refresh_prayer_items(&s, &schedule);
+    publish_schedule(&s, &schedule);
+    refresh_tray(&s, &schedule, None);
 
     loop {
         std::thread::sleep(Duration::from_secs(1));
@@ -353,7 +464,7 @@ pub fn run(s: SchedulerLoop) {
             notice_announced = false;
             date = schedule.date.clone();
             refresh_prayer_items(&s, &schedule);
-            let _ = s.app.emit("schedule_changed", &schedule);
+            publish_schedule(&s, &schedule);
         }
         if let Some((date_arg, name)) = pray {
             if PRAYERS.contains(&name.as_str()) {
@@ -379,13 +490,8 @@ pub fn run(s: SchedulerLoop) {
                         crate::audio::stop_adhan();
                     }
                     refresh_prayer_items(&s, &schedule);
-                    {
-                        let mut st = s.state.lock().unwrap();
-                        st.schedule.marked = schedule.marked.clone();
-                        st.schedule.next = schedule.next.clone();
-                    }
                 }
-                let _ = s.app.emit("schedule_changed", &schedule);
+                publish_schedule(&s, &schedule);
             }
         }
 
@@ -405,7 +511,7 @@ pub fn run(s: SchedulerLoop) {
             date = schedule.date.clone();
             last_local_offset = local_offset;
             refresh_prayer_items(&s, &schedule);
-            let _ = s.app.emit("schedule_changed", &schedule);
+            publish_schedule(&s, &schedule);
         }
         let today = now.format("%Y-%m-%d").to_string();
         if today != date {
@@ -420,20 +526,24 @@ pub fn run(s: SchedulerLoop) {
             notice_announced = false;
             date = today;
             refresh_prayer_items(&s, &schedule);
+            publish_schedule(&s, &schedule);
+        }
+
+        // La información del próximo evento no depende del cursor del audio:
+        // Isha puede seguir sonando mientras ya se muestra el Fajr de mañana.
+        let changed = refresh_next(&mut schedule, &cfg, &now);
+        {
+            let mut state = s.state.lock().unwrap();
+            state.schedule = schedule.clone();
+            state.fired = fired;
+        }
+        if changed {
             let _ = s.app.emit("schedule_changed", &schedule);
         }
 
         // Countdown del próximo rezo aún no disparado
         if fired >= PRAYERS.len() {
-            let cd = s.countdown_item.clone();
-            let _ = s.app.run_on_main_thread(move || {
-                let _ = cd.set_text("Los 5 rezos ya pasaron — hasta medianoche");
-            });
-            {
-                let mut st = s.state.lock().unwrap();
-                st.schedule.next = None;
-                st.schedule.countdown_secs = None;
-            }
+            refresh_tray(&s, &schedule, None);
             continue;
         }
         let target = schedule.prayers[fired].dec;
@@ -455,7 +565,7 @@ pub fn run(s: SchedulerLoop) {
             fired += 1;
             adhan_announced = false;
             notice_announced = false;
-            let _ = s.app.emit("schedule_changed", &schedule);
+            publish_schedule(&s, &schedule);
             continue;
         }
 
@@ -470,35 +580,15 @@ pub fn run(s: SchedulerLoop) {
             }
             notify(
                 &s.app,
-                "Adhan — hora de orar",
+                "Hora de orar",
                 format!(
                     "{} ({}) — tocá el menú del tray para confirmar (ya recé) o Silenciar para detener",
                     PRAYERS[fired], schedule.prayers[fired].hhmm
                 ).as_str(),
             );
-            // audio del config: volumen + toggle enabled por rezo + muecín
-            // asignación fija del spec: cada rezo suena el adhan de SU hora
-            // (colección Doha: fajr.wav para Fajr, maghrib.wav para Maghrib...).
-            // Sin selector — decisión de producto 2026-10-15.
             let cfg = snapshot(&s.config);
-            let volumen = cfg.audio.volume as f32 / 100.0;
-            let habilitado = cfg
-                .audio
-                .enabled
-                .get(&PRAYERS[fired].to_lowercase())
-                .copied()
-                .unwrap_or(true);
-            let muecin = PRAYERS[fired].to_lowercase();
-            if habilitado {
-                match crate::audio::play_adhan(volumen, Some(&muecin)) {
-                    Ok(()) => crate::log!(
-                        "adhan por ALSA — muecín '{}' (rezo propio) — volumen {}%",
-                        muecin, cfg.audio.volume
-                    ),
-                    Err(e) => crate::log!("audio falló en el disparo: {e}"),
-                }
-            } else {
-                crate::log!("adhan silenciado para {} (audio.enabled)", PRAYERS[fired]);
+            if let Err(e) = crate::audio::play_alert(&cfg.audio, &PRAYERS[fired].to_lowercase()) {
+                crate::log!("audio falló en el disparo: {e}");
             }
         }
 
@@ -517,35 +607,172 @@ pub fn run(s: SchedulerLoop) {
             notice_announced = false;
         }
 
-        // Estados del spec: azul (>15m) → ámbar (≤15m) → verde (adhan sonando ADHAN_SECS)
-        let estado = if secs < 0 {
-            IconoEstado::Adhan
-        } else if secs <= 15 * 60 {
-            IconoEstado::Proximo
-        } else {
-            IconoEstado::Dia
-        };
-        let label = if secs < 0 {
-            format!("— ADHAN — {}", PRAYERS[fired])
-        } else {
-            format!(
-                "{} — en {:02}:{:02}:{:02}",
-                PRAYERS[fired].to_uppercase(),
-                secs / 3600,
-                (secs % 3600) / 60,
-                secs % 60,
-            )
-        };
+        refresh_tray(&s, &schedule, (secs < 0).then_some(PRAYERS[fired]));
+    }
+}
 
-        let cd = s.countdown_item.clone();
-        let tr = s.tray.clone();
-        let _ = s.app.run_on_main_thread(move || {
-            let _ = cd.set_text(label);
-            let _ = tr.set_icon(Some(icon_de(estado)));
-        });
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{FixedOffset, Local};
 
-        let mut st = s.state.lock().unwrap();
-        st.schedule.next = Some(schedule.prayers[fired].name.clone());
-        st.schedule.countdown_secs = Some(secs.max(0));
+    fn local(date: &str, h: u32, m: u32, s: u32) -> DateTime<Local> {
+        let day = NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap();
+        Local
+            .from_local_datetime(&day.and_hms_opt(h, m, s).unwrap())
+            .earliest()
+            .unwrap()
+    }
+
+    fn fixture(date: &str) -> Schedule {
+        Schedule {
+            date: date.into(),
+            prayers: PRAYERS
+                .iter()
+                .zip([5.0, 12.0, 15.0, 18.0, 20.0])
+                .map(|(name, dec)| PrayerSlot {
+                    name: (*name).into(),
+                    dec,
+                    hhmm: format!("{:02}:00", dec as u32),
+                    enabled: true,
+                })
+                .collect(),
+            next: None,
+            countdown_secs: None,
+            marked: vec!["Isha".into()],
+        }
+    }
+
+    #[test]
+    fn after_isha_uses_tomorrows_calculation_and_preserves_today() {
+        let cfg = crate::config::Config::default();
+        let now = local("2026-10-17", 23, 0, 0);
+        let mut schedule = fixture("2026-10-17");
+        assert!(refresh_next(&mut schedule, &cfg, &now));
+        let expected = future_prayer(
+            NaiveDate::from_ymd_opt(2026, 10, 18).unwrap(),
+            &prayer_slots_for(2026, 10, 18, &cfg),
+            &now,
+        )
+        .unwrap();
+        let next = schedule.next.as_ref().unwrap();
+        assert_eq!(next, &expected);
+        assert_eq!(next.name, "Fajr");
+        assert_eq!(next.date, "2026-10-18");
+        assert_eq!(
+            schedule.countdown_secs,
+            Some(next.timestamp - now.timestamp())
+        );
+        assert_eq!(schedule.date, "2026-10-17");
+        assert_eq!(schedule.prayers[0].hhmm, "05:00");
+        assert_eq!(schedule.marked, vec!["Isha"]);
+        assert!(countdown_label(&schedule).contains("mañana"));
+        // El cursor de audio sigue agotado: mostrar mañana no adelanta disparos.
+        assert_eq!(first_future_prayer(&schedule, 23.0), PRAYERS.len());
+    }
+
+    #[test]
+    fn before_isha_still_shows_today_then_advances_at_its_time() {
+        let cfg = crate::config::Config::default();
+        let mut schedule = fixture("2026-10-17");
+        refresh_next(&mut schedule, &cfg, &local("2026-10-17", 19, 59, 59));
+        assert_eq!(schedule.next.as_ref().unwrap().name, "Isha");
+        assert_eq!(schedule.next.as_ref().unwrap().date, schedule.date);
+        assert_eq!(schedule.countdown_secs, Some(1));
+        assert!(!countdown_label(&schedule).contains("mañana"));
+        refresh_next(&mut schedule, &cfg, &local("2026-10-17", 20, 0, 0));
+        assert_eq!(schedule.next.as_ref().unwrap().name, "Fajr");
+        assert_eq!(schedule.next.as_ref().unwrap().date, "2026-10-18");
+    }
+
+    #[test]
+    fn night_countdown_decreases_without_replacing_the_next_event() {
+        let cfg = crate::config::Config::default();
+        let mut schedule = fixture("2026-10-17");
+        refresh_next(&mut schedule, &cfg, &local("2026-10-17", 23, 0, 0));
+        let next = schedule.next.clone();
+        let remaining = schedule.countdown_secs.unwrap();
+        assert!(!refresh_next(
+            &mut schedule,
+            &cfg,
+            &local("2026-10-17", 23, 0, 1)
+        ));
+        assert_eq!(schedule.next, next);
+        assert_eq!(schedule.countdown_secs, Some(remaining - 1));
+    }
+
+    #[test]
+    fn midnight_keeps_the_same_fajr_instant_and_loads_the_new_day() {
+        let cfg = crate::config::Config::default();
+        let before = schedule_at(&cfg, &local("2026-10-17", 23, 59, 59));
+        let after = schedule_at(&cfg, &local("2026-10-18", 0, 0, 0));
+        assert_eq!(before.next, after.next);
+        assert_eq!(after.date, "2026-10-18");
+        assert_eq!(after.next.as_ref().unwrap().date, after.date);
+        assert_eq!(
+            before.countdown_secs.unwrap() - 1,
+            after.countdown_secs.unwrap()
+        );
+        assert_eq!(after.prayers[0].hhmm, after.next.as_ref().unwrap().hhmm);
+        assert!(!countdown_label(&after).contains("mañana"));
+    }
+
+    #[test]
+    fn next_date_rolls_over_month_leap_day_and_year() {
+        let cfg = crate::config::Config::default();
+        for (today, tomorrow) in [
+            ("2026-10-31", "2026-11-01"),
+            ("2028-02-28", "2028-02-29"),
+            ("2026-12-31", "2027-01-01"),
+        ] {
+            let mut schedule = fixture(today);
+            refresh_next(&mut schedule, &cfg, &local(today, 23, 59, 59));
+            assert_eq!(schedule.next.as_ref().unwrap().date, tomorrow);
+        }
+    }
+
+    #[test]
+    fn resume_after_fajr_selects_the_next_future_prayer() {
+        let cfg = crate::config::Config::default();
+        let mut schedule = fixture("2026-10-18");
+        refresh_next(&mut schedule, &cfg, &local("2026-10-18", 6, 0, 0));
+        assert_eq!(schedule.next.as_ref().unwrap().name, "Dhuhr");
+        assert_eq!(schedule.next.as_ref().unwrap().date, "2026-10-18");
+        assert_eq!(first_future_prayer(&schedule, 6.0), 1);
+        assert_eq!(schedule.countdown_secs, Some(6 * 3600));
+    }
+
+    #[test]
+    fn realignment_at_night_recalculates_tomorrow_with_changed_offsets() {
+        let mut cfg = crate::config::Config::default();
+        let now = local("2026-10-17", 23, 59, 59);
+        let original = schedule_at(&cfg, &now);
+        cfg.offsets.fajr = 7;
+        let recalculated = schedule_at(&cfg, &now);
+        assert_eq!(original.next.as_ref().unwrap().date, "2026-10-18");
+        assert_eq!(
+            recalculated.next.as_ref().unwrap().timestamp
+                - original.next.as_ref().unwrap().timestamp,
+            7 * 60
+        );
+    }
+
+    #[test]
+    fn countdown_uses_absolute_instants_across_an_offset_change() {
+        let before = FixedOffset::west_opt(3 * 3600)
+            .unwrap()
+            .with_ymd_and_hms(2026, 10, 17, 23, 0, 0)
+            .unwrap();
+        let after_zone = FixedOffset::west_opt(2 * 3600).unwrap();
+        let same_instant = before.with_timezone(&after_zone);
+        let schedule = fixture("2026-10-18");
+        let next = future_prayer(
+            NaiveDate::from_ymd_opt(2026, 10, 18).unwrap(),
+            &schedule.prayers,
+            &same_instant,
+        )
+        .unwrap();
+        assert_eq!(next.name, "Fajr");
+        assert_eq!(next.timestamp - before.timestamp(), 5 * 3600);
     }
 }

@@ -2,8 +2,10 @@
 
 pub mod audio;
 pub mod config;
+pub mod location;
 pub mod prayer;
 pub mod qibla;
+pub mod quran;
 pub mod registro;
 pub mod scheduler;
 pub mod updater;
@@ -44,6 +46,27 @@ fn get_schedule(state: tauri::State<scheduler::SharedState>) -> Result<scheduler
     Ok(st.schedule.clone())
 }
 
+/// Solo interpreta el punto solicitado; no modifica ni persiste la ubicación.
+#[tauri::command]
+async fn parse_google_maps_location(input: String) -> Result<location::Coordinates, String> {
+    tauri::async_runtime::spawn_blocking(move || location::resolve(&input))
+        .await
+        .map_err(|_| "No se pudo leer la ubicación. Probá copiando las coordenadas del punto.".to_string())?
+}
+
+#[tauri::command]
+fn preview_alert(audio: config::AudioConfig, prayer: String, app: tauri::AppHandle) -> Result<(), String> {
+    audio.validate()?;
+    if !scheduler::PRAYERS.iter().any(|p| p.to_lowercase() == prayer) { return Err("Rezo desconocido.".into()); }
+    audio::stop_adhan();
+    if audio.alert(&prayer).mode == config::AlertMode::Notification {
+        scheduler::notify_standard(&app, "Prueba de aviso", &format!("{prayer} — solo notificación"));
+    }
+    audio::play_alert(&audio, &prayer)
+}
+#[tauri::command]
+fn stop_alert() { audio::stop_adhan(); }
+
 // Contrato IPC del spec: test de audio — el futuro botón "Probar" de la tab Audio
 // Toca el muecín que sonaría en el PRÓXIMO rezo (test del ciclo completo real);
 // sin próximo (día pasado) cae al default embebido.
@@ -66,7 +89,7 @@ fn test_adhan(
 /// oración suena su propio adhan de la colección — sin selector)
 fn proximo_rezo(sched: &tauri::State<scheduler::SharedState>) -> Option<String> {
     let st = sched.lock().ok()?;
-    st.schedule.next.as_deref().map(|n| n.to_lowercase())
+    st.schedule.next.as_ref().map(|next| next.name.to_lowercase())
 }
 
 // Notificación de prueba: valida el canal freedesktop UI-agnostic
@@ -166,6 +189,11 @@ fn set_config(
     state: tauri::State<SharedConfig>,
     sched_tx: tauri::State<mpsc::Sender<scheduler::Trigger>>,
 ) -> Result<config::Config, String> {
+    location::Coordinates::validated(cfg.lat, cfg.lon)?;
+    cfg.audio.validate()?;
+    if !(-2..=2).contains(&cfg.calendar.adjustment_days) {
+        return Err("El ajuste del calendario debe estar entre -2 y +2 días.".into());
+    }
     log!("set_config: guardar + recalcular en caliente");
     config::save(&cfg)?;
     *state.write().map_err(|e| format!("config envenenado: {e}"))? = cfg.clone();
@@ -198,6 +226,7 @@ pub fn run() {
     tauri::Builder::default()
         // Notificaciones freedesktop: preaviso + disparo del adhan (core-side)
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         // Una segunda instancia enfoca a la viva, nunca duplica el tray
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             log!("segunda instancia detectada; enfocando la viva");
@@ -212,7 +241,7 @@ pub fn run() {
             None,
         ))
         .invoke_handler(tauri::generate_handler![
-            get_schedule, test_adhan, test_notification, get_config, set_config, set_autostart, get_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla, get_stats, version_actual, ejecutando_appimage, ejecutando_windows, check_update, instalar_update
+            quran::get_quran_reader, quran::update_quran_reader, get_schedule, preview_alert, stop_alert, parse_google_maps_location, test_adhan, test_notification, get_config, set_config, set_autostart, get_autostart, mark_prayed, get_marked, get_schedule_for, get_qibla, get_stats, version_actual, ejecutando_appimage, ejecutando_windows, check_update, instalar_update
         ])
         // Tray-first: cerrar la ventana NO mata la app — el core sigue de fondo
         .on_window_event(|window, event| {
@@ -325,7 +354,7 @@ pub fn run() {
                 }
             };
             let silenciar =
-                MenuItem::with_id(app, "silence_adhan", "Silenciar adhan", true, None::<&str>)?;
+                MenuItem::with_id(app, "silence_adhan", "Detener sonido", true, None::<&str>)?;
             let test_notif: Option<MenuItem<tauri::Wry>> = {
                 #[cfg(debug_assertions)]
                 {
@@ -386,7 +415,7 @@ pub fn run() {
                         let muecin: Option<String> = {
                             let sched = app.state::<scheduler::SharedState>();
                             sched.lock().ok().and_then(|s| {
-                                s.schedule.next.as_deref().map(|n| n.to_lowercase())
+                                s.schedule.next.as_ref().map(|next| next.name.to_lowercase())
                             })
                         };
                         let vol = cfg

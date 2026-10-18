@@ -23,10 +23,10 @@ Descargar los artefactos del workflow y comprobar instalación, arranque, config
 Después de validar ambos builds y revisar las notas, crear y subir el tag del commit validado:
 
 ```bash
-git tag -a v0.1.7 -m "Adhan Companion v0.1.7"
-git push origin v0.1.7
+git tag -a v0.1.8 -m "Adhan Companion v0.1.8"
+git push origin v0.1.8
 ```
 
-El workflow vuelve a ejecutar tests y builds, comprueba que el tag coincide con las versiones del proyecto y exige un paquete de cada tipo para esa versión. Luego publica los tres instaladores, `SHA256SUMS` y las notas de `docs/releases/v0.1.7.md`.
+El workflow vuelve a ejecutar tests y builds, comprueba que el tag coincide con las versiones del proyecto y exige un paquete de cada tipo para esa versión. Luego publica los tres instaladores, `SHA256SUMS` y las notas de `docs/releases/v0.1.8.md`.
 
 La consulta de actualizaciones de la app usa la última release pública de GitHub. AppImage permite actualizar desde Sistema; `.deb` y Windows requieren ejecutar el instalador descargado.

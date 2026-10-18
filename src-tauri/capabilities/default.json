@@ -4,6 +4,23 @@
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "notification:allow-is-permission-granted",
+    "app-commands",
+    "quran-reader",
+    "parse-google-maps-location",
+    "prayer-alerts",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://tanzil.net" },
+        { "url": "https://tanzil.net/*" },
+        { "url": "https://github.com/aliftype/amiri" },
+        { "url": "https://www.google.com/maps" },
+        { "url": "https://www.google.com/maps/*" },
+        { "url": "https://github.com/MarcosRehtanz/adhan-companion/releases" },
+        { "url": "https://github.com/MarcosRehtanz/adhan-companion/releases/*" }
+      ]
+    }
   ]
 }

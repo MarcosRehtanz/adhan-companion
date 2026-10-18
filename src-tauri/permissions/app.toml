@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "app-commands"
+description = "Permite a la ventana principal consultar y administrar la configuración, los horarios, el registro y las actualizaciones."
+commands.allow = ["get_schedule", "get_config", "set_config", "test_adhan", "test_notification", "set_autostart", "get_autostart", "mark_prayed", "get_marked", "get_schedule_for", "get_qibla", "get_stats", "version_actual", "ejecutando_appimage", "ejecutando_windows", "check_update", "instalar_update"]

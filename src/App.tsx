@@ -6,11 +6,17 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
-  Home, Clock3, Volume2, Settings, Play, Pencil,
+  Home, Clock3, Volume2, Settings, Play, Pencil, BookOpen,
   Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, Compass,
   Flame, Trophy, CalendarCheck, type LucideIcon,
 } from "lucide-react";
 import type { Schedule, MarkedDay, Stats, UpdateDisponible } from "./types";
+import { GoogleMapsLocationPicker } from "./components/GoogleMapsLocationPicker";
+import { PrayerAlertsSettings, type AudioConfig } from "./components/PrayerAlertsSettings";
+import { IslamicCalendar, type CalendarConfig } from "./components/IslamicCalendar";
+import { hijriLabel } from "./lib/hijri";
+import { AppearanceSettings, useAppearance, DEFAULT_APPEARANCE, type Appearance } from "./components/AppearanceSettings";
+import QuranReader from "./components/QuranReader";
 import logo from "./assets/logo.png";
 import "./App.css";
 
@@ -19,12 +25,14 @@ const MADHAB_OPTIONS = ["Shafi", "Hanafi"];
 const HIGH_LAT_OPTIONS = ["None", "MiddleOfNight", "AngleBased", "AqrabAlAyyam", "AqrabAlBilad", "OneSeventh", "FixedAngle"];
 const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
-type Page = "hoy" | "horarios" | "adhan" | "registro" | "sistema";
-type EditBlock = "ubicacion" | "calculo" | "adhan" | null;
+type Page = "quran" | "calendario" | "hoy" | "horarios" | "adhan" | "registro" | "sistema";
+type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | null;
 const PAGES: { id: Page; label: string; Icon: LucideIcon }[] = [
   { id: "hoy", label: "Hoy", Icon: Home },
   { id: "horarios", label: "Horarios", Icon: Clock3 },
   { id: "adhan", label: "Adhan y avisos", Icon: Volume2 },
+  { id: "calendario", label: "Calendario islámico", Icon: CalendarCheck },
+  { id: "quran", label: "Qur’an", Icon: BookOpen },
   { id: "registro", label: "Registro", Icon: ListChecks },
 ];
 const SYSTEM_PAGE: { id: Page; label: string; Icon: LucideIcon } = { id: "sistema", label: "Sistema", Icon: Settings };
@@ -39,7 +47,9 @@ interface Config {
   madhab: string;
   highLatRule: string;
   offsets: { fajr: number; dhuhr: number; asr: number; maghrib: number; isha: number };
-  audio: { volume: number; enabled: Record<string, boolean> };
+  audio: AudioConfig;
+  calendar: CalendarConfig;
+  appearance: Appearance;
   notice: { minutes_before: number };
   agent: { mqtt: boolean; broker: string };
 }
@@ -52,10 +62,10 @@ export default function App() {
   const [page, setPage] = useState<Page>("hoy");
   const [editando, setEditando] = useState<EditBlock>(null);
   const [snapshotEdicion, setSnapshotEdicion] = useState<Config | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
   const [cfg, setCfg] = useState<Config | null>(null);
   const [guardada, setGuardada] = useState<Config | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
-  const [scheduleAt, setScheduleAt] = useState(Date.now());
   const [, setTick] = useState(0);
   const [status, setStatus] = useState<{ text: string; kind: "ok" | "error" } | null>(null);
   // qibla del config actual (grados desde el norte — referencia)
@@ -69,9 +79,11 @@ export default function App() {
   const [update, setUpdate] = useState<UpdateDisponible | null | undefined>(undefined); // undefined = sin chequear
   const [checando, setChecando] = useState(false);
 
+  useAppearance(cfg?.appearance ?? DEFAULT_APPEARANCE);
+
   useEffect(() => {
-    invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
-    invoke<Schedule>("get_schedule").then((s) => { setSchedule(s); setScheduleAt(Date.now()); }).catch(() => {});
+    invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch((error) => { setConfigError(String(error)); });
+    invoke<Schedule>("get_schedule").then(setSchedule).catch(() => {});
     invoke<number>("get_qibla").then(setQibla).catch(() => {});
     invoke<Stats>("get_stats").then(setStats).catch(() => {});
     invoke<string>("version_actual").then(setVerActual).catch(() => {});
@@ -79,7 +91,6 @@ export default function App() {
     invoke<boolean>("ejecutando_windows").then(setEsWindows).catch(() => {});
     const un = listen<Schedule>("schedule_changed", (ev) => {
       setSchedule(ev.payload);
-      setScheduleAt(Date.now());
       invoke<Stats>("get_stats").then(setStats).catch(() => {});
     });
     return () => { un.then((f) => f()); };
@@ -190,7 +201,7 @@ export default function App() {
     }
   };
 
-  if (!cfg) return <div className="cargando">Cargando configuración…</div>;
+  if (!cfg) return <div className="cargando">{configError ? <div role="alert"><p>No se pudo cargar la configuración.</p><pre style={{ whiteSpace: "pre-wrap" }}>{configError}</pre><button onClick={() => window.location.reload()}>Reintentar</button></div> : "Cargando configuración…"}</div>;
 
   const upd = (patch: Partial<Config>) => setCfg({ ...cfg, ...patch });
   const updAudio = (patch: Partial<Config["audio"]>) => setCfg({ ...cfg, audio: { ...cfg.audio, ...patch } });
@@ -203,7 +214,9 @@ export default function App() {
     if (snapshotEdicion && editando) {
       setCfg((actual) => {
         if (!actual) return actual;
+        if (editando === "apariencia") return { ...actual, appearance: snapshotEdicion.appearance ?? DEFAULT_APPEARANCE };
         if (editando === "ubicacion") return { ...actual, city: snapshotEdicion.city, lat: snapshotEdicion.lat, lon: snapshotEdicion.lon, tz: snapshotEdicion.tz };
+        if (editando === "calendario") return { ...actual, calendar: snapshotEdicion.calendar };
         if (editando === "calculo") return { ...actual, method: snapshotEdicion.method, madhab: snapshotEdicion.madhab, highLatRule: snapshotEdicion.highLatRule, offsets: snapshotEdicion.offsets };
         return { ...actual, audio: snapshotEdicion.audio, notice: snapshotEdicion.notice };
       });
@@ -212,14 +225,15 @@ export default function App() {
     setSnapshotEdicion(null);
   };
 
+  const calendar = cfg.calendar ?? { adjustment_days: 0 };
   const hoy = schedule?.date ?? "";
   const nextPrayer = schedule?.next;
-  const nextSlot = schedule?.prayers.find((p) => p.name === nextPrayer);
-  const countdown = schedule?.countdown_secs == null
+  const nextIsToday = nextPrayer?.date === hoy;
+  const countdown = nextPrayer == null
     ? null
-    : Math.max(0, schedule.countdown_secs - Math.floor((Date.now() - scheduleAt) / 1000));
+    : Math.max(0, nextPrayer.timestamp - Math.floor(Date.now() / 1000));
   const markedToday = new Set(schedule?.marked ?? []);
-  const activoCount = PRAYERS.filter((p) => cfg.audio.enabled[p.toLowerCase()] !== false).length;
+
   const pageTitle = [...PAGES, SYSTEM_PAGE].find((item) => item.id === page)?.label ?? "Hoy";
 
   return (
@@ -237,7 +251,7 @@ export default function App() {
           <button className={"nav-item " + (page === SYSTEM_PAGE.id ? "activa" : "")} onClick={() => setPage(SYSTEM_PAGE.id)}>
             <Settings size={17} strokeWidth={2} /><span>Sistema</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.7"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.8"}</span>
         </div>
       </aside>
 
@@ -250,12 +264,15 @@ export default function App() {
         </header>
 
         <main className="page-content">
+          {page === "quran" && <QuranReader />}
+          {page === "calendario" && (hoy ? <IslamicCalendar today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>)}
           {page === "hoy" && (
             <div className="page-stack">
+              {hoy && <div className="hijri-today"><div><b>{hijriLabel(hoy, calendar.adjustment_days)}</b><span>Tabular civil · medianoche · ajuste {calendar.adjustment_days > 0 ? "+" : ""}{calendar.adjustment_days} días</span></div><button className="link-button" onClick={() => setPage("calendario")}>Ver calendario</button></div>}
               <section className="hero-card">
                 <div className="hero-kicker">PRÓXIMO REZO</div>
                 <div className="hero-main">
-                  <div><h2>{nextPrayer ?? "Sin próximos rezos"}</h2><p>{nextSlot ? "Hoy a las " + nextSlot.hhmm : "Se actualizará con el próximo horario"}</p></div>
+                  <div><h2>{nextPrayer?.name ?? "Sin próximos rezos"}</h2><p>{nextPrayer ? `${nextIsToday ? "Hoy" : "Mañana"} a las ${nextPrayer.hhmm}` : "Se actualizará con el próximo horario"}</p></div>
                   <div className="countdown">{countdown == null ? "—" : formatoCuenta(countdown)}</div>
                 </div>
               </section>
@@ -264,10 +281,11 @@ export default function App() {
                 <div className="prayer-list">
                   {PRAYERS.map((name) => {
                     const slot = schedule?.prayers.find((p) => p.name === name);
-                    return <div className={"prayer-row " + (schedule?.next === name ? "proximo" : "")} key={name}>
+                    const isNext = nextIsToday && nextPrayer?.name === name;
+                    return <div className={"prayer-row " + (isNext ? "proximo" : "")} key={name}>
                       <span className="prayer-name">{name}</span>
                       <span className="prayer-time">{slot?.hhmm ?? "—"}</span>
-                      <span className={"prayer-state " + (markedToday.has(name) ? "hecho" : "")}>{markedToday.has(name) ? "Realizado" : schedule?.next === name ? "Siguiente" : ""}</span>
+                      <span className={"prayer-state " + (markedToday.has(name) ? "hecho" : "")}>{markedToday.has(name) ? "Realizado" : isNext ? "Siguiente" : ""}</span>
                     </div>;
                   })}
                 </div>
@@ -284,12 +302,13 @@ export default function App() {
                 <div className="panel-heading"><div><h2>Ubicación</h2><p>Ciudad y coordenadas usadas para calcular los horarios.</p></div>{editando !== "ubicacion" && <button className="edit-button" onClick={() => iniciarEdicion("ubicacion")}><Pencil size={14} />Editar ubicación</button>}</div>
                 {editando === "ubicacion" ? <div className="editor">
                   <label>Ciudad<input value={cfg.city} onChange={(e) => upd({ city: e.target.value })} /></label>
-                  <div className="fila"><label>Latitud<input type="number" step="0.001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} /></label><label>Longitud<input type="number" step="0.001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} /></label></div>
+                  <div className="fila"><label>Latitud<input type="number" min="-90" max="90" step="0.000001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} /></label><label>Longitud<input type="number" min="-180" max="180" step="0.000001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} /></label></div>
+                  <GoogleMapsLocationPicker current={{ lat: cfg.lat, lon: cfg.lon }} disabled={detectando} onUse={(point) => upd(point)} />
                   <div className="read-grid"><div><span>Zona horaria de la ciudad</span><b>{cfg.tz}</b></div></div>
                   <button className="test" disabled={detectando} onClick={detectarPorIP}><LocateFixed size={14} />{detectando ? "Detectando…" : "Sugerir ubicación por IP"}</button>
                   <p className="nota">La detección es una sugerencia: revisá ciudad y coordenadas antes de guardar. Para este cálculo, la zona horaria del sistema debe coincidir con la ubicación.</p>
                   <div className="editor-actions"><button className="secondary-button" disabled={detectando} onClick={cancelarEdicion}>Cancelar</button></div>
-                </div> : <div className="read-grid"><div><span>Ciudad</span><b>{cfg.city || "Sin configurar"}</b></div><div><span>Coordenadas</span><b>{cfg.lat.toFixed(4)}, {cfg.lon.toFixed(4)}</b></div><div><span>Zona horaria guardada</span><b>{cfg.tz}</b></div><p className="nota read-note">El cálculo usa la zona horaria local del sistema. Asegurate de que coincida con esta ubicación.</p></div>}
+                </div> : <div className="read-grid"><div><span>Ciudad</span><b>{cfg.city || "Sin configurar"}</b></div><div><span>Coordenadas</span><b>{cfg.lat.toFixed(6)}, {cfg.lon.toFixed(6)}</b></div><div><span>Zona horaria guardada</span><b>{cfg.tz}</b></div><p className="nota read-note">El cálculo usa la zona horaria local del sistema. Asegurate de que coincida con esta ubicación.</p></div>}
               </section>
 
               <section className="panel setting-panel">
@@ -309,14 +328,13 @@ export default function App() {
             <div className="page-stack">
               <div className="page-intro"><h2>Adhan y avisos</h2><p>Preferencias de sonido y notificaciones para cada rezo.</p></div>
               <section className="panel setting-panel">
-                <div className="panel-heading"><div><h2>Sonido y preaviso</h2><p>El adhan usa volumen propio, separado del sistema.</p></div>{editando !== "adhan" && <button className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
+                <div className="panel-heading"><div><h2>Sonido y preaviso</h2><p>Elegí cómo recibir cada rezo. Los avisos funcionan con la ventana cerrada.</p></div>{editando !== "adhan" && <button className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
+                <PrayerAlertsSettings audio={cfg.audio} editing={editando === "adhan"} onChange={updAudio} />
                 {editando === "adhan" ? <div className="editor">
-                  <label>Volumen del adhan · {cfg.audio.volume}%<input type="range" min="0" max="100" value={cfg.audio.volume} onChange={(e) => updAudio({ volume: +e.target.value })} /></label>
-                  <div className="audio-por-rezo"><div className="grupo-tit">Adhan por rezo</div><div className="audio-filas">{PRAYERS.map((p) => { const key = p.toLowerCase(); const deshabilitado = cfg.audio.enabled[key] === false; return <div className={"audio-fila " + (deshabilitado ? "off" : "")} key={p}><label className="check"><input type="checkbox" checked={!deshabilitado} onChange={(e) => updAudio({ enabled: { ...cfg.audio.enabled, [key]: e.target.checked } })} /></label><span className="audio-rezo">{p}</span><span className="audio-state">{deshabilitado ? "Silenciado" : "Activo"}</span><button className="mini-play" disabled={deshabilitado} aria-label={"Probar adhan de " + p} onClick={() => invoke("test_adhan", { muecin: key }).catch((e) => flash("test: " + e, "error"))}><Play size={13} /></button></div>; })}</div></div>
                   <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>
-                  <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button><button className="test" onClick={() => invoke("test_adhan", { muecin: null }).catch((e) => flash("test: " + e, "error"))}><Play size={14} />Probar adhan del próximo rezo</button></div>
-                  <p className="nota">Cada oración conserva su adhan asignado. La prueba reproduce el próximo adhan y se detiene al volver a pulsarla.</p>
-                </div> : <><div className="read-grid"><div><span>Volumen</span><b>{cfg.audio.volume}%</b></div><div><span>Adhan habilitado</span><b>{activoCount} de 5 rezos</b></div><div><span>Preaviso</span><b>{cfg.notice.minutes_before} min antes</b></div></div><button className="test" onClick={() => invoke("test_adhan", { muecin: null }).catch((e) => flash("test: " + e, "error"))}><Play size={14} />Probar adhan del próximo rezo</button><div className="compact-prayers">{PRAYERS.map((p) => <span key={p} className={cfg.audio.enabled[p.toLowerCase()] === false ? "off" : "on"}>{p} · {cfg.audio.enabled[p.toLowerCase()] === false ? "silenciado" : "activo"}</span>)}</div></>}
+                  <p className="nota">El preaviso es una notificación independiente. Usá 0 para desactivarlo. Guardar aplica todos los cambios.</p>
+                  <div className="editor-actions"><button className="secondary-button" onClick={() => { invoke("stop_alert").catch(() => {}); cancelarEdicion(); }}>Cancelar</button></div>
+                </div> : <p>Preaviso: {cfg.notice.minutes_before === 0 ? "desactivado" : `${cfg.notice.minutes_before} min antes`}</p>}
               </section>
             </div>
           )}
@@ -338,7 +356,8 @@ export default function App() {
 
           {page === "sistema" && (
             <div className="page-stack">
-              <div className="page-intro"><h2>Sistema</h2><p>Inicio de sesión y mantenimiento de la aplicación.</p></div>
+              <div className="page-intro"><h2>Sistema</h2><p>Apariencia, inicio de sesión y mantenimiento de la aplicación.</p></div>
+              <AppearanceSettings value={cfg.appearance ?? DEFAULT_APPEARANCE} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} />
               <section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartBox /></section>
               <section className="panel setting-panel"><div className="panel-heading"><div><h2>Actualizaciones</h2><p>Versión instalada: {verActual ? "v" + verActual : "consultando…"}</p></div><button className="test" disabled={checando} onClick={verificarUpdates}>{checando ? "Verificando…" : "Buscar actualizaciones"}</button></div>
                 {update === null && !checando && <p className="success-note">La aplicación está al día.</p>}
@@ -351,7 +370,7 @@ export default function App() {
 
       <footer>
         {pendiente && <span className="estado pendiente">Cambios sin guardar</span>}
-        {!pendiente && status && (
+        {status && (
           <span className={`estado ${status.kind}`}>
             {status.kind === "ok" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
             {status.text}

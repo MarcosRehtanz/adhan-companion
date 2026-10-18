@@ -1,0 +1,56 @@
+{
+  "retrieved": "2026-10-18",
+  "arabic_version": "Tanzil Uthmani 1.1",
+  "translation": "Raúl González Bórnez · es.bornez · 2014-07-15 (según el archivo Tanzil; ISBN no identificado)",
+  "font_version": "Amiri 1.003",
+  "files": [
+    {
+      "path": "quran-uthmani.txt",
+      "source": "https://tanzil.net/pub/download/index.php?quranType=uthmani&outType=txt-2&marks=true&sajdah=true&tatweel=true&agree=true",
+      "bytes": 1396087,
+      "sha256": "6933e133dd56db778c801bf738848454e43648105a151e8d84d86a7cae39ec5f"
+    },
+    {
+      "path": "es.bornez.txt",
+      "source": "https://tanzil.net/trans/es.bornez",
+      "bytes": 883872,
+      "sha256": "98029c4d340c51cae97455600ebba2cbdfa0f55a4b694f2640c16c7519186dad"
+    },
+    {
+      "path": "quran-data.xml",
+      "source": "https://tanzil.net/res/text/metadata/quran-data.xml",
+      "bytes": 77234,
+      "sha256": "8867c1d88191472adec9db694b3cd9f135b1a2ef580574d32cf888dcb22c5c7a"
+    },
+    {
+      "path": "suras.json",
+      "source": "Metadatos derivados de quran-data.xml; atribución incluida",
+      "bytes": 13191,
+      "sha256": "4779fe683cd4b3264bcf69a96ea5ca85dd2ba61992ee5e2f55973541b7c4e7e1"
+    },
+    {
+      "path": "fonts/AmiriQuran.ttf",
+      "source": "https://github.com/aliftype/amiri/releases/download/1.003/Amiri-1.003.zip",
+      "bytes": 136920,
+      "sha256": "e2a47644762d16bdfb6d33e0d8db8c6ff30beae84150ef5a705316bbd829455c"
+    },
+    {
+      "path": "fonts/OFL.txt",
+      "source": "https://github.com/aliftype/amiri/releases/download/1.003/Amiri-1.003.zip",
+      "bytes": 4389,
+      "sha256": "72de68e5954f4fdd24702292ef5a32f003ca960ec9330dc86e5eefb5dffb9b22"
+    },
+    {
+      "path": "ARABIC-LICENSE.txt",
+      "source": "Aviso reproducido del archivo quran-uthmani.txt",
+      "bytes": 1106,
+      "sha256": "72493509d507314f60c018fd33aa57d9064a0de42be8926745e4953f59925c62"
+    },
+    {
+      "path": "TRANSLATION-TERMS.txt",
+      "source": "https://tanzil.net/trans/",
+      "bytes": 611,
+      "sha256": "08d74926c91114d8f22524dd6674cb3af05b8c72bca730d093d6bf8c9738c485"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "quran-reader"
+description = "Lee y guarda el punto de lectura, los marcadores y las preferencias locales del lector."
+commands.allow = ["get_quran_reader", "update_quran_reader"]

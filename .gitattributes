@@ -1,0 +1,3 @@
+# Conservar byte por byte los corpus, avisos y hashes también en Windows.
+public/quran/** -text
+src/data/quran-suras.json -text

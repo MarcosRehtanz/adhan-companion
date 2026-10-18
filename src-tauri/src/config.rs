@@ -143,20 +143,60 @@ pub struct AudioConfig {
     pub volume: u8,
     #[serde(default)]
     pub enabled: Enabled,
+    #[serde(default)]
+    pub alerts: std::collections::BTreeMap<String, PrayerAlert>,
     // asignación de muecín: FIJA por rezo (colección Doha — cada oración suena
-    // su propio adhan). Sin selector ni mapas de config — decisión 2026-10-15.
+    // su propio adhan). Los modos de aviso no cambian esta asignación.
 }
 
 impl Default for AudioConfig {
     fn default() -> Self {
         // Defaults del schema del spec: volumen 70 y los 5 rezos habilitados
         Self {
+            alerts: Default::default(),
             volume: default_volume(),
             enabled: crate::scheduler::PRAYERS
                 .iter()
                 .map(|p| (p.to_lowercase(), true))
                 .collect(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AlertMode { #[default] Adhan, Tone, Notification }
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Tone { #[default] Soft, Double, Bell }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PrayerAlert {
+    pub mode: AlertMode,
+    #[serde(default)] pub tone: Tone,
+    #[serde(default = "default_duration")] pub duration_secs: u8,
+}
+fn default_duration() -> u8 { 3 }
+impl Default for PrayerAlert {
+    fn default() -> Self { Self { mode: AlertMode::Adhan, tone: Tone::Soft, duration_secs: 3 } }
+}
+impl AudioConfig {
+    pub fn alert(&self, prayer: &str) -> PrayerAlert {
+        self.alerts.get(prayer).cloned().unwrap_or_else(|| PrayerAlert {
+            mode: if self.enabled.get(prayer) == Some(&false) { AlertMode::Notification } else { AlertMode::Adhan },
+            ..Default::default()
+        })
+    }
+    pub fn validate(&self) -> Result<(), String> {
+        if self.volume > 100 { return Err("El volumen debe estar entre 0 y 100.".into()); }
+        for (prayer, alert) in &self.alerts {
+            if !crate::scheduler::PRAYERS.iter().any(|p| p.to_lowercase() == *prayer) {
+                return Err("Rezo desconocido en los avisos.".into());
+            }
+            if !(1..=10).contains(&alert.duration_secs) { return Err("La duración debe estar entre 1 y 10 segundos.".into()); }
+        }
+        Ok(())
     }
 }
 
@@ -178,6 +218,25 @@ pub struct AgentConfig {
     pub mqtt: bool,
     #[serde(default)]
     pub broker: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Theme { #[default] Light, Dark, System }
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Accent { #[default] Teal, Blue, Violet, Rose, Amber }
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct Appearance {
+    #[serde(default)] pub theme: Theme,
+    #[serde(default)] pub accent: Accent,
+}
+
+/// Preferencias de consulta; no intervienen en los horarios ni en el registro.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct CalendarConfig {
+    #[serde(default)]
+    pub adjustment_days: i8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -208,6 +267,10 @@ pub struct Config {
     pub notice: Notice,
     #[serde(default)]
     pub agent: AgentConfig,
+    #[serde(default)]
+    pub calendar: CalendarConfig,
+    #[serde(default)]
+    pub appearance: Appearance,
 }
 
 fn default_method() -> Method { Method::Mwl }
@@ -225,6 +288,8 @@ impl Default for Config {
             highLatRule: HighLatRule::AqrabAlAyyam,
             offsets: Offsets::default(),
             audio: AudioConfig::default(),
+            calendar: CalendarConfig::default(),
+            appearance: Appearance::default(),
             notice: Notice { minutes_before: 10 },
             agent: AgentConfig { mqtt: false, broker: String::new() },
         }
