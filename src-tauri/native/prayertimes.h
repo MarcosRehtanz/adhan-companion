@@ -486,20 +486,21 @@ static void compute_day_times(double times[])
 //--------------
 
 /* return prayer times for a given date */
-void get_prayer_times_(int year, int month, int day, double _latitude, double _longitude, double _timezone, double times[])
+/* Local portability patch: avoid the Windows CRT _timezone/timezone macros. */
+void get_prayer_times_(int year, int month, int day, double _latitude, double _longitude, double tz_offset, double times[])
 {
 	latitude = _latitude;
 	longitude = _longitude;
-	gtimezone = _timezone;
+	gtimezone = tz_offset;
 	julian_date = get_julian_date(year, month, day) - longitude / (double) (15 * 24);
 	compute_day_times(times);
 }
 
 /* return prayer times for a given date */
-void get_prayer_times(time_t date, double latitude, double longitude, double timezone, double times[])
+void get_prayer_times(time_t date, double latitude, double longitude, double tz_offset, double times[])
 {
 	struct tm* t = localtime(&date);
-	get_prayer_times_(1900 + t->tm_year, t->tm_mon + 1, t->tm_mday, latitude, longitude, timezone, times);
+	get_prayer_times_(1900 + t->tm_year, t->tm_mon + 1, t->tm_mday, latitude, longitude, tz_offset, times);
 }
 
 /* set the calculation method  */
