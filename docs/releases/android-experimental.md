@@ -9,6 +9,8 @@ Edición de prueba para teléfonos Android ARM de 32 y 64 bits, basada en v0.1.8
 - Cálculo local de horarios y próximo rezo mediante PrayTimes C.
 - Registro manual, calendario islámico con ajuste y personalización de colores.
 - Lector del Qur’an offline con marcadores y punto de lectura.
+- Adhan, tonos discretos por rezo y preavisos con integración nativa experimental. Activación y permisos en **Adhan y avisos**; audio con acción **Detener** en la notificación.
+- Reprogramación al reiniciar o cambiar hora, zona y configuración, reutilizando PrayTimes C.
 - Datos privados e identidad separados de una futura edición estable.
 
 ## Descarga e instalación
@@ -22,7 +24,7 @@ En **Assets**, descargar el archivo `.apk` y pasarlo al teléfono para instalarl
 
 Los paquetes eliminan los símbolos nativos de depuración al empaquetar para reducir el tamaño de descarga y el espacio de instalación. Android 8.1 cumple el mínimo de versión, pero también debe coincidir la arquitectura del sistema. El mensaje «No se instaló la aplicación» es genérico y no confirma por sí solo una incompatibilidad de arquitectura.
 
-Esta edición **no emite Adhan, tonos ni preavisos automáticos** y todavía no incluye recitación del Qur’an en audio. Los datos no se sincronizan con el escritorio.
+Los avisos empiezan **desactivados**: revisá ubicación y horarios, permití notificaciones y alarmas exactas cuando corresponda y pulsá **Activar avisos**. Probá el audio antes de depender de los avisos. Su funcionamiento con pantalla apagada y ahorro de batería está pendiente de validar en el J7. Todavía no incluye recitación del Qur’an en audio. Los datos no se sincronizan con el escritorio.
 
 El APK utiliza una firma de desarrollo que puede variar entre compilaciones. Una firma diferente puede impedir instalar sobre otra copia experimental. No desinstalar una copia con datos importantes como solución automática: desinstalar puede eliminar sus datos locales. La firma persistente y las actualizaciones que conserven datos siguen pendientes.
 

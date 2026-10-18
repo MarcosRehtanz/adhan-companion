@@ -1,4 +1,4 @@
-//! Android experimental: consulta y registro locales, sin alarmas en segundo plano.
+//! Android: consulta/registro locales; alarmas y audio delegados al puente nativo.
 use crate::{config, registro, scheduler};
 use chrono::{Datelike, Timelike};
 use std::sync::{Arc, Mutex, RwLock, mpsc};
@@ -21,6 +21,13 @@ pub fn mark_prayed(date: &str, prayer: &str) -> Result<(), String> {
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     config::init_mobile_dir(app.path().app_data_dir()?)?;
     let cfg = config::load_or_init();
+    #[cfg(target_os = "android")]
+    {
+        let initial = cfg.clone();
+        std::thread::spawn(move || {
+            if let Err(error) = crate::android_alerts::sync(&initial) { crate::log!("alarmas Android: {error}"); }
+        });
+    }
     let config: config::SharedConfig = Arc::new(RwLock::new(cfg.clone()));
     let state: scheduler::SharedState =
         Arc::new(Mutex::new(scheduler::SharedStateInner::new(&cfg)));
@@ -32,8 +39,8 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     std::thread::spawn(move || {
         let mut previous = Vec::new();
         let mut clock = String::new();
-        // Esta tarea actualiza la consulta mientras el proceso vive. No programa
-        // avisos ni registra disparos: AlarmManager será una integración separada.
+        // Esta tarea solo actualiza la consulta. AlarmManager mantiene los avisos
+        // nativos, incluso sin WebView ni este hilo en ejecución.
         loop {
             let mut changed = false;
             match rx.recv_timeout(Duration::from_secs(1)) {

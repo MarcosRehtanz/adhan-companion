@@ -5,6 +5,8 @@ pub mod audio;
 #[cfg(mobile)]
 #[path = "mobile_audio.rs"]
 pub mod audio;
+#[cfg(target_os = "android")]
+mod android_alerts;
 pub mod config;
 #[cfg(desktop)]
 mod desktop;
@@ -49,7 +51,7 @@ macro_rules! log {
 // Error → String: MVP plano y depurable (se endurece cuando haya errores de dominio)
 #[tauri::command]
 fn get_schedule(
-    state: tauri::State<scheduler::SharedState>,
+    state: tauri::State<'_, scheduler::SharedState>,
 ) -> Result<scheduler::Schedule, String> {
     let st = state
         .lock()
@@ -68,7 +70,7 @@ async fn parse_google_maps_location(input: String) -> Result<location::Coordinat
 }
 
 #[tauri::command]
-fn preview_alert(
+async fn preview_alert(
     audio: config::AudioConfig,
     prayer: String,
     app: tauri::AppHandle,
@@ -91,18 +93,22 @@ fn preview_alert(
     audio::play_alert(&audio, &prayer)
 }
 #[tauri::command]
-fn stop_alert() {
+async fn stop_alert() -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    android_alerts::call("stop", serde_json::json!({}))?;
+    #[cfg(not(target_os = "android"))]
     audio::stop_adhan();
+    Ok(())
 }
 
 // Contrato IPC del spec: test de audio — el futuro botón "Probar" de la tab Audio
 // Toca el muecín que sonaría en el PRÓXIMO rezo (test del ciclo completo real);
 // sin próximo (día pasado) cae al default embebido.
 #[tauri::command]
-fn test_adhan(
+async fn test_adhan(
     muecin: Option<String>,
-    state: tauri::State<SharedConfig>,
-    sched: tauri::State<scheduler::SharedState>,
+    state: tauri::State<'_, SharedConfig>,
+    sched: tauri::State<'_, scheduler::SharedState>,
 ) -> Result<(), String> {
     let cfg = state
         .read()
@@ -121,7 +127,7 @@ fn test_adhan(
 
 /// Nombre del próximo rezo (la asignación de muecín es fija por rezo: cada
 /// oración suena su propio adhan de la colección — sin selector)
-fn proximo_rezo(sched: &tauri::State<scheduler::SharedState>) -> Option<String> {
+fn proximo_rezo(sched: &tauri::State<'_, scheduler::SharedState>) -> Option<String> {
     let st = sched.lock().ok()?;
     st.schedule
         .next
@@ -173,7 +179,7 @@ fn instalar_update() -> Result<(), String> {
 
 // Qibla: rumbo desde el norte hacia la Qaaba, con la ubicación del config real
 #[tauri::command]
-fn get_qibla(state: tauri::State<SharedConfig>) -> Result<f64, String> {
+fn get_qibla(state: tauri::State<'_, SharedConfig>) -> Result<f64, String> {
     let cfg = state
         .read()
         .map(|c| c.clone())
@@ -192,7 +198,7 @@ fn get_stats() -> registro::Stats {
 fn mark_prayed(
     date: String,
     prayer: String,
-    sched_tx: tauri::State<mpsc::Sender<scheduler::Trigger>>,
+    sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
 ) -> Result<String, String> {
     if !scheduler::PRAYERS.contains(&prayer.as_str()) {
         return Err(format!("rezo desconocido: {prayer}"));
@@ -230,7 +236,7 @@ fn get_marked(month: String) -> Result<Vec<registro::MarkedDay>, String> {
 #[tauri::command]
 fn get_schedule_for(
     date: String,
-    state: tauri::State<SharedConfig>,
+    state: tauri::State<'_, SharedConfig>,
 ) -> Result<Vec<scheduler::PrayerSlot>, String> {
     let parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
         .map_err(|_| format!("fecha inválida: {date} (esperado YYYY-MM-DD)"))?;
@@ -244,7 +250,7 @@ fn get_schedule_for(
 
 // Contracts IPC de config (Spike de config): leer y guardar hot-reload
 #[tauri::command]
-fn get_config(state: tauri::State<SharedConfig>) -> Result<config::Config, String> {
+fn get_config(state: tauri::State<'_, SharedConfig>) -> Result<config::Config, String> {
     state
         .read()
         .map(|c| c.clone())
@@ -252,10 +258,10 @@ fn get_config(state: tauri::State<SharedConfig>) -> Result<config::Config, Strin
 }
 
 #[tauri::command]
-fn set_config(
+async fn set_config(
     cfg: config::Config,
-    state: tauri::State<SharedConfig>,
-    sched_tx: tauri::State<mpsc::Sender<scheduler::Trigger>>,
+    state: tauri::State<'_, SharedConfig>,
+    sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
 ) -> Result<config::Config, String> {
     location::Coordinates::validated(cfg.lat, cfg.lon)?;
     cfg.audio.validate()?;
@@ -268,6 +274,8 @@ fn set_config(
         .write()
         .map_err(|e| format!("config envenenado: {e}"))? = cfg.clone();
     let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
+    #[cfg(target_os = "android")]
+    android_alerts::sync(&cfg)?;
     Ok(cfg)
 }
 
@@ -284,8 +292,8 @@ fn runtime_info() -> RuntimeInfo {
     RuntimeInfo {
         platform: std::env::consts::OS,
         config_path: config::config_path().display().to_string(),
-        background_alerts: cfg!(desktop),
-        audio_preview: cfg!(desktop),
+        background_alerts: cfg!(any(desktop, target_os = "android")),
+        audio_preview: cfg!(any(desktop, target_os = "android")),
     }
 }
 
@@ -298,6 +306,14 @@ fn set_autostart(_enabled: bool, _app: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 fn get_autostart(_app: tauri::AppHandle) -> Result<bool, String> {
     Ok(false)
+}
+
+#[tauri::command]
+async fn android_alert_status(action: Option<String>) -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "android")]
+    { android_alerts::call("control", serde_json::json!({"action": action.unwrap_or_else(|| "status".into())})) }
+    #[cfg(not(target_os = "android"))]
+    { let _ = action; Err("Solo disponible en Android.".into()) }
 }
 
 // Toggle real de autostart del plugin (checkbox de la tab Avanzado)
@@ -347,8 +363,11 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ));
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(android_alerts::init());
     let builder = builder.invoke_handler(tauri::generate_handler![
         runtime_info,
+        android_alert_status,
         quran::get_quran_reader,
         quran::update_quran_reader,
         get_schedule,

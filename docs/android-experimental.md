@@ -12,10 +12,10 @@ La primera edición Android comparte el cálculo local y la interfaz React con e
 | Calendario islámico | Tabular civil con ajuste manual existente. |
 | Apariencia | Temas y acentos con Guardar y Cancelar. |
 | Qur’an | Texto árabe y traducción offline, marcadores y punto de lectura locales. Recitación pendiente según su RDD. |
-| Adhan, tonos y preavisos | Integración nativa pendiente; no se emiten automáticamente. La prueba de audio aparece deshabilitada. Las preferencias se pueden guardar para una futura integración. |
+| Adhan, tonos y preavisos | Integración nativa experimental: AlarmManager, notificaciones y MediaPlayer con servicio visible y acción Detener. Activación manual y permisos; validación en el J7 pendiente. |
 | Actualizaciones | Instalación manual de APK de prueba; el actualizador de escritorio no se ejecuta. |
 
-La app muestra una indicación de **Android experimental** con las funciones disponibles y la ausencia de avisos y audio. El hilo que actualiza horarios no sustituye a las alarmas de Android y puede suspenderse junto con el proceso.
+La app muestra una indicación de **Android experimental**. El hilo que actualiza la consulta de horarios puede suspenderse junto con el proceso; los avisos se programan por separado en Android y no dependen de la WebView. El usuario confirmó que el menú hamburguesa funciona en el J7 con la compilación anterior a esta integración de audio.
 
 ## Estado de la primera compilación
 
@@ -84,12 +84,28 @@ El APK de depuración utiliza una firma de desarrollo. Las claves locales y las 
 
 Para una distribución estable se prepararán firma persistente, versiones Android y, si se solicita Google Play, AAB. Ver [distribución](https://v2.tauri.app/distribute/google-play/) y [firma Android en Tauri](https://v2.tauri.app/distribute/sign/android/).
 
-## Próxima integración nativa
+## Adhan y avisos nativos
 
-1. Programar los rezos y preavisos mediante `AlarmManager`, con permisos y reprogramación al reiniciar el teléfono o cambiar fecha, zona o configuración.
-2. Incorporar audio y acciones nativas para detener el aviso, revisando su funcionamiento con pantalla apagada y ahorro de batería.
-3. Integrar reproducción prolongada del Qur’an con el ciclo de vida y los controles multimedia de Android cuando se implemente el audio.
-4. Revisar permisos de notificaciones, persistencia, tamaño de letra, teclado, orientación y navegación Atrás en un dispositivo real.
-5. Configurar firma persistente antes de ofrecer actualizaciones instalables sobre la misma app experimental.
+En **Adhan y avisos → Avisos en este teléfono**, revisar la ubicación y activar los avisos. La activación es exclusiva de este teléfono y empieza desactivada. El resumen muestra los permisos, el próximo aviso programado y el último problema. Los modos, tonos, volumen y preaviso existentes se editan mediante **Editar**, **Guardar** y **Cancelar**. **Probar** usa lo mostrado sin guardar ni marcar el rezo.
 
-Android documenta las [alarmas fuera del ciclo de vida de la app](https://developer.android.com/develop/background-work/services/alarms) y los [servicios en primer plano para reproducción multimedia](https://developer.android.com/develop/background-work/services/fgs/service-types). El scheduler permanente de escritorio no garantiza ese comportamiento en móvil.
+- `PrayerAlarms.kt` conserva una copia privada del contrato de configuración, calculada y sincronizada desde Rust. `PrayerNative.calculate` llama por JNI al mismo PrayTimes C; no hay cálculo de horarios en JavaScript ni una segunda implementación en Kotlin. Utiliza la zona del sistema y el offset al mediodía del día calculado, como escritorio.
+- Se mantienen dos alarmas: próximo rezo y próximo preaviso. Cada entrega calcula y programa las siguientes, incluyendo el día posterior a Isha. El rezo usa `setAlarmClock` (visible como próxima alarma de Android); el preaviso usa `setExactAndAllowWhileIdle`.
+- Se reprograma al iniciar/reanudar la app, guardar configuración, reiniciar el teléfono, actualizar el paquete y cambiar fecha/zona o conceder acceso a alarmas exactas. El receiver de arranque solo reprograma; no inicia audio.
+- Antes de entregar se comprueban la generación de configuración, la alarma vigente y el último identificador entregado. Se descartan entregas con más de 120 segundos de retraso; no se recuperan rezos pasados al abrir la app. Los disparos no se registran como rezos realizados.
+- `PrayerAudioService.kt` reproduce los WAV originales incluidos, con asignación fija por rezo (Dhuhr usa `default.wav`), o tonos PCM generados localmente. No requiere Internet. No modifica los archivos originales ni el texto del Adhan.
+- El audio usa un servicio `mediaPlayback`, notificación con **Detener**, foco de audio y wake lock durante la reproducción. Se libera al terminar, detener, perder foco o alcanzar el límite de seguridad (10 minutos para Adhan; duración elegida más margen para tonos). No se reinicia automáticamente una reproducción interrumpida.
+- El volumen de la app multiplica el volumen de alarmas del sistema. No se cambia el volumen del teléfono ni se solicita saltar No molestar. El canal de rezos es silencioso para evitar duplicar el audio; el de preavisos tiene sus propias preferencias del sistema.
+
+### Permisos y límites
+
+Se declaran notificaciones, alarmas exactas, recepción de arranque, servicio en primer plano de reproducción y wake lock. En Android 13+ se solicita permiso de notificaciones; en Android 12+ se abre el acceso especial a alarmas exactas si falta. No se programa ningún aviso mientras falte alguno. En Android 8.1 las alarmas exactas no tienen ese diálogo especial. Los botones se muestran cuando el permiso correspondiente falta.
+
+Android y los fabricantes pueden restringir actividad de fondo. En Samsung, revisar el ahorro de batería y permitir actividad en segundo plano si bloquea los avisos. Forzar la detención desde Ajustes impide recibir alarmas hasta volver a abrir la app. Los preavisos pueden retrasarse por las cuotas de Doze, especialmente si se configuran muy cerca del rezo; el audio del rezo usa una alarma de reloj separada. No se garantiza comportamiento de despertador certificado.
+
+### Estado de comprobación y siguiente paso
+
+Interfaz, core Linux y Android y código Kotlin compilados. Pendiente comprobar en el J7: **Probar** Adhan/los tres tonos/solo notificación, volumen y Detener desde la notificación; entrega real de rezo y preaviso con pantalla apagada, después de retirar la app de recientes y tras reiniciar; cambio de ubicación/hora, permisos y batería. La compatibilidad declarada no sustituye esta revisión en hardware.
+
+Pendiente también la firma experimental persistente para instalar actualizaciones conservando datos. La recitación del Qur’an y sus controles multimedia siguen fuera de esta integración.
+
+Referencias: [alarmas de Android](https://developer.android.com/develop/background-work/services/alarms), [tipos de servicio en primer plano](https://developer.android.com/develop/background-work/services/fgs/service-types) y [plugins móviles de Tauri](https://v2.tauri.app/develop/plugins/develop-mobile/). Android 15+ restringe iniciar reproducción desde BOOT_COMPLETED; por eso el receiver de arranque únicamente reprograma las alarmas.

@@ -134,7 +134,8 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 - Adaptar la navegación y los controles para pantallas táctiles.
 - Separar el arranque móvil del tray y usar almacenamiento privado de Android.
 - Generar APK ARM64 y ARMv7 (32 bits) de prueba en un workflow propio, con prereleases experimentales separadas de las releases estables.
-- Integrar después alarmas, audio y notificaciones nativas; esta primera edición no emite avisos de rezo.
+- Integración nativa experimental de AlarmManager, Adhan, tonos por rezo y preavisos implementada; pendiente validación de entregas reales en el J7, permisos y ahorro de batería.
+- Preparar firma persistente para actualizaciones que conserven los datos.
 
 ## Orden sugerido
 

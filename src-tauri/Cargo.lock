@@ -8,6 +8,7 @@ version = "0.1.8"
 dependencies = [
  "cc",
  "chrono",
+ "jni 0.21.1",
  "percent-encoding",
  "rodio",
  "serde",

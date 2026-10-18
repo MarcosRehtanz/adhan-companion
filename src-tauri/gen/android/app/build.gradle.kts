@@ -51,6 +51,8 @@ android {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+    androidResources { noCompress += "wav" }
+    sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/adhanAssets").get().asFile)
     buildFeatures {
         buildConfig = true
     }
@@ -75,3 +77,10 @@ dependencies {
 }
 
 apply(from = file("tauri.build.gradle.kts"))
+
+// WAV originales y sus avisos: disponibles para MediaPlayer sin red ni WebView.
+val bundleAdhan by tasks.registering(Sync::class) {
+    from("../../../assets/muecin")
+    into(layout.buildDirectory.dir("generated/adhanAssets/muecin"))
+}
+tasks.named("preBuild") { dependsOn(bundleAdhan) }

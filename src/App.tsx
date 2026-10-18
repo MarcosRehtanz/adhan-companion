@@ -1,3 +1,4 @@
+import { AndroidAlerts } from "./components/AndroidAlerts";
 // Ventana de configuración + dashboard del día (Adhan Companion)
 // Contratos IPC: get_config/set_config (Config), get_schedule (Schedule),
 // schedule_changed (evento), test_adhan, test_notification, set_autostart, mark_prayed.
@@ -282,7 +283,7 @@ export default function App() {
         </header>
 
         <main className="page-content" id="main-content">
-          {isAndroid && <aside className="experimental-notice" role="note"><strong>Android experimental</strong><span>Podés consultar horarios, registrar rezos y leer el Qur’an. Los avisos automáticos y el audio todavía no están disponibles.</span></aside>}
+          {isAndroid && <aside className="experimental-notice" role="note"><strong>Android experimental</strong><span>Adhan y avisos nativos disponibles. Activá los avisos y revisá los permisos en “Adhan y avisos”.</span></aside>}
           {page === "quran" && <QuranReader />}
           {page === "calendario" && (hoy ? <IslamicCalendar today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>)}
           {page === "hoy" && (
@@ -346,8 +347,9 @@ export default function App() {
           {page === "adhan" && (
             <div className="page-stack">
               <div className="page-intro"><h2>Adhan y avisos</h2><p>Preferencias de sonido y notificaciones para cada rezo.</p></div>
+              {isAndroid && <AndroidAlerts />}
               <section className="panel setting-panel">
-                <div className="panel-heading"><div><h2>Sonido y preaviso</h2><p>{isAndroid ? "Preferencias guardadas para una futura integración. En esta versión no se emiten avisos ni audio." : "Elegí cómo recibir cada rezo. Los avisos funcionan con la ventana cerrada."}</p></div>{editando !== "adhan" && <button className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
+                <div className="panel-heading"><div><h2>Sonido y preaviso</h2><p>{isAndroid ? "Elegí el sonido por rezo. Los avisos se programan en Android al guardar; activalos en este teléfono." : "Elegí cómo recibir cada rezo. Los avisos funcionan con la ventana cerrada."}</p></div>{editando !== "adhan" && <button className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
                 <PrayerAlertsSettings previewAvailable={runtime?.audio_preview ?? false} audio={cfg.audio} editing={editando === "adhan"} onChange={updAudio} />
                 {editando === "adhan" ? <div className="editor">
                   <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>

@@ -4,6 +4,14 @@ import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 
 class MainActivity : TauriActivity() {
+  override fun onResume() {
+    super.onResume()
+    PrayerAlarms.worker.execute { PrayerAlarms.schedule(applicationContext) }
+  }
+  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    PrayerAlarms.worker.execute { PrayerAlarms.schedule(applicationContext) }
+  }
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
