@@ -45,7 +45,7 @@ Los datos no se sincronizan automáticamente con la instalación de escritorio. 
 
 ## Compilación local
 
-Requisitos: JDK 21, Android SDK, NDK 27.2.12479018, plataforma Android 36, build tools 36.0.0 y target Rust ARM64. La configuración inicial requiere acceso a Internet para descargar herramientas y dependencias. Ver [requisitos de Tauri](https://v2.tauri.app/start/prerequisites/).
+Requisitos: JDK 21, Android SDK, NDK 27.2.12479018, plataforma Android 36, build tools 36.0.0 y el target Rust de la arquitectura elegida. La configuración inicial requiere acceso a Internet para descargar herramientas y dependencias. Ver [requisitos de Tauri](https://v2.tauri.app/start/prerequisites/).
 
 Definir `JAVA_HOME`, `ANDROID_HOME` y `NDK_HOME` con las rutas de la instalación local y agregar Java y Cargo al `PATH`.
 
@@ -55,21 +55,25 @@ pnpm install --frozen-lockfile
 pnpm tauri android build --debug --apk --target aarch64 --ci
 ```
 
+Para ARM de 32 bits, instalar `armv7-linux-androideabi` y compilar con `--target armv7`. La variante ARM64 usa `aarch64-linux-android` y `--target aarch64`.
+
 El proyecto Android generado se conserva en `src-tauri/gen/android/`. Los APK se producen bajo `app/build/outputs/apk/` dentro de ese directorio. Para trabajar con dispositivo o emulador:
 
 ```bash
 pnpm tauri android dev
 ```
 
-La compilación inicial se centra en ARM64. Un emulador x86_64 necesita instalar el target Rust correspondiente y compilar para esa arquitectura. Esta edición fija Android 7.0 (API 24) como mínimo de configuración; la compatibilidad efectiva debe revisarse en dispositivos.
+Se distribuyen APK separados ARM64 (`arm64-v8a`) y ARMv7 (`armeabi-v7a`, 32 bits). La primera compilación solo incluía ARM64; se incorpora ARMv7 tras el fallo de instalación reportado en un J7 con Android 8.1.0. El usuario solo recibe «No se instaló la aplicación», por lo que la causa y el modelo exacto siguen sin confirmar. Android documenta las [arquitecturas nativas y su selección por el instalador](https://developer.android.com/ndk/guides/abis).
+
+Un emulador x86_64 necesita instalar el target Rust correspondiente y compilar para esa arquitectura. Esta edición fija Android 7.0 (API 24) como mínimo de configuración; la compatibilidad efectiva debe revisarse en dispositivos. Al empaquetar se quitan los símbolos nativos de depuración para reducir el tamaño, conservándolos en los productos locales de compilación.
 
 ## Workflow experimental
 
-`.github/workflows/android-experimental.yml` genera un APK ARM64 de depuración. Se ejecuta manualmente desde GitHub Actions o al subir a `main` cambios en las rutas de la app incluidas en el workflow. Entrega el artefacto **android-experimental-arm64**, con APK, SHA256SUMS y este documento; se conserva durante 30 días.
+`.github/workflows/android-experimental.yml` genera APK de depuración para ARM64 y ARMv7 en jobs separados. Se ejecuta manualmente desde GitHub Actions o al subir a `main` cambios en las rutas de la app incluidas en el workflow. Entrega los artefactos **android-experimental-arm64** y **android-experimental-armv7**, cada uno con APK, checksum por arquitectura y este documento; se conservan durante 30 días. Antes de subir un APK, comprueba que contenga la biblioteca del core para la arquitectura indicada.
 
 El workflow estable de Linux y Windows continúa separado. El APK experimental no se incorpora a la release estable ni se publica en Google Play.
 
-Al ejecutar manualmente el workflow sobre `main`, la opción **Publicar una prerelease con descarga directa del APK** está activada por defecto. Tras compilar, publica el `.apk`, `SHA256SUMS` y `LEEME.md` en una prerelease `android-experimental-<commit>`. Los pushes automáticos generan únicamente el artefacto de Actions. Si ya existe una prerelease para el mismo commit, se conserva su APK original. Las prereleases no reemplazan la release estable marcada como Latest.
+Al ejecutar manualmente el workflow sobre `main`, la opción **Publicar una prerelease con descarga directa del APK** está activada por defecto. Tras compilar ambas variantes, publica los dos `.apk`, un `SHA256SUMS` conjunto y `LEEME.md` en una prerelease `android-experimental-<commit>`. Los pushes automáticos generan únicamente los artefactos de Actions. Si ya existe una prerelease para el mismo commit, se conservan sus APK originales. Las prereleases no reemplazan la release estable marcada como Latest.
 
 El APK de depuración utiliza una firma de desarrollo. Las claves locales y las de distintas ejecuciones de CI pueden diferir: instalar otra compilación sobre la anterior puede fallar por firma incompatible. Antes de distribuir actualizaciones que deban conservar datos, se necesita una clave de firma experimental persistente y su configuración protegida en CI. No desinstalar una copia con datos importantes como solución automática a un conflicto de firma.
 

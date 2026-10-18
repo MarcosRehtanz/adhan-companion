@@ -133,7 +133,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 - Compartir cálculo local, registro, calendario, apariencia y lector offline.
 - Adaptar la navegación y los controles para pantallas táctiles.
 - Separar el arranque móvil del tray y usar almacenamiento privado de Android.
-- Generar un APK ARM64 de prueba en un workflow propio, sin añadirlo todavía a las releases estables.
+- Generar APK ARM64 y ARMv7 (32 bits) de prueba en un workflow propio, con prereleases experimentales separadas de las releases estables.
 - Integrar después alarmas, audio y notificaciones nativas; esta primera edición no emite avisos de rezo.
 
 ## Orden sugerido

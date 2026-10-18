@@ -1,6 +1,6 @@
 # Android experimental
 
-Primera edición de prueba para teléfonos Android ARM64, basada en v0.1.8. Requiere Android 7.0 o posterior según la configuración de compilación; la revisión funcional en un teléfono real sigue pendiente.
+Edición de prueba para teléfonos Android ARM de 32 y 64 bits, basada en v0.1.8. Requiere Android 7.0 o posterior según la configuración de compilación; la revisión funcional en un teléfono real sigue pendiente.
 
 ## Incluye
 
@@ -13,6 +13,13 @@ Primera edición de prueba para teléfonos Android ARM64, basada en v0.1.8. Requ
 ## Descarga e instalación
 
 En **Assets**, descargar el archivo `.apk` y pasarlo al teléfono para instalarlo. Android puede solicitar autorización para instalar desde esa fuente. `SHA256SUMS` contiene el checksum del APK y `LEEME.md` describe el alcance experimental.
+
+| Archivo | Arquitectura |
+| --- | --- |
+| `…-armv7-….apk` | Android ARM de 32 bits (`armeabi-v7a`). Probar esta variante en el J7 reportado, pendiente de confirmar su modelo y arquitectura. |
+| `…-arm64-….apk` | Android ARM de 64 bits (`arm64-v8a`). |
+
+Los paquetes eliminan los símbolos nativos de depuración al empaquetar para reducir el tamaño de descarga y el espacio de instalación. Android 8.1 cumple el mínimo de versión, pero también debe coincidir la arquitectura del sistema. El mensaje «No se instaló la aplicación» es genérico y no confirma por sí solo una incompatibilidad de arquitectura.
 
 Esta edición **no emite Adhan, tonos ni preavisos automáticos** y todavía no incluye recitación del Qur’an en audio. Los datos no se sincronizan con el escritorio.
 

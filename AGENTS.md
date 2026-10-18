@@ -38,6 +38,9 @@ pnpm tauri build --bundles nsis
 
 # Android experimental ARM64 (requiere JDK 21, SDK/NDK y variables de entorno)
 pnpm tauri android build --debug --apk --target aarch64 --ci
+
+# Android ARM de 32 bits (target Rust armv7-linux-androideabi)
+pnpm tauri android build --debug --apk --target armv7 --ci
 ```
 
 ⚠️ En shells no interactivos `cargo` puede no estar en PATH: `export PATH="$HOME/.cargo/bin:$PATH"` o `source ~/.cargo/env`. Sin esto `pnpm tauri dev` falla con "failed to run cargo metadata".
@@ -72,4 +75,4 @@ pnpm tauri android build --debug --apk --target aarch64 --ci
 - Progreso: el checkout está en **v0.1.8**. Incluye próximo rezo entre días, importación de ubicación Google Maps, avisos discretos por rezo, calendario islámico tabular con ajuste manual, temas/acentos y lector del Qur’an offline con marcadores y última lectura, además de tray, scheduler, adhan con confirmación, calendario retroactivo, notificaciones + preaviso, FFI a PrayTimes C, qibla, rachas/stats, colección Doha con asignación fija por rezo y updater para AppImage. Windows está preparado con ruta de config `%APPDATA%\Adhan Companion`, D-Bus limitado a Linux, build NSIS y descarga manual desde la sección de actualizaciones. El workflow `.github/workflows/release.yml` construye para Linux y Windows; solo publica los artefactos al subir un tag `vX.Y.Z`, ejecuta tests en ambas plataformas, comprueba versiones/notas y publica también SHA256SUMS. La ejecución manual genera artefactos sin publicar. Ver `docs/publicar-release.md`. Restante de producto: Ramadán (imsak/iftar), MQTT agente (bloqueado en hardware) y spot-checks de portales oficiales.
 
 - Qur’an: recursos originales, avisos y manifiesto en `public/quran/`, metadatos de frontend en `src/data/quran-suras.json`. Preparación sin modificar las aleyas: `python3 scripts/prepare-quran.py`. La traducción tiene condiciones no comerciales separadas de MIT. Estado del lector en `quran-reader.json`, separado de configuración y registro de rezos. Ver `docs/lector-quran.md` y la revisión nativa en Linux; Windows visual pendiente. La recitación de audio solo está investigada, no implementada.
-- Android: edición experimental en desarrollo con identidad y datos separados, interfaz móvil y workflow propio de APK de depuración. No emite Adhan, tonos ni preavisos; pendiente integración nativa de alarmas/audio y firma persistente para actualizaciones. No presentarla como plataforma estable ni incorporarla automáticamente al release de escritorio.
+- Android: edición experimental en desarrollo con identidad y datos separados, interfaz móvil y workflow propio de APK de depuración ARM64 y ARMv7 (32 bits). No emite Adhan, tonos ni preavisos; pendiente integración nativa de alarmas/audio y firma persistente para actualizaciones. No presentarla como plataforma estable ni incorporarla automáticamente al release de escritorio.
