@@ -50,7 +50,7 @@ El lector se [revisó en la app nativa de Linux](docs/revision-lector-quran.md),
 
 ### Android experimental en desarrollo
 
-Se prepara una [edición experimental de Android](docs/android-experimental.md) con interfaz móvil, cálculo local, registro, calendario y lector offline. Tiene un workflow propio para generar APK ARM64 de prueba, separado de las releases estables. **Adhan, tonos y preavisos en Android todavía no están disponibles**; requieren integración nativa. Ver el documento para compilación, alcance y limitaciones de la firma de desarrollo.
+La [edición experimental de Android](docs/android-experimental.md) incluye interfaz móvil, cálculo local, registro, calendario y lector offline. Sus APK ARM64 se distribuyen mediante artefactos de Actions y [prereleases con descarga directa](https://github.com/MarcosRehtanz/adhan-companion/releases), separadas de las releases estables. El workflow permite publicar una prerelease desde una ejecución manual. **Adhan, tonos y preavisos en Android todavía no están disponibles**; requieren integración nativa. Ver el documento para compilación, alcance y limitaciones de la firma de desarrollo.
 
 ## Stack
 

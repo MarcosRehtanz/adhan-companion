@@ -69,6 +69,8 @@ La compilación inicial se centra en ARM64. Un emulador x86_64 necesita instalar
 
 El workflow estable de Linux y Windows continúa separado. El APK experimental no se incorpora a la release estable ni se publica en Google Play.
 
+Al ejecutar manualmente el workflow sobre `main`, la opción **Publicar una prerelease con descarga directa del APK** está activada por defecto. Tras compilar, publica el `.apk`, `SHA256SUMS` y `LEEME.md` en una prerelease `android-experimental-<commit>`. Los pushes automáticos generan únicamente el artefacto de Actions. Si ya existe una prerelease para el mismo commit, se conserva su APK original. Las prereleases no reemplazan la release estable marcada como Latest.
+
 El APK de depuración utiliza una firma de desarrollo. Las claves locales y las de distintas ejecuciones de CI pueden diferir: instalar otra compilación sobre la anterior puede fallar por firma incompatible. Antes de distribuir actualizaciones que deban conservar datos, se necesita una clave de firma experimental persistente y su configuración protegida en CI. No desinstalar una copia con datos importantes como solución automática a un conflicto de firma.
 
 Para una distribución estable se prepararán firma persistente, versiones Android y, si se solicita Google Play, AAB. Ver [distribución](https://v2.tauri.app/distribute/google-play/) y [firma Android en Tauri](https://v2.tauri.app/distribute/sign/android/).

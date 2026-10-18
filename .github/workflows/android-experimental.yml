@@ -2,6 +2,11 @@ name: Android experimental
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publicar una prerelease con descarga directa del APK'
+        type: boolean
+        default: true
   push:
     branches: [main]
     paths:
@@ -84,3 +89,31 @@ jobs:
           path: android-experimental/
           if-no-files-found: error
           retention-days: 30
+
+  publish-experimental:
+    needs: build-apk
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.publish_release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-experimental-arm64
+          path: android-experimental
+      - name: Publish experimental prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="android-experimental-${GITHUB_SHA:0:7}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "La prerelease de este commit ya existe; se conserva su APK y firma originales."
+            exit 0
+          fi
+          version=$(node -p "require('./package.json').version")
+          gh release create "$tag" android-experimental/* \
+            --target "$GITHUB_SHA" \
+            --title "Android experimental v$version (${GITHUB_SHA:0:7})" \
+            --notes-file docs/releases/android-experimental.md \
+            --prerelease --latest=false
