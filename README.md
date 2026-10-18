@@ -10,7 +10,7 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan Companion_0.1.7_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.7_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
