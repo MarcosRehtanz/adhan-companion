@@ -7,6 +7,7 @@
 //! requieren). La integridad queda dada por HTTPS + GitHub y la comparación
 //! de versión semántica.
 
+#[cfg(target_os = "linux")]
 use crate::log;
 use serde::Deserialize;
 use std::sync::Mutex;
@@ -201,6 +202,7 @@ pub fn instalar() -> Result<(), String> {
     Err("la actualización automática solo está disponible para AppImage en Linux".into())
 }
 
+#[cfg(target_os = "linux")]
 fn descargar(url: &str, destino: &std::path::Path) -> Result<(), String> {
     let out = std::process::Command::new("curl")
         .args(["-fL", "--connect-timeout", "5", "--max-time", "300", "-o"])

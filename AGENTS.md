@@ -19,6 +19,7 @@ Relevante para esta app: `08 Práctica/Rezos/` (una ficha por rezo: Fajr/Dhuhr/A
 - `src-tauri/` — **core Rust, corre siempre**: tray, scheduler, audio, FFI. El punto real de la app es `src-tauri/src/lib.rs` (`run()`); `main.rs` solo delega.
 - `src/` — frontend React (config + dashboard). Puede morir/crashear sin afectar el core. Solo `Configuración…` del tray abre la ventana.
 - `src-tauri/capabilities/` — permisos frontend→core. En Tauri 2 **todo comando/plugin que use el frontend debe estar declarado acá**; si un comando "no responde", revisar capabilities antes que el código.
+- Android experimental: `src-tauri/src/mobile.rs` inicializa datos privados y consulta/registro sin avisos automáticos. `desktop.rs` mantiene el tray y el arranque de escritorio. Respetar `cfg(desktop)` / `cfg(mobile)` y no incorporar dependencias de tray, autostart o rodio de escritorio en Android. Ver `docs/android-experimental.md`.
 
 ## Comandos
 
@@ -34,6 +35,9 @@ pnpm tauri build
 
 # Windows (runner Windows; instalador NSIS)
 pnpm tauri build --bundles nsis
+
+# Android experimental ARM64 (requiere JDK 21, SDK/NDK y variables de entorno)
+pnpm tauri android build --debug --apk --target aarch64 --ci
 ```
 
 ⚠️ En shells no interactivos `cargo` puede no estar en PATH: `export PATH="$HOME/.cargo/bin:$PATH"` o `source ~/.cargo/env`. Sin esto `pnpm tauri dev` falla con "failed to run cargo metadata".
@@ -68,3 +72,4 @@ pnpm tauri build --bundles nsis
 - Progreso: el checkout está en **v0.1.8**. Incluye próximo rezo entre días, importación de ubicación Google Maps, avisos discretos por rezo, calendario islámico tabular con ajuste manual, temas/acentos y lector del Qur’an offline con marcadores y última lectura, además de tray, scheduler, adhan con confirmación, calendario retroactivo, notificaciones + preaviso, FFI a PrayTimes C, qibla, rachas/stats, colección Doha con asignación fija por rezo y updater para AppImage. Windows está preparado con ruta de config `%APPDATA%\Adhan Companion`, D-Bus limitado a Linux, build NSIS y descarga manual desde la sección de actualizaciones. El workflow `.github/workflows/release.yml` construye para Linux y Windows; solo publica los artefactos al subir un tag `vX.Y.Z`, ejecuta tests en ambas plataformas, comprueba versiones/notas y publica también SHA256SUMS. La ejecución manual genera artefactos sin publicar. Ver `docs/publicar-release.md`. Restante de producto: Ramadán (imsak/iftar), MQTT agente (bloqueado en hardware) y spot-checks de portales oficiales.
 
 - Qur’an: recursos originales, avisos y manifiesto en `public/quran/`, metadatos de frontend en `src/data/quran-suras.json`. Preparación sin modificar las aleyas: `python3 scripts/prepare-quran.py`. La traducción tiene condiciones no comerciales separadas de MIT. Estado del lector en `quran-reader.json`, separado de configuración y registro de rezos. Ver `docs/lector-quran.md` y la revisión nativa en Linux; Windows visual pendiente. La recitación de audio solo está investigada, no implementada.
+- Android: edición experimental en desarrollo con identidad y datos separados, interfaz móvil y workflow propio de APK de depuración. No emite Adhan, tonos ni preavisos; pendiente integración nativa de alarmas/audio y firma persistente para actualizaciones. No presentarla como plataforma estable ni incorporarla automáticamente al release de escritorio.

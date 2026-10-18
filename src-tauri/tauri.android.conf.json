@@ -1,0 +1,10 @@
+{
+  "productName": "Adhan Companion Experimental",
+  "identifier": "io.github.marcosrehtanz.adhancompanion.experimental",
+  "bundle": {
+    "resources": ["assets/licenses/*"],
+    "android": {
+      "minSdkVersion": 24
+    }
+  }
+}

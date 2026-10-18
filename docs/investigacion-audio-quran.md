@@ -2,13 +2,15 @@
 
 Investigación iniciada el 18 de octubre de 2026. El usuario pidió priorizar la actualización del repositorio y el release antes de implementar audio. No se incorporaron grabaciones ni reproducción al lector.
 
+La recomendación y el diseño inicial están documentados en el [RDD de recitación en audio del Qur’an](rdd-recitacion-quran.md): Parhizgar mediante Al Quran Cloud, reproducción por aleya y descargas opcionales por sura. La edición concreta sigue pendiente de validación.
+
 ## Recitadores candidatos
 
 Una [guía de memorización publicada en Al-Islam.org](https://al-islam.org/pursuing-excellence-guide-memorising-holy-quran-sl-al-hakim/part-2-how-memorise-holy-quran) propone Al-Minshawi, Parhizgar y Al-Husary para estudiar la recitación y describe diferencias de ritmo y pausas. Es una referencia editorial, no una declaración de aceptación universal por todas las autoridades chiíes.
 
 [Al-Islam.org también incluye a Shahriar Parhizgar en su catálogo](https://al-islam.org/ar/taxonomy/term/651), con treinta grabaciones por juz. Su publicación allí no acredita por sí sola permiso para redistribuir esos archivos.
 
-**Propuesta pendiente de elección:** evaluar Parhizgar como primera opción y Al-Husary/Al-Minshawi como alternativas. Escuchar muestras antes de fijar recitador o grabación; no usar voz sintética para reconstruir la recitación.
+**Recomendación documentada:** comenzar con Parhizgar y evaluar Al-Husary/Al-Minshawi como alternativas posteriores. Escuchar muestras antes de fijar la grabación; no usar voz sintética para reconstruir la recitación.
 
 ## Fuentes y condiciones
 
@@ -45,7 +47,7 @@ Se consultaron la [API para desarrolladores](https://www.mp3quran.net/eng/api/2)
 2. Ofrecer descarga explícita por sura, con progreso, tamaño, cancelación y eliminación. Evitar aumentar el instalador con el Qur'an completo en audio.
 3. Preferir archivos ya descargados y permitir escuchar con conexión cuando la fuente lo autorice. No iniciar audio ni descargas automáticamente.
 4. Mantener en el core reproducción, pausa, parada y estado para que funcionen con la ventana cerrada. Ofrecer detener desde el tray.
-5. Dar prioridad al aviso de rezo: pausar la recitación al llegar el adhan o tono y evitar sonidos superpuestos. Definir después si la reanudación es manual o automática.
+5. Dar prioridad al aviso de rezo: pausar la recitación al llegar el adhan o tono y evitar sonidos superpuestos. El RDD propone reanudación manual para la primera versión.
 6. Separar progreso de escucha, punto de lectura y registro de rezos. Escuchar no marca una oración como realizada ni sobrescribe silenciosamente la lectura manual.
 7. Guardar por edición/recitador y sura/aleya; validar secuencia, basmalas, silencios y límites contra el corpus que muestra el lector.
 8. Descargar a temporales y verificar tamaño/integridad antes de habilitar un archivo. Mantener fuente, condiciones, versión y hashes locales. No usar ZIP de terceros sin control de rutas y límites.
@@ -60,4 +62,4 @@ El core actual usa rodio 0.23 con funciones WAV/playback. Para MP3 hace falta ha
 - Elegir proveedor y recitador, conservar sus términos y definir límites del almacenamiento offline.
 - Investigar por separado una lectura hablada en español si el usuario la solicita: recitar el árabe y narrar una traducción son contenidos diferentes.
 
-La investigación no modifica la app y no envió comunicaciones a terceros. El lector publicado en el siguiente release seguirá siendo de texto, con recitación en audio pendiente.
+La investigación no modifica la app y no envió comunicaciones a terceros. El lector publicado en v0.1.8 es de texto; la recitación en audio continúa pendiente, sin versión de entrega asignada.

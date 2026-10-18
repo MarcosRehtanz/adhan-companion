@@ -1,0 +1,82 @@
+name: Android experimental
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'src-tauri/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'index.html'
+      - 'vite.config.ts'
+      - '.github/workflows/android-experimental.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-experimental-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    env:
+      NDK_VERSION: '27.2.12479018'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.8.1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android toolchain
+        run: |
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' "ndk;$NDK_VERSION"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Fetch locked Android dependencies
+        run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml --target aarch64-linux-android
+      - name: Build experimental APK
+        run: pnpm tauri android build --debug --apk --target aarch64 --ci
+      - name: Prepare APK and checksum
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import shutil
+          from pathlib import Path
+          apks = list(Path('src-tauri/gen/android/app/build/outputs/apk').rglob('*-debug.apk'))
+          if len(apks) != 1:
+              raise SystemExit(f'Expected one experimental APK, found {apks}')
+          destination = Path('android-experimental')
+          destination.mkdir()
+          apk = destination / f'Adhan-Companion-android-experimental-arm64-{os.environ["GITHUB_SHA"][:7]}.apk'
+          shutil.copy2(apks[0], apk)
+          (destination / 'SHA256SUMS').write_text(f'{hashlib.sha256(apk.read_bytes()).hexdigest()}  {apk.name}\n')
+          shutil.copy2('docs/android-experimental.md', destination / 'LEEME.md')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-experimental-arm64
+          path: android-experimental/
+          if-no-files-found: error
+          retention-days: 30

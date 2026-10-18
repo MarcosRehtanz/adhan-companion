@@ -124,6 +124,18 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 **Aceptación:** contenido contrastado con su fuente, numeración consistente, presentación correcta del árabe, persistencia de marcadores y última lectura, y uso offline para el contenido instalado.
 
+**Recitación en audio:** propuesta documentada en el [RDD de recitación del Qur’an](rdd-recitacion-quran.md), pendiente de implementación y sin versión asignada. Recomienda Parhizgar mediante Al Quran Cloud, primero reproducción por aleya y después descargas por sura. Incluye prioridad del Adhan y tonos, reanudación manual, control desde el tray y progreso de escucha separado de la lectura.
+
+## Android experimental
+
+**Estado:** adaptación inicial en desarrollo, sin release estable asignada. Ver [alcance, compilación y distribución experimental](android-experimental.md).
+
+- Compartir cálculo local, registro, calendario, apariencia y lector offline.
+- Adaptar la navegación y los controles para pantallas táctiles.
+- Separar el arranque móvil del tray y usar almacenamiento privado de Android.
+- Generar un APK ARM64 de prueba en un workflow propio, sin añadirlo todavía a las releases estables.
+- Integrar después alarmas, audio y notificaciones nativas; esta primera edición no emite avisos de rezo.
+
 ## Orden sugerido
 
 1. Próximo rezo entre días: corrección incluida en v0.1.8.

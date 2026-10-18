@@ -310,3 +310,68 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .quran-paging span { color: var(--texto-suave); font-size: 11px; }
 .quran-sources { line-height: 1.7; overflow-wrap: anywhere; }
 .quran-sources pre { white-space: pre-wrap; font-size: 11px; background: var(--bg); padding: 12px; border-radius: var(--r-control); }
+
+/* Navegación móvil con etiquetas, foco modal y espacio completo para el contenido. */
+.App-root { height: 100dvh; padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); }
+.mobile-menu-toggle { display: none; }
+.mobile-navigation { width: min(92vw, 380px); max-height: 90dvh; padding: 20px; border: 1px solid var(--borde); border-radius: 18px; background: var(--tarjeta); color: var(--texto); }
+.mobile-navigation::backdrop { background: rgba(0, 0, 0, .5); }
+.mobile-menu-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.mobile-menu-heading h2 { margin: 0; font-size: 18px; }
+.mobile-navigation nav { display: grid; gap: 6px; margin-bottom: 16px; }
+.mobile-menu-item { display: flex; align-items: center; gap: 14px; min-height: 48px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--texto); text-align: left; cursor: pointer; }
+.mobile-menu-item.activa { background: var(--acento-claro); color: var(--acento); border-color: var(--acento); font-weight: 650; }
+.experimental-notice { display: grid; gap: 5px; max-width: 780px; margin: 0 auto 16px; padding: 12px 16px; border: 1px solid var(--borde); border-left: 4px solid var(--acento); border-radius: 10px; background: var(--acento-claro); font-size: 12px; line-height: 1.5; }
+.experimental-notice span { color: var(--texto-suave); }
+
+@media (max-width: 720px) {
+  .sidebar { display: none; }
+  .mobile-menu-toggle { display: inline-flex; flex-shrink: 0; }
+  .topbar { gap: 12px; min-height: 72px; }
+  .topbar > div:first-of-type { flex: 1; min-width: 0; }
+  .topbar h1 { font-size: 19px; overflow-wrap: anywhere; }
+  body { font-size: 14px; }
+  .page-content { overscroll-behavior-y: contain; padding: 16px; }
+  button, .test, .edit-button, .secondary-button, .link-button, button.guardar { min-height: 44px; touch-action: manipulation; }
+  input:not([type="checkbox"]), select { min-height: 44px; font-size: 16px; }
+  input[type="range"] { min-height: 44px; }
+  .panel-heading, .maps-heading { flex-wrap: wrap; gap: 10px; }
+  .panel-heading > div, .maps-heading > div { min-width: 0; }
+  .panel-heading p, .page-intro p { font-size: 13px; line-height: 1.5; }
+  .edit-button { font-size: 12px; padding: 8px 12px; }
+  .link-button, .secondary-button { white-space: normal; }
+  .read-grid > div span, .nota { font-size: 12px; }
+  .hero-main { flex-wrap: wrap; }
+  .countdown { font-size: 32px; }
+  .prayer-row { grid-template-columns: minmax(0, 1fr) 65px 80px; min-height: 46px; }
+  .cal-nav { flex-wrap: wrap; gap: 6px; }
+  .cal-tit { flex: 1; }
+  .cal-cell { aspect-ratio: auto; min-height: 44px; padding: 3px; }
+  .hijri-grid { gap: 3px; }
+  .hijri-cell { min-width: 0; min-height: 56px; padding: 7px 1px; }
+  .hijri-cell b { font-size: 16px; }
+  .hijri-cell span { font-size: 10px; }
+  .hijri-today { flex-wrap: wrap; }
+  .seg-lista { grid-template-columns: 1fr; }
+  .seg-fila { flex-direction: row; justify-content: space-between; padding: 12px; }
+  .seg-nombre, .seg-hora { font-size: 14px; }
+  .seg-nombre { flex: 1; text-align: left; }
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-card { flex-wrap: wrap; }
+  .quran-bookmarks li, .quran-paging { flex-wrap: wrap; }
+  .quran-bookmarks summary, .quran-sources summary { min-height: 44px; padding: 12px 0; }
+  .quran-verse { padding: 12px; }
+  footer { flex-wrap: wrap; justify-content: flex-end; padding: 10px 16px; gap: 8px; }
+  footer .estado { margin-left: 0; flex: 1 1 100%; overflow-wrap: anywhere; }
+  footer .guardar { width: 100%; }
+}
+
+@media (max-width: 380px) {
+  .topbar-meta { display: none; }
+  .page-content { padding: 10px; }
+  .panel { padding: 12px; }
+  .read-grid, .read-grid-four { grid-template-columns: 1fr; }
+  .quran-navigation { grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; }
+  .alert-fields { grid-template-columns: 1fr; }
+  .alert-card-heading { flex-wrap: wrap; }
+}

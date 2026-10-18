@@ -2,11 +2,12 @@
 // Contratos IPC: get_config/set_config (Config), get_schedule (Schedule),
 // schedule_changed (evento), test_adhan, test_notification, set_autostart, mark_prayed.
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import {
-  Home, Clock3, Volume2, Settings, Play, Pencil, BookOpen,
+  Home, Clock3, Volume2, Settings, Play, Pencil, BookOpen, Menu, X,
   Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, Compass,
   Flame, Trophy, CalendarCheck, type LucideIcon,
 } from "lucide-react";
@@ -37,6 +38,8 @@ const PAGES: { id: Page; label: string; Icon: LucideIcon }[] = [
 ];
 const SYSTEM_PAGE: { id: Page; label: string; Icon: LucideIcon } = { id: "sistema", label: "Sistema", Icon: Settings };
 
+interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean }
+
 interface Config {
   version: number;
   city: string;
@@ -59,6 +62,9 @@ const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "o
 /// Ventana principal: dashboard diario y preferencias en modo lectura por defecto.
 /// El estado vive en Rust (core) y se actualiza por IPC/eventos.
 export default function App() {
+  const menuDialog = useRef<HTMLDialogElement>(null);
+  const [runtime, setRuntime] = useState<RuntimeInfo | null>(null);
+  const isAndroid = runtime?.platform === "android";
   const [page, setPage] = useState<Page>("hoy");
   const [editando, setEditando] = useState<EditBlock>(null);
   const [snapshotEdicion, setSnapshotEdicion] = useState<Config | null>(null);
@@ -82,7 +88,11 @@ export default function App() {
   useAppearance(cfg?.appearance ?? DEFAULT_APPEARANCE);
 
   useEffect(() => {
-    invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch((error) => { setConfigError(String(error)); });
+    invoke<RuntimeInfo>("runtime_info").then(async info => {
+      setRuntime(info);
+      const c = await invoke<Config>("get_config");
+      setCfg(c); setGuardada(c);
+    }).catch(error => setConfigError(String(error)));
     invoke<Schedule>("get_schedule").then(setSchedule).catch(() => {});
     invoke<number>("get_qibla").then(setQibla).catch(() => {});
     invoke<Stats>("get_stats").then(setStats).catch(() => {});
@@ -237,18 +247,25 @@ export default function App() {
   const pageTitle = [...PAGES, SYSTEM_PAGE].find((item) => item.id === page)?.label ?? "Hoy";
 
   return (
-    <div className="App-root">
+    <div className={"App-root" + (isAndroid ? " platform-android" : "")}>
+      <dialog ref={menuDialog} className="mobile-navigation" aria-labelledby="mobile-menu-title" onClick={event => { if (event.target === event.currentTarget) event.currentTarget.close(); }}>
+        <div className="mobile-menu-heading"><h2 id="mobile-menu-title">Adhan Companion</h2><button className="secondary-button" aria-label="Cerrar menú" onClick={() => menuDialog.current?.close()}><X size={22} /></button></div>
+        <nav aria-label="Navegación móvil">
+          {[...PAGES, SYSTEM_PAGE].map(({ id, label, Icon }) => <button key={id} className={"mobile-menu-item " + (page === id ? "activa" : "")} aria-current={page === id ? "page" : undefined} onClick={() => { setPage(id); menuDialog.current?.close(); }}><Icon size={21} /><span>{label}</span></button>)}
+        </nav>
+        <p className="nota">v{verActual || "0.1.8"}{isAndroid ? " · Android experimental" : ""}</p>
+      </dialog>
       <aside className="sidebar">
         <div className="brand"><img src={logo} className="logo" alt="" /><span>Adhan<br />Companion</span></div>
         <nav className="nav-main" aria-label="Navegación principal">
           {PAGES.map(({ id, label, Icon }) => (
-            <button key={id} className={"nav-item " + (page === id ? "activa" : "")} onClick={() => setPage(id)}>
+            <button key={id} className={"nav-item " + (page === id ? "activa" : "")} aria-label={label} aria-current={page === id ? "page" : undefined} onClick={() => setPage(id)}>
               <Icon size={17} strokeWidth={2} /><span>{label}</span>
             </button>
           ))}
         </nav>
         <div className="nav-bottom">
-          <button className={"nav-item " + (page === SYSTEM_PAGE.id ? "activa" : "")} onClick={() => setPage(SYSTEM_PAGE.id)}>
+          <button className={"nav-item " + (page === SYSTEM_PAGE.id ? "activa" : "")} aria-label="Sistema" aria-current={page === SYSTEM_PAGE.id ? "page" : undefined} onClick={() => setPage(SYSTEM_PAGE.id)}>
             <Settings size={17} strokeWidth={2} /><span>Sistema</span>
           </button>
           <span className="sidebar-version">v{verActual || "0.1.8"}</span>
@@ -257,13 +274,15 @@ export default function App() {
 
       <div className="workspace">
         <header className="topbar">
+          <button className="secondary-button mobile-menu-toggle" aria-label="Abrir menú de navegación" aria-haspopup="dialog" onClick={() => menuDialog.current?.showModal()}><Menu size={24} /></button>
           <div><span className="eyebrow">Adhan Companion</span><h1>{pageTitle}</h1></div>
           <div className="topbar-meta">
             {page === "hoy" && <span className="today-date">{hoy ? fmtBonito(hoy) : "Cargando horarios…"}</span>}
           </div>
         </header>
 
-        <main className="page-content">
+        <main className="page-content" id="main-content">
+          {isAndroid && <aside className="experimental-notice" role="note"><strong>Android experimental</strong><span>Podés consultar horarios, registrar rezos y leer el Qur’an. Los avisos automáticos y el audio todavía no están disponibles.</span></aside>}
           {page === "quran" && <QuranReader />}
           {page === "calendario" && (hoy ? <IslamicCalendar today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>)}
           {page === "hoy" && (
@@ -328,8 +347,8 @@ export default function App() {
             <div className="page-stack">
               <div className="page-intro"><h2>Adhan y avisos</h2><p>Preferencias de sonido y notificaciones para cada rezo.</p></div>
               <section className="panel setting-panel">
-                <div className="panel-heading"><div><h2>Sonido y preaviso</h2><p>Elegí cómo recibir cada rezo. Los avisos funcionan con la ventana cerrada.</p></div>{editando !== "adhan" && <button className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
-                <PrayerAlertsSettings audio={cfg.audio} editing={editando === "adhan"} onChange={updAudio} />
+                <div className="panel-heading"><div><h2>Sonido y preaviso</h2><p>{isAndroid ? "Preferencias guardadas para una futura integración. En esta versión no se emiten avisos ni audio." : "Elegí cómo recibir cada rezo. Los avisos funcionan con la ventana cerrada."}</p></div>{editando !== "adhan" && <button className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
+                <PrayerAlertsSettings previewAvailable={runtime?.audio_preview ?? false} audio={cfg.audio} editing={editando === "adhan"} onChange={updAudio} />
                 {editando === "adhan" ? <div className="editor">
                   <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>
                   <p className="nota">El preaviso es una notificación independiente. Usá 0 para desactivarlo. Guardar aplica todos los cambios.</p>
@@ -356,19 +375,19 @@ export default function App() {
 
           {page === "sistema" && (
             <div className="page-stack">
-              <div className="page-intro"><h2>Sistema</h2><p>Apariencia, inicio de sesión y mantenimiento de la aplicación.</p></div>
+              <div className="page-intro"><h2>Sistema</h2><p>{isAndroid ? "Apariencia y datos locales de la aplicación." : "Apariencia, inicio de sesión y mantenimiento de la aplicación."}</p></div>
               <AppearanceSettings value={cfg.appearance ?? DEFAULT_APPEARANCE} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} />
-              <section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartBox /></section>
-              <section className="panel setting-panel"><div className="panel-heading"><div><h2>Actualizaciones</h2><p>Versión instalada: {verActual ? "v" + verActual : "consultando…"}</p></div><button className="test" disabled={checando} onClick={verificarUpdates}>{checando ? "Verificando…" : "Buscar actualizaciones"}</button></div>
+              {!isAndroid && <section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartBox /></section>}
+              {isAndroid ? <section className="panel setting-panel"><div className="panel-heading"><div><h2>Versión experimental</h2><p>v{verActual} · Las nuevas compilaciones se distribuyen como APK de prueba.</p></div></div><p>La instalación y las actualizaciones se realizan manualmente. Esta edición tiene datos separados de una futura versión estable.</p><button className="secondary-button" onClick={() => openUrl("https://github.com/MarcosRehtanz/adhan-companion/actions/workflows/android-experimental.yml").catch(error => flash(String(error), "error"))}>Ver compilaciones de Android</button></section> : <section className="panel setting-panel"><div className="panel-heading"><div><h2>Actualizaciones</h2><p>Versión instalada: {verActual ? "v" + verActual : "consultando…"}</p></div><button className="test" disabled={checando} onClick={verificarUpdates}>{checando ? "Verificando…" : "Buscar actualizaciones"}</button></div>
                 {update === null && !checando && <p className="success-note">La aplicación está al día.</p>}
                 {update && <div className="update-card"><b>v{update.version} disponible</b><p>{update.notas}</p>{update.appimage && esAppImage && <button className="test" onClick={() => invoke("instalar_update").catch((e) => flash("instalación: " + e, "error"))}><Play size={13} />Actualizar ahora</button>}{esWindows && <p className="nota">Descargá el instalador de Windows desde <a href={update.windows_installer || update.url} target="_blank" rel="noreferrer">GitHub Releases</a> y ejecutalo para actualizar.</p>}{!esWindows && !esAppImage && <p className="nota">Para actualizar la instalación <code>.deb</code>, descargá el release en <a href={update.url} target="_blank" rel="noreferrer">GitHub Releases</a> e instalalo con <code>dpkg -i</code>. La actualización automática está disponible con AppImage.</p>}{esAppImage && !update.appimage && <p className="nota">Este release no incluye una AppImage descargable.</p>}</div>}
-              </section>
-              <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{esWindows ? "%APPDATA%\\Adhan Companion\\config.json" : "~/.config/adhan-companion/config.json"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
+              </section>}
+              <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
             </div>
           )}
         </main>
 
-      <footer>
+      {(pendiente || status || editando) && <footer>
         {pendiente && <span className="estado pendiente">Cambios sin guardar</span>}
         {status && (
           <span className={`estado ${status.kind}`}>
@@ -381,7 +400,7 @@ export default function App() {
           onClick={save}>
           Guardar cambios
         </button>
-      </footer>
+      </footer>}
       </div>
     </div>
   );
@@ -507,8 +526,7 @@ function Calendario({ schedule, onToggle }: {
       </div>
 
       <p className="nota">
-        Los días futuros están deshabilitados (no se puede rezar mañana). El historial queda en
-        <code>registro.jsonl</code> append-only, último evento gana.
+        Los días futuros están deshabilitados (no se puede rezar mañana). Tu historial se guarda localmente; podés corregir los días anteriores.
       </p>
     </>
   );

@@ -46,7 +46,11 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - Sistema → Apariencia: temas claro, oscuro o del sistema y cinco colores de acento.
 - [Lector del Qur'an](docs/lector-quran.md): árabe y español offline, marcadores y punto de lectura. Su contenido tiene condiciones independientes, incluida la restricción no comercial de la traducción.
 
-El lector se [revisó en la app nativa de Linux](docs/revision-lector-quran.md), con persistencia en dos reinicios completos. La revisión visual en Windows sigue pendiente. La [recitación en audio](docs/investigacion-audio-quran.md) está en investigación y no se incluye en esta versión. El alcance de las mejoras está en el [roadmap](docs/roadmap.md).
+El lector se [revisó en la app nativa de Linux](docs/revision-lector-quran.md), con persistencia en dos reinicios completos. La revisión visual en Windows sigue pendiente. La recitación en audio tiene una [investigación de fuentes](docs/investigacion-audio-quran.md) y un [RDD con la propuesta de integración](docs/rdd-recitacion-quran.md); su implementación está pendiente y no se incluye en esta versión. El alcance de las mejoras está en el [roadmap](docs/roadmap.md).
+
+### Android experimental en desarrollo
+
+Se prepara una [edición experimental de Android](docs/android-experimental.md) con interfaz móvil, cálculo local, registro, calendario y lector offline. Tiene un workflow propio para generar APK ARM64 de prueba, separado de las releases estables. **Adhan, tonos y preavisos en Android todavía no están disponibles**; requieren integración nativa. Ver el documento para compilación, alcance y limitaciones de la firma de desarrollo.
 
 ## Stack
 

@@ -13,6 +13,7 @@
     {
       "identifier": "opener:allow-open-url",
       "allow": [
+        { "url": "https://github.com/MarcosRehtanz/adhan-companion/actions/workflows/android-experimental.yml" },
         { "url": "https://tanzil.net" },
         { "url": "https://tanzil.net/*" },
         { "url": "https://github.com/aliftype/amiri" },

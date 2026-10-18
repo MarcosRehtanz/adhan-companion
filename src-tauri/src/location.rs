@@ -1,6 +1,7 @@
 //! Importación de puntos de Google Maps. Solo los enlaces cortos usan red;
 //! interpretar coordenadas o enlaces completos no consulta Google ni guarda datos.
 
+#[cfg(desktop)]
 use std::process::{Command, Stdio};
 
 use percent_encoding::percent_decode_str;
@@ -165,6 +166,12 @@ fn resolve_with(
     unreachable!()
 }
 
+#[cfg(mobile)]
+pub fn resolve(input: &str) -> Result<Coordinates, String> {
+    resolve_with(input, |_| Err("En Android experimental, abrí el enlace en Google Maps y pegá las coordenadas o un enlace completo del punto.".into()))
+}
+
+#[cfg(desktop)]
 pub fn resolve(input: &str) -> Result<Coordinates, String> {
     resolve_with(input, |url| {
         let mut command = Command::new("curl");

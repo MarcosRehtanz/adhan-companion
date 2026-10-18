@@ -11,7 +11,18 @@ use crate::prayer::{HighLatRule, Madhab, Method};
 
 /// directorio del config: el spec fija `~/.config/adhan-companion/` (no el
 /// appid de Tauri) para que el schema del config sea idéntico al nodo
+#[cfg(mobile)]
+static MOBILE_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+#[cfg(mobile)]
+pub fn init_mobile_dir(path: PathBuf) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| format!("No se pudo crear el directorio de datos: {e}"))?;
+    MOBILE_DIR.set(path).map_err(|_| "El directorio de datos ya fue inicializado.".into())
+}
+
 pub fn config_dir() -> PathBuf {
+    #[cfg(mobile)]
+    { return MOBILE_DIR.get().expect("mobile data initialized before config").clone(); }
     #[cfg(target_os = "windows")]
     {
         if let Some(app_data) = std::env::var_os("APPDATA") {
@@ -26,7 +37,7 @@ pub fn config_dir() -> PathBuf {
         return std::env::temp_dir().join("Adhan Companion");
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(all(desktop, not(target_os = "windows")))]
     {
         let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
         PathBuf::from(home).join(".config").join("adhan-companion")

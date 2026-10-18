@@ -10,12 +10,15 @@
 //! - estados del icono de acuerdo al tiempo real hasta el próximo rezo
 
 use std::sync::{Arc, Mutex, mpsc};
+#[cfg(desktop)]
 use std::time::Duration;
 
 use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
 use serde::Serialize;
+#[cfg(desktop)]
 use tauri::Emitter;
 
+#[cfg(desktop)]
 use crate::config::SharedConfig;
 use crate::prayer::PRAYER_INDICES;
 
@@ -23,6 +26,7 @@ use crate::prayer::PRAYER_INDICES;
 pub const PRAYERS: [&str; 5] = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
 /// Duración del estado "verde" (adhan sonando) en el spike
+#[cfg(desktop)]
 const ADHAN_SECS: i64 = 60;
 
 #[derive(Debug, Clone, Serialize)]
@@ -66,10 +70,15 @@ pub struct SharedStateInner {
 
 impl SharedStateInner {
     pub fn new(cfg: &crate::config::Config) -> Self {
-        let mut schedule = compute_schedule(cfg);
+        let schedule = compute_schedule(cfg);
+        #[cfg(desktop)]
+        let mut schedule = schedule;
         let now = chrono::Local::now();
         let now_h = now.hour() as f64 + now.minute() as f64 / 60.0 + now.second() as f64 / 3600.0;
+        #[cfg(desktop)]
         let fired = align_after_recompute(&mut schedule, now_h);
+        #[cfg(mobile)]
+        let fired = first_future_prayer(&schedule, now_h);
         Self { schedule, fired }
     }
 }
@@ -88,6 +97,7 @@ fn first_future_prayer(schedule: &Schedule, now_h: f64) -> usize {
 /// Alinea el índice después de boot/resume/config. Los horarios anteriores se
 /// registran como perdidos si no hay ya un evento para ese rezo; no se disparan
 /// tarde aunque hayan pasado menos de ADHAN_SECS.
+#[cfg(desktop)]
 fn align_after_recompute(schedule: &mut Schedule, now_h: f64) -> usize {
     let fired = first_future_prayer(schedule, now_h);
     for slot in schedule.prayers.iter().take(fired) {
@@ -157,6 +167,7 @@ fn refresh_next(
 }
 
 /// Snapshot seguro del config (panics en poison nunca deben pisar el tray)
+#[cfg(desktop)]
 fn snapshot(cfg: &SharedConfig) -> crate::config::Config {
     cfg.read().map(|c| c.clone()).unwrap_or_default()
 }
@@ -213,6 +224,13 @@ pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
     let mut schedule = schedule_at(cfg_snapshot, &now);
     schedule.marked = marked;
     schedule
+}
+
+/// Actualiza el próximo evento desde los horarios cacheados mientras la app
+/// móvil está abierta. Una realineación vuelve a calcular la fecha completa.
+#[cfg(mobile)]
+pub fn refresh_mobile_schedule(schedule: &mut Schedule, cfg: &crate::config::Config) {
+    refresh_next(schedule, cfg, &chrono::Local::now());
 }
 
 /// Construye el día sin consultar ni modificar el registro (también para tests).
@@ -333,6 +351,7 @@ fn notify(app: &tauri::AppHandle, title: &str, body: &str) {
     crate::log!("notificación: {title} — {body}");
 }
 
+#[cfg(desktop)]
 pub struct SchedulerLoop {
     pub app: tauri::AppHandle,
     pub tray: tauri::tray::TrayIcon<tauri::Wry>,
@@ -345,6 +364,7 @@ pub struct SchedulerLoop {
 }
 
 /// Texto de un ítem de rezo en el menú: "✓ Fajr 04:47" si marcado
+#[cfg(desktop)]
 fn prayer_item_text(name: &str, marked: &[String], schedule: &Schedule) -> String {
     let hhmm = schedule
         .prayers
@@ -361,6 +381,7 @@ fn prayer_item_text(name: &str, marked: &[String], schedule: &Schedule) -> Strin
 
 /// Actualiza los 5 ítems del menú (en el main thread); se llama en
 /// recompute, al marcar y al avanzar el día
+#[cfg(desktop)]
 fn refresh_prayer_items(s: &SchedulerLoop, schedule: &Schedule) {
     let items = s.prayer_items.clone();
     let sched = schedule.clone();
@@ -372,11 +393,13 @@ fn refresh_prayer_items(s: &SchedulerLoop, schedule: &Schedule) {
     });
 }
 
+#[cfg(desktop)]
 fn publish_schedule(s: &SchedulerLoop, schedule: &Schedule) {
     s.state.lock().unwrap().schedule = schedule.clone();
     let _ = s.app.emit("schedule_changed", schedule);
 }
 
+#[cfg(desktop)]
 fn countdown_label(schedule: &Schedule) -> String {
     let (Some(next), Some(secs)) = (&schedule.next, schedule.countdown_secs) else {
         return "Próximo rezo no disponible".into();
@@ -396,6 +419,7 @@ fn countdown_label(schedule: &Schedule) -> String {
     )
 }
 
+#[cfg(desktop)]
 fn refresh_tray(s: &SchedulerLoop, schedule: &Schedule, playing: Option<&str>) {
     let mut label = countdown_label(schedule);
     let state = if let Some(name) = playing {
@@ -414,6 +438,7 @@ fn refresh_tray(s: &SchedulerLoop, schedule: &Schedule, playing: Option<&str>) {
     });
 }
 
+#[cfg(desktop)]
 pub fn run(s: SchedulerLoop) {
     let mut cfg = snapshot(&s.config);
     let mut schedule = compute_schedule(&cfg);
