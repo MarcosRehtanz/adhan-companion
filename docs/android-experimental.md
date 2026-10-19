@@ -135,3 +135,26 @@ La descarga utiliza un executor independiente de las alarmas. En esta primera in
 La primera versión con este flujo debe instalarse desde GitHub sobre la edición con firma persistente. Una vez instalada, puede mostrar que está al día hasta que se publique otra compilación superior. Compilación de frontend, core y Kotlin comprobadas; pendiente entrega real de una actualización en el J7, permiso de fuente desconocida, cancelación del instalador y persistencia después de actualizar.
 
 Referencias: [PackageManager](https://developer.android.com/reference/android/content/pm/PackageManager), [verificador apksig de Google](https://android.googlesource.com/platform/tools/apksig/+/master/src/main/java/com/android/apksig/ApkVerifier.java) y [API de releases de GitHub](https://docs.github.com/en/rest/releases/releases).
+
+## Ensayo guiado de actualización en el J7
+
+Dispositivo confirmado mediante ADB: **Samsung SM-J710MN**, Android 8.1.0. Antes del ensayo se encontró instalada la compilación antigua **1008**, con un certificado diferente de la firma experimental persistente. Por eso el punto de partida 10017 requiere primero migrar los datos con respaldo y autorización para retirar la copia antigua.
+
+### Respaldo y migración inicial
+
+- Respaldar el APK instalado y todo el directorio privado accesible con `run-as` en esta edición de depuración. El `config.json` de este teléfono está en la raíz privada; copiar únicamente `files/` lo dejaría fuera.
+- Mantener las copias y sus manifiestos SHA-256 en `.android-backups.local/`, excluido de Git, con acceso restringido. No publicar archivos privados, valores de configuración ni identificadores únicos del dispositivo.
+- Pausar brevemente la app para obtener una copia coherente. Restaurar los archivos propios y preferencias con el UID/GID de la nueva instalación; regenerar cachés y archivos de ejecución de WebView.
+- En este teléfono se comprobó la transferencia binaria de restauración con `adb shell -T ... tar -xf -`. No dar por restaurado un archivo porque ADB termine con código cero: volver a leerlo y comparar su SHA-256 antes de abrir la app.
+- Conservar el APK original para recuperación. No retirar una instalación con firma distinta sin autorización explícita y un respaldo validado.
+
+### Actualización real desde la app
+
+1. Establecer la compilación **10017** con la firma persistente y confirmar sus datos visibles.
+2. Publicar una nueva compilación experimental con número superior, misma identidad y certificado. El número de versión de escritorio puede seguir siendo 0.1.8; el actualizador Android compara `version_code`.
+3. Registrar el estado que se va a comprobar: ubicación/preferencias, registro y, si existen, marcadores y última lectura. No crear registros de rezos realizados automáticamente solo para probar.
+4. Desde **Sistema → Actualizaciones**, buscar, descargar y abrir el instalador. Comprobar progreso, SHA-256/firma y permiso para instalar desde esta fuente. Cancelación de descarga y de instalador son pasos opcionales previos al intento definitivo.
+5. Confirmar la actualización en Android sin desinstalar. Abrir la app, comprobar el nuevo código y comparar los archivos de datos y su significado con el respaldo. Las preferencias nativas de alarmas incluyen fechas de programación que pueden cambiar legítimamente al reabrir; comparar aparte las preferencias elegidas por el usuario.
+6. Comprobar también datos y avisos después de reiniciar el teléfono. Esa comprobación requiere coordinar el reinicio con el usuario.
+
+Estado: respaldo privado y recuperación de la instalación original comprobados. Migración a **10017** completada, archivos propios restaurados con hashes idénticos y configuración JSON sin cambios después del arranque; el usuario confirmó que ve sus datos correctamente. La búsqueda, descarga e instalación desde la app y la comprobación posterior al reinicio siguen pendientes del ensayo. La compilación y verificación de un APK no equivalen a ese ensayo real.

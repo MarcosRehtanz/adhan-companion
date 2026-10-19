@@ -2,6 +2,10 @@
 
 Edición de prueba para teléfonos Android ARM de 32 y 64 bits, basada en v0.1.8. Requiere Android 7.0 o posterior según la configuración de compilación; la revisión funcional en un teléfono real sigue pendiente.
 
+## Compilación para comprobar el actualizador
+
+Esta publicación proporciona una compilación superior a **10017** para ensayar la búsqueda, descarga e instalación desde el J7. Mantiene la identidad y la firma persistente y no cambia el esquema de los datos. Antes del ensayo, conservar un respaldo y confirmar el número instalado; no desinstalar como parte de una actualización normal.
+
 ## Incluye
 
 - Interfaz móvil con menú de secciones, controles táctiles y formularios adaptados.
