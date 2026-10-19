@@ -44,7 +44,6 @@ jobs:
             abi: armeabi-v7a
     env:
       NDK_VERSION: '27.2.12479018'
-      ANDROID_EXPERIMENTAL_VERSION_CODE: ${{ github.run_number + 10000 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,6 +77,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Fetch locked Android dependencies
         run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml --target ${{ matrix.rust_target }}
+      - name: Set experimental version code
+        shell: bash
+        run: echo "ANDROID_EXPERIMENTAL_VERSION_CODE=$((10000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
       - name: Build experimental APK
         run: pnpm tauri android build --debug --apk --target ${{ matrix.target }} --ci
       - name: Sign APK with persistent experimental key
