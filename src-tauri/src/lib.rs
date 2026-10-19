@@ -316,6 +316,14 @@ async fn android_alert_status(action: Option<String>) -> Result<serde_json::Valu
     { let _ = action; Err("Solo disponible en Android.".into()) }
 }
 
+#[tauri::command]
+async fn android_update(action: Option<String>) -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "android")]
+    { android_alerts::call("update", serde_json::json!({"action": action.unwrap_or_else(|| "status".into())})) }
+    #[cfg(not(target_os = "android"))]
+    { let _ = action; Err("Solo disponible en Android.".into()) }
+}
+
 // Toggle real de autostart del plugin (checkbox de la tab Avanzado)
 #[cfg(desktop)]
 #[tauri::command]
@@ -368,6 +376,7 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         runtime_info,
         android_alert_status,
+        android_update,
         quran::get_quran_reader,
         quran::update_quran_reader,
         get_schedule,

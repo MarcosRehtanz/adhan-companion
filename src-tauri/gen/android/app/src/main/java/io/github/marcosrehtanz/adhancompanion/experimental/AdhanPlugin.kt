@@ -61,4 +61,17 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
     @Command fun stop(invoke: Invoke) {
         activity.stopService(Intent(activity, PrayerAudioService::class.java)); invoke.resolve()
     }
+    @Command fun update(invoke: Invoke) {
+        try {
+            when (val action = invoke.parseArgs(ControlArgs::class.java).action) {
+                "status" -> {}
+                "check", "download", "cancel" -> AndroidUpdates.start(activity.applicationContext, action)
+                "install" -> AndroidUpdates.install(activity)
+                "permission" -> AndroidUpdates.permission(activity)
+                else -> error("Acción desconocida")
+            }
+            invoke.resolve(JSObject(AndroidUpdates.status(activity).toString()))
+        } catch (e: Exception) { invoke.reject(e.message ?: "No se pudo actualizar") }
+    }
+
 }

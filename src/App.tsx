@@ -1,3 +1,4 @@
+import { AndroidUpdates } from "./components/AndroidUpdates";
 import { AndroidAlerts } from "./components/AndroidAlerts";
 // Ventana de configuración + dashboard del día (Adhan Companion)
 // Contratos IPC: get_config/set_config (Config), get_schedule (Schedule),
@@ -5,7 +6,6 @@ import { AndroidAlerts } from "./components/AndroidAlerts";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import {
   Home, Clock3, Volume2, Settings, Play, Pencil, BookOpen, Menu, X,
@@ -380,7 +380,7 @@ export default function App() {
               <div className="page-intro"><h2>Sistema</h2><p>{isAndroid ? "Apariencia y datos locales de la aplicación." : "Apariencia, inicio de sesión y mantenimiento de la aplicación."}</p></div>
               <AppearanceSettings value={cfg.appearance ?? DEFAULT_APPEARANCE} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} />
               {!isAndroid && <section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartBox /></section>}
-              {isAndroid ? <section className="panel setting-panel"><div className="panel-heading"><div><h2>Versión experimental</h2><p>v{verActual} · Las nuevas compilaciones se distribuyen como APK de prueba.</p></div></div><p>La instalación y las actualizaciones se realizan manualmente. Esta edición tiene datos separados de una futura versión estable.</p><button className="secondary-button" onClick={() => openUrl("https://github.com/MarcosRehtanz/adhan-companion/actions/workflows/android-experimental.yml").catch(error => flash(String(error), "error"))}>Ver compilaciones de Android</button></section> : <section className="panel setting-panel"><div className="panel-heading"><div><h2>Actualizaciones</h2><p>Versión instalada: {verActual ? "v" + verActual : "consultando…"}</p></div><button className="test" disabled={checando} onClick={verificarUpdates}>{checando ? "Verificando…" : "Buscar actualizaciones"}</button></div>
+              {isAndroid ? <AndroidUpdates /> : <section className="panel setting-panel"><div className="panel-heading"><div><h2>Actualizaciones</h2><p>Versión instalada: {verActual ? "v" + verActual : "consultando…"}</p></div><button className="test" disabled={checando} onClick={verificarUpdates}>{checando ? "Verificando…" : "Buscar actualizaciones"}</button></div>
                 {update === null && !checando && <p className="success-note">La aplicación está al día.</p>}
                 {update && <div className="update-card"><b>v{update.version} disponible</b><p>{update.notas}</p>{update.appimage && esAppImage && <button className="test" onClick={() => invoke("instalar_update").catch((e) => flash("instalación: " + e, "error"))}><Play size={13} />Actualizar ahora</button>}{esWindows && <p className="nota">Descargá el instalador de Windows desde <a href={update.windows_installer || update.url} target="_blank" rel="noreferrer">GitHub Releases</a> y ejecutalo para actualizar.</p>}{!esWindows && !esAppImage && <p className="nota">Para actualizar la instalación <code>.deb</code>, descargá el release en <a href={update.url} target="_blank" rel="noreferrer">GitHub Releases</a> e instalalo con <code>dpkg -i</code>. La actualización automática está disponible con AppImage.</p>}{esAppImage && !update.appimage && <p className="nota">Este release no incluye una AppImage descargable.</p>}</div>}
               </section>}

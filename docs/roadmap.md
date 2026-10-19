@@ -135,7 +135,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 - Separar el arranque móvil del tray y usar almacenamiento privado de Android.
 - Generar APK ARM64 y ARMv7 (32 bits) de prueba en un workflow propio, con prereleases experimentales separadas de las releases estables.
 - Integración nativa experimental de AlarmManager, Adhan, tonos por rezo y preavisos implementada; pendiente validación de entregas reales en el J7, permisos y ahorro de batería.
-- Firma experimental persistente y número de compilación creciente configurados en CI. Pendiente búsqueda, descarga e instalación de actualizaciones desde la app y migración desde firmas anteriores.
+- Firma experimental persistente y número de compilación creciente configurados en CI. Actualizador desde Sistema implementado con búsqueda, descarga compatible, verificación y apertura del instalador. Pendiente validación completa en el J7 y migración desde firmas anteriores.
 
 ## Orden sugerido
 

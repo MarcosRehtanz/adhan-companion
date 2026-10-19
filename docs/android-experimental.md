@@ -13,7 +13,7 @@ La primera edición Android comparte el cálculo local y la interfaz React con e
 | Apariencia | Temas y acentos con Guardar y Cancelar. |
 | Qur’an | Texto árabe y traducción offline, marcadores y punto de lectura locales. Recitación pendiente según su RDD. |
 | Adhan, tonos y preavisos | Integración nativa experimental: AlarmManager, notificaciones y MediaPlayer con servicio visible y acción Detener. Activación manual y permisos; validación en el J7 pendiente. |
-| Actualizaciones | Instalación manual de APK de prueba; el actualizador de escritorio no se ejecuta. |
+| Actualizaciones | Sistema → Actualizaciones: buscar, descargar el APK compatible, verificarlo y abrir el instalador de Android. Canal experimental separado del escritorio. |
 
 La app muestra una indicación de **Android experimental**. El hilo que actualiza la consulta de horarios puede suspenderse junto con el proceso; los avisos se programan por separado en Android y no dependen de la WebView. El usuario confirmó que el menú hamburguesa funciona en el J7 con la compilación anterior a esta integración de audio.
 
@@ -86,7 +86,7 @@ La firma se aplica con `apksigner` después de compilar. El archivo privado se r
 
 `ANDROID_EXPERIMENTAL_VERSION_CODE` se fija en CI a `10000 + github.run_number`, superior al antiguo código 1008. Ambas arquitecturas comparten el mismo código en cada ejecución; un rerun conserva ese código. Gradle valida su rango y usa el valor de Tauri al compilar localmente sin esa variable. Si se reemplaza el workflow por otro cuyo contador empiece de cero, hay que conservar la monotonía de los códigos antes de publicar.
 
-**Migración inicial:** las compilaciones anteriores a la firma persistente, incluida `1c7dc94`, usaron claves temporales diferentes. Esta nueva clave no permite actualizar sobre ellas conservando automáticamente la instalación. Las compilaciones locales de depuración también mantienen su clave local, salvo que se firmen con la persistente. No desinstalar una copia con datos importantes como solución automática a un conflicto de firma. La actualización descargada desde la propia app todavía está pendiente; los APK siguen instalándose manualmente.
+**Migración inicial:** las compilaciones anteriores a la firma persistente, incluida `1c7dc94`, usaron claves temporales diferentes. Esta nueva clave no permite actualizar sobre ellas conservando automáticamente la instalación. Las compilaciones locales de depuración también mantienen su clave local, salvo que se firmen con la persistente. No desinstalar una copia con datos importantes como solución automática a un conflicto de firma. La búsqueda, descarga y apertura del instalador desde la app están implementadas a partir de la versión que incorpora `AndroidUpdates.kt`. Para obtener esa primera versión hay que instalar su APK una vez desde GitHub.
 
 Para una distribución estable se prepararán su identidad y clave de firma propias, versiones Android y, si se solicita Google Play, AAB. Ver [distribución](https://v2.tauri.app/distribute/google-play/) y [firma Android en Tauri](https://v2.tauri.app/distribute/sign/android/).
 
@@ -112,6 +112,26 @@ Android y los fabricantes pueden restringir actividad de fondo. En Samsung, revi
 
 Interfaz, core Linux y Android y código Kotlin compilados. Pendiente comprobar en el J7: **Probar** Adhan/los tres tonos/solo notificación, volumen y Detener desde la notificación; entrega real de rezo y preaviso con pantalla apagada, después de retirar la app de recientes y tras reiniciar; cambio de ubicación/hora, permisos y batería. La compatibilidad declarada no sustituye esta revisión en hardware.
 
-La firma experimental persistente está configurada en CI; pendiente incorporar la búsqueda, descarga e instalación de actualizaciones desde la app y resolver la migración de instalaciones con firmas anteriores. La recitación del Qur’an y sus controles multimedia siguen fuera de esta integración.
+La firma experimental persistente y el actualizador dentro de la app están implementados; queda pendiente validar el flujo completo en el J7 y resolver la migración de instalaciones con firmas anteriores. La recitación del Qur’an y sus controles multimedia siguen fuera de esta integración.
 
 Referencias: [alarmas de Android](https://developer.android.com/develop/background-work/services/alarms), [tipos de servicio en primer plano](https://developer.android.com/develop/background-work/services/fgs/service-types) y [plugins móviles de Tauri](https://v2.tauri.app/develop/plugins/develop-mobile/). Android 15+ restringe iniciar reproducción desde BOOT_COMPLETED; por eso el receiver de arranque únicamente reprograma las alarmas.
+
+## Actualizaciones desde la app
+
+**Sistema → Actualizaciones** muestra la versión, el número de compilación y la arquitectura instaladas. **Buscar actualizaciones** consulta las releases públicas del repositorio y considera exclusivamente el canal `android-experimental-*` con `android-update.json`. No utiliza `/releases/latest`, reservado al escritorio estable. Entre las veinte releases Android más recientes de la página de cien releases consultada, elige el mayor `version_code` compatible. Si no hay índices compatibles, muestra un problema; no declara que esté al día sin un índice válido.
+
+El workflow genera un índice por arquitectura desde el APK firmado y combina ambos al publicar. `android-update.json` contiene `schema`, `package_id`, `tag`, `version_code`, `version_name`, `min_sdk` y, por ABI, nombre del APK, tamaño y SHA-256. La publicación comprueba que los índices de ambas arquitecturas coincidan y que los archivos correspondan con sus hashes. El índice solo se publica junto a los APK definitivos.
+
+### Descarga e instalación
+
+1. **Buscar actualizaciones** no descarga automáticamente el APK. Si hay una compilación mayor, muestra su versión y tamaño.
+2. **Descargar actualización** obtiene el APK de la arquitectura del proceso (`armeabi-v7a` o `arm64-v8a`), muestra progreso y permite cancelar. La descarga se limita a 256 MiB y diez minutos, con timeouts por conexión/lectura y solo HTTPS desde GitHub y sus hosts de assets. No requiere permisos de almacenamiento compartido.
+3. Antes de habilitar la instalación se comprueban tamaño, SHA-256, identificador del paquete, versión superior, mínimo de Android y biblioteca nativa de la arquitectura correspondiente. `ApkVerifier` de Google verifica criptográficamente la firma para el Android del dispositivo y compara los certificados con los de la app instalada. Una firma diferente bloquea la instalación y pide resolver la migración sin desinstalar los datos.
+4. En Android 8+ el botón **Permitir instalar actualizaciones** abre el permiso de instalar desde esta fuente. Al volver, hay que pulsar **Instalar actualización**. Se valida otra vez el APK y se concede acceso temporal de lectura al instalador mediante FileProvider, limitado al directorio privado de caché `updates/`.
+5. Android muestra su confirmación de instalación. Abrir el instalador no se informa como una instalación exitosa. Si se cancela, se puede volver a abrir; después de actualizar, el nuevo número instalado permite reconocer el resultado. El receiver `MY_PACKAGE_REPLACED` vuelve a programar los avisos nativos.
+
+La descarga utiliza un executor independiente de las alarmas. En esta primera integración no hay servicio de descarga en segundo plano, reanudación parcial ni búsqueda periódica: mantener abierta la app mientras se descarga. Si Android elimina el proceso, se vuelve a buscar y descargar; el próximo intento limpia los archivos incompletos. Los archivos de actualización están en caché privada y Android también puede eliminarlos por falta de espacio. La actualización conserva configuración, registro y lectura al mantener identidad y firma; no desinstala ni borra esos datos.
+
+La primera versión con este flujo debe instalarse desde GitHub sobre la edición con firma persistente. Una vez instalada, puede mostrar que está al día hasta que se publique otra compilación superior. Compilación de frontend, core y Kotlin comprobadas; pendiente entrega real de una actualización en el J7, permiso de fuente desconocida, cancelación del instalador y persistencia después de actualizar.
+
+Referencias: [PackageManager](https://developer.android.com/reference/android/content/pm/PackageManager), [verificador apksig de Google](https://android.googlesource.com/platform/tools/apksig/+/master/src/main/java/com/android/apksig/ApkVerifier.java) y [API de releases de GitHub](https://docs.github.com/en/rest/releases/releases).

@@ -126,6 +126,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import hashlib
+          import json
           import os
           import shutil
           import zipfile
@@ -146,6 +147,16 @@ jobs:
           with apk.open('rb') as source:
               digest = hashlib.file_digest(source, 'sha256').hexdigest()
           (destination / f'SHA256SUMS-{arch}').write_text(f'{digest}  {apk.name}\n')
+          metadata = {
+              'schema': 1,
+              'package_id': 'io.github.marcosrehtanz.adhancompanion.experimental',
+              'tag': f'android-experimental-{os.environ["GITHUB_SHA"][:7]}',
+              'version_code': int(os.environ['ANDROID_EXPERIMENTAL_VERSION_CODE']),
+              'version_name': json.loads(Path('package.json').read_text())['version'],
+              'min_sdk': 24,
+              'packages': {os.environ['APK_ABI']: {'name': apk.name, 'size': apk.stat().st_size, 'sha256': digest}},
+          }
+          (destination / f'android-update-{arch}.json').write_text(json.dumps(metadata, indent=2) + '\n')
           shutil.copy2('docs/android-experimental.md', destination / 'LEEME.md')
           PY
       - uses: actions/upload-artifact@v4
@@ -172,6 +183,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import hashlib
+          import json
           from pathlib import Path
           root = Path('android-experimental')
           apks = sorted(root.glob('*.apk'))
@@ -182,6 +194,23 @@ jobs:
                   with apk.open('rb') as source:
                       digest = hashlib.file_digest(source, 'sha256').hexdigest()
                   sums.write(f'{digest}  {apk.name}\n')
+          indices = [json.loads(path.read_text()) for path in sorted(root.glob('android-update-*.json'))]
+          if len(indices) != 2:
+              raise SystemExit('Expected two Android update indices')
+          merged = dict(indices[0], packages={})
+          for index in indices:
+              if any(index[key] != merged[key] for key in ('schema', 'package_id', 'tag', 'version_code', 'version_name', 'min_sdk')):
+                  raise SystemExit('Android package metadata differs between architectures')
+              for abi, package in index['packages'].items():
+                  file = root / package['name']
+                  with file.open('rb') as source:
+                      digest = hashlib.file_digest(source, 'sha256').hexdigest()
+                  if file.stat().st_size != package['size'] or digest != package['sha256']:
+                      raise SystemExit('APK does not match its update index')
+                  merged['packages'][abi] = package
+          if set(merged['packages']) != {'armeabi-v7a', 'arm64-v8a'}:
+              raise SystemExit('Expected both Android ABIs in update index')
+          (root / 'android-update.json').write_text(json.dumps(merged, indent=2) + '\n')
           PY
       - name: Publish experimental prerelease
         env:
@@ -193,7 +222,7 @@ jobs:
             exit 0
           fi
           version=$(node -p "require('./package.json').version")
-          gh release create "$tag" android-experimental/*.apk android-experimental/SHA256SUMS android-experimental/LEEME.md \
+          gh release create "$tag" android-experimental/*.apk android-experimental/SHA256SUMS android-experimental/LEEME.md android-experimental/android-update.json \
             --target "$GITHUB_SHA" \
             --title "Android experimental v$version (${GITHUB_SHA:0:7})" \
             --notes-file docs/releases/android-experimental.md \

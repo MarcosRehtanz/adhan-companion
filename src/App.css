@@ -376,3 +376,5 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
   .alert-fields { grid-template-columns: 1fr; }
   .alert-card-heading { flex-wrap: wrap; }
 }
+
+.android-update-progress { display: block; width: 100%; margin-top: 12px; accent-color: var(--acento); }
