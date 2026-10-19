@@ -133,12 +133,12 @@ object AndroidUpdates {
             val manifest = JSONObject(json(indexUrl, 256 * 1024))
             check(manifest.getInt("schema") == 1 && manifest.getString("package_id") == c.packageName && manifest.getString("tag") == tag) { "Canal de actualización incompatible." }
             check(manifest.getLong("version_code") in 1..2100000000L) { "Número de versión inválido." }
+            if (manifest.getInt("min_sdk") > Build.VERSION.SDK_INT) continue
             val packageData = manifest.getJSONObject("packages").optJSONObject(abi()) ?: continue
             val name = packageData.getString("name")
             check(name.matches(Regex("Adhan-Companion-android-experimental-(armv7|arm64)-[a-f0-9]{7}\\.apk"))) { "Nombre de APK inválido." }
             check(all.any { it.optString("name") == name && it.optString("browser_download_url") == prefix + name && it.optLong("size") == packageData.getLong("size") }) { "El APK no coincide con la release." }
             check(packageData.getLong("size") in 1..MAX_APK && packageData.getString("sha256").matches(Regex("[a-f0-9]{64}"))) { "Datos de descarga inválidos." }
-            check(manifest.getInt("min_sdk") <= Build.VERSION.SDK_INT) { "Esta actualización requiere una versión de Android más reciente." }
             val proposed = JSONObject(packageData.toString()).put("url", prefix + name).put("version_code", manifest.getLong("version_code"))
                 .put("version_name", manifest.getString("version_name")).put("tag", tag).put("abi", abi())
             if (latest == null || proposed.getLong("version_code") > latest.getLong("version_code")) latest = proposed

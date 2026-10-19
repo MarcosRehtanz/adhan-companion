@@ -41,7 +41,7 @@ export function AndroidUpdates() {
       <b>Versión {candidate.version_name} · compilación {candidate.version_code}</b>
       <p>{mb(candidate.size)} · {candidate.tag}</p>
       {status?.phase === "downloading" && <><progress className="android-update-progress" aria-label="Descarga del APK" max={candidate.size} value={status.received} /><p>{mb(status.received)} de {mb(candidate.size)}</p></>}
-      <div className="editor-actions">
+      <div className="editor-actions android-update-actions">
         {status?.phase === "available" && <button className="secondary-button" disabled={busy} onClick={() => action("download")}>Descargar actualización</button>}
         {status?.phase === "ready" && <>
           {!status.can_install && <button className="secondary-button" disabled={busy} onClick={() => action("permission")}>Permitir instalar actualizaciones</button>}

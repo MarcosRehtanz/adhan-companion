@@ -378,3 +378,6 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 }
 
 .android-update-progress { display: block; width: 100%; margin-top: 12px; accent-color: var(--acento); }
+
+.android-update-actions { flex-wrap: wrap; justify-content: flex-start; }
+.android-update-actions > button { max-width: 100%; }
