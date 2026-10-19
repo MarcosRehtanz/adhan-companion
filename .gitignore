@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claves de firma Android: conservar fuera del repositorio.
+*.jks
+*.keystore
+*.p12

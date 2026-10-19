@@ -80,9 +80,15 @@ El workflow estable de Linux y Windows continúa separado. El APK experimental n
 
 Al ejecutar manualmente el workflow sobre `main`, la opción **Publicar una prerelease con descarga directa del APK** está activada por defecto. Tras compilar ambas variantes, publica los dos `.apk`, un `SHA256SUMS` conjunto y `LEEME.md` en una prerelease `android-experimental-<commit>`. Los pushes automáticos generan únicamente los artefactos de Actions. Si ya existe una prerelease para el mismo commit, se conservan sus APK originales. Las prereleases no reemplazan la release estable marcada como Latest.
 
-El APK de depuración utiliza una firma de desarrollo. Las claves locales y las de distintas ejecuciones de CI pueden diferir: instalar otra compilación sobre la anterior puede fallar por firma incompatible. Antes de distribuir actualizaciones que deban conservar datos, se necesita una clave de firma experimental persistente y su configuración protegida en CI. No desinstalar una copia con datos importantes como solución automática a un conflicto de firma.
+Los APK publicados por CI usan una **clave experimental persistente**, guardada en los secretos de Actions `ANDROID_KEY_BASE64`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD`. El almacén es PKCS12 y utiliza la misma contraseña para el almacén y la clave. El workflow requiere los tres secretos; si falta alguno o la firma falla, no publica el APK.
 
-Para una distribución estable se prepararán firma persistente, versiones Android y, si se solicita Google Play, AAB. Ver [distribución](https://v2.tauri.app/distribute/google-play/) y [firma Android en Tauri](https://v2.tauri.app/distribute/sign/android/).
+La firma se aplica con `apksigner` después de compilar. El archivo privado se reconstruye temporalmente bajo `RUNNER_TEMP`, con permisos restringidos, y se elimina al terminar el paso. Los secretos solo se entregan al paso de firma; Gradle no recibe la clave ni su contraseña. No incluirlos en el código, logs, artefactos o cachés. Conservar un respaldo seguro del almacén y de la contraseña y no reemplazar la clave entre releases. `.gitignore` excluye `.p12`, `.jks` y `.keystore`.
+
+`ANDROID_EXPERIMENTAL_VERSION_CODE` se fija en CI a `10000 + github.run_number`, superior al antiguo código 1008. Ambas arquitecturas comparten el mismo código en cada ejecución; un rerun conserva ese código. Gradle valida su rango y usa el valor de Tauri al compilar localmente sin esa variable. Si se reemplaza el workflow por otro cuyo contador empiece de cero, hay que conservar la monotonía de los códigos antes de publicar.
+
+**Migración inicial:** las compilaciones anteriores a la firma persistente, incluida `1c7dc94`, usaron claves temporales diferentes. Esta nueva clave no permite actualizar sobre ellas conservando automáticamente la instalación. Las compilaciones locales de depuración también mantienen su clave local, salvo que se firmen con la persistente. No desinstalar una copia con datos importantes como solución automática a un conflicto de firma. La actualización descargada desde la propia app todavía está pendiente; los APK siguen instalándose manualmente.
+
+Para una distribución estable se prepararán su identidad y clave de firma propias, versiones Android y, si se solicita Google Play, AAB. Ver [distribución](https://v2.tauri.app/distribute/google-play/) y [firma Android en Tauri](https://v2.tauri.app/distribute/sign/android/).
 
 ## Adhan y avisos nativos
 
@@ -106,6 +112,6 @@ Android y los fabricantes pueden restringir actividad de fondo. En Samsung, revi
 
 Interfaz, core Linux y Android y código Kotlin compilados. Pendiente comprobar en el J7: **Probar** Adhan/los tres tonos/solo notificación, volumen y Detener desde la notificación; entrega real de rezo y preaviso con pantalla apagada, después de retirar la app de recientes y tras reiniciar; cambio de ubicación/hora, permisos y batería. La compatibilidad declarada no sustituye esta revisión en hardware.
 
-Pendiente también la firma experimental persistente para instalar actualizaciones conservando datos. La recitación del Qur’an y sus controles multimedia siguen fuera de esta integración.
+La firma experimental persistente está configurada en CI; pendiente incorporar la búsqueda, descarga e instalación de actualizaciones desde la app y resolver la migración de instalaciones con firmas anteriores. La recitación del Qur’an y sus controles multimedia siguen fuera de esta integración.
 
 Referencias: [alarmas de Android](https://developer.android.com/develop/background-work/services/alarms), [tipos de servicio en primer plano](https://developer.android.com/develop/background-work/services/fgs/service-types) y [plugins móviles de Tauri](https://v2.tauri.app/develop/plugins/develop-mobile/). Android 15+ restringe iniciar reproducción desde BOOT_COMPLETED; por eso el receiver de arranque únicamente reprograma las alarmas.

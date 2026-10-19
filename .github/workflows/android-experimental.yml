@@ -44,6 +44,7 @@ jobs:
             abi: armeabi-v7a
     env:
       NDK_VERSION: '27.2.12479018'
+      ANDROID_EXPERIMENTAL_VERSION_CODE: ${{ github.run_number + 10000 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -79,6 +80,42 @@ jobs:
         run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml --target ${{ matrix.rust_target }}
       - name: Build experimental APK
         run: pnpm tauri android build --debug --apk --target ${{ matrix.target }} --ci
+      - name: Sign APK with persistent experimental key
+        shell: bash
+        env:
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python3 - <<'PY_SIGN'
+          import base64
+          import os
+          import subprocess
+          import tempfile
+          from pathlib import Path
+
+          for name in ('ANDROID_KEY_BASE64', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD'):
+              if not os.environ.get(name):
+                  raise SystemExit(f'Missing required Actions secret: {name}')
+          apks = list(Path('src-tauri/gen/android/app/build/outputs/apk').rglob('*-debug.apk'))
+          if len(apks) != 1:
+              raise SystemExit(f'Expected one APK for signing, found {len(apks)}')
+          signer = Path(os.environ['ANDROID_HOME']) / 'build-tools/36.0.0/apksigner'
+          # Clave en RUNNER_TEMP, fuera del checkout y de las cachés de Gradle.
+          with tempfile.TemporaryDirectory(prefix='adhan-signing-', dir=os.environ['RUNNER_TEMP']) as directory:
+              key = Path(directory) / 'experimental.p12'
+              key.write_bytes(base64.b64decode(''.join(os.environ['ANDROID_KEY_BASE64'].split()), validate=True))
+              key.chmod(0o600)
+              signed = apks[0].with_suffix('.signed.apk')
+              subprocess.run([
+                  str(signer), 'sign', '--ks', str(key), '--ks-type', 'PKCS12',
+                  '--ks-key-alias', os.environ['ANDROID_KEY_ALIAS'],
+                  '--ks-pass', 'env:ANDROID_KEY_PASSWORD', '--key-pass', 'env:ANDROID_KEY_PASSWORD',
+                  '--out', str(signed), str(apks[0]),
+              ], check=True)
+              subprocess.run([str(signer), 'verify', '--verbose', str(signed)], check=True)
+              signed.replace(apks[0])
+          PY_SIGN
       - name: Prepare APK and checksum
         shell: bash
         env:

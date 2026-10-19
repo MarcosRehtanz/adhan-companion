@@ -26,6 +26,8 @@ Los paquetes eliminan los símbolos nativos de depuración al empaquetar para re
 
 Los avisos empiezan **desactivados**: revisá ubicación y horarios, permití notificaciones y alarmas exactas cuando corresponda y pulsá **Activar avisos**. Probá el audio antes de depender de los avisos. Su funcionamiento con pantalla apagada y ahorro de batería está pendiente de validar en el J7. Todavía no incluye recitación del Qur’an en audio. Los datos no se sincronizan con el escritorio.
 
-El APK utiliza una firma de desarrollo que puede variar entre compilaciones. Una firma diferente puede impedir instalar sobre otra copia experimental. No desinstalar una copia con datos importantes como solución automática: desinstalar puede eliminar sus datos locales. La firma persistente y las actualizaciones que conserven datos siguen pendientes.
+Los APK de esta versión usan una **firma experimental persistente**, compartida por ARMv7 y ARM64, y un número de compilación creciente. Las próximas versiones firmadas con esta misma clave podrán actualizar la instalación sin desinstalar. La descarga e instalación desde la app todavía están pendientes.
+
+Las versiones anteriores, incluida `1c7dc94`, usaron otras claves de prueba: esta firma nueva no permite actualizar sobre ellas automáticamente. **No desinstalar una copia con datos importantes como solución automática**, porque puede eliminar sus datos locales. Conservar la copia hasta resolver su migración.
 
 La distribución estable de Linux y Windows continúa en su propia release.
