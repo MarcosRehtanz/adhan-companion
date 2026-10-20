@@ -3,7 +3,6 @@ import base64
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -55,6 +54,7 @@ def prepare():
                         '--ks-key-alias', os.environ['ANDROID_KEY_ALIAS'], '--ks-pass', 'env:ANDROID_KEY_PASSWORD',
                         '--key-pass', 'env:ANDROID_KEY_PASSWORD', '--out', str(apk), str(original)], check=True)
         certificate = subprocess.check_output([str(tools / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], text=True)
+        assert "Signer #1 certificate SHA-256 digest: aa4f3f6e06cc884275761b73e63dbb7e51a7b8bef5cb448c92ed8dae40e9de72" in certificate, "Signing key differs from installed build 10018"
         print(certificate)
     metadata = dict(schema=1, package_id=PACKAGE, tag=f'v{VERSION}', version_code=version_code(),
                     version_name=VERSION, min_sdk=24,

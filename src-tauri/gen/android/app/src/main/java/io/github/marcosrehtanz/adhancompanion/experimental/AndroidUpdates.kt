@@ -119,9 +119,13 @@ object AndroidUpdates {
         val releases = JSONArray(json(API, 4 * 1024 * 1024))
         // Los releases oficiales tienen prioridad; el canal anterior permite migrar sin perder datos.
         val entries = (0 until releases.length()).map { releases.getJSONObject(it) }
-            .filter { !it.optBoolean("draft") && (
-                !it.optBoolean("prerelease") && it.optString("tag_name").matches(Regex("v[0-9]+\\.[0-9]+\\.[0-9]+")) ||
-                !it.optBoolean("draft") && it.optString("tag_name").matches(Regex("android-experimental-[a-f0-9]{7}")) }
+            .filter { release ->
+                val tag = release.optString("tag_name")
+                !release.optBoolean("draft") && (
+                    !release.optBoolean("prerelease") && tag.matches(Regex("v[0-9]+\\.[0-9]+\\.[0-9]+")) ||
+                    tag.matches(Regex("android-experimental-[a-f0-9]{7}"))
+                )
+            }
             .sortedWith(compareBy<JSONObject> { it.optBoolean("prerelease") }.thenByDescending { it.optString("published_at") })
         var latest: JSONObject? = null
         for (release in entries.take(20)) {

@@ -124,7 +124,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 **Aceptación:** contenido contrastado con su fuente, numeración consistente, presentación correcta del árabe, persistencia de marcadores y última lectura, y uso offline para el contenido instalado.
 
-**Recitación en audio:** [implementación inicial de escritorio](recitacion-quran.md) en desarrollo local, con compilación de frontend y core Linux completada; revisión nativa y publicación pendientes, sin versión asignada. El [RDD de recitación del Qur’an](rdd-recitacion-quran.md) conserva el diseño. Recomienda Parhizgar mediante Al Quran Cloud, primero reproducción por aleya y después descargas por sura. Incluye prioridad del Adhan y tonos, reanudación manual, control desde el tray y progreso de escucha separado de la lectura.
+**Recitación en audio:** [implementación de escritorio](recitacion-quran.md) incluida en v0.1.9, con revisión funcional nativa/auditiva Linux documentada; Windows pendiente de comprobación física. El [RDD de recitación del Qur’an](rdd-recitacion-quran.md) conserva el diseño. Recomienda Parhizgar mediante Al Quran Cloud, primero reproducción por aleya y después descargas por sura. Incluye prioridad del Adhan y tonos, reanudación manual, control desde el tray y progreso de escucha separado de la lectura.
 
 ## Android experimental
 
@@ -145,3 +145,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 4. Lector del Qur'an revisado en Linux: repetir la revisión nativa en Windows antes de publicar.
 
 El modo Ramadán continúa como propuesta documentada. MQTT/dispositivos continúa condicionado al hardware; estas solicitudes no cambian ese estado.
+
+## Release oficial v0.1.9
+
+Linux, Windows y APK Android ARMv7/ARM64 se publican juntos. Se mantiene identidad/firma Android para conservar los datos y se ofrece un puente al actualizador de 10018. Ver [notas](releases/v0.1.9.md) y [procedimiento](publicar-release.md). La publicación oficial del APK no amplía por sí sola la validación limitada del J7.

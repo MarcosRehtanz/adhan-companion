@@ -74,7 +74,7 @@ Un emulador x86_64 necesita instalar el target Rust correspondiente y compilar p
 
 ## Workflow experimental
 
-`.github/workflows/android-experimental.yml` genera APK de depuración para ARM64 y ARMv7 en jobs separados. Se ejecuta manualmente desde GitHub Actions o al subir a `main` cambios en las rutas de la app incluidas en el workflow. Entrega los artefactos **android-experimental-arm64** y **android-experimental-armv7**, cada uno con APK, checksum por arquitectura y este documento; se conservan durante 30 días. Antes de subir un APK, comprueba que contenga la biblioteca del core para la arquitectura indicada.
+`.github/workflows/android-experimental.yml` genera APK de depuración para ARM64 y ARMv7 en jobs separados. Desde v0.1.9 se ejecuta solo manualmente desde GitHub Actions; los APK oficiales se validan en el PR y se publican mediante Release al etiquetar. Entrega los artefactos **android-experimental-arm64** y **android-experimental-armv7**, cada uno con APK, checksum por arquitectura y este documento; se conservan durante 30 días. Antes de subir un APK, comprueba que contenga la biblioteca del core para la arquitectura indicada.
 
 Desde v0.1.9, el workflow Release genera APK de producción firmados para ARMv7 y ARM64 y los incorpora al release oficial junto con Linux y Windows. Este workflow experimental conserva las compilaciones de depuración por separado; no se publica en Google Play.
 
