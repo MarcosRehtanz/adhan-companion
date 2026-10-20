@@ -8,12 +8,15 @@
     "notification:allow-is-permission-granted",
     "app-commands",
     "quran-reader",
+    "quran-audio",
     "parse-google-maps-location",
     "prayer-alerts",
     {
       "identifier": "opener:allow-open-url",
       "allow": [
         { "url": "https://github.com/MarcosRehtanz/adhan-companion/actions/workflows/android-experimental.yml" },
+        { "url": "https://alquran.cloud/terms-and-conditions" },
+        { "url": "https://alquran.cloud/cdn" },
         { "url": "https://tanzil.net" },
         { "url": "https://tanzil.net/*" },
         { "url": "https://github.com/aliftype/amiri" },

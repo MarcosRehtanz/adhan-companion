@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -11,38 +11,47 @@ export function AndroidUpdates() {
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [queryError, setQueryError] = useState("");
+  const alive = useRef(false);
+  const mutation = useRef(false);
+  const reading = useRef(false);
+  const sequence = useRef(0);
+  async function refresh() {
+    if (document.hidden || mutation.current || reading.current) return;
+    const id = ++sequence.current; reading.current = true;
+    try { const value = await invoke<Status>("android_update", { action: "status" }); if (alive.current && id === sequence.current) { setStatus(value); setQueryError(""); } }
+    catch (e) { if (alive.current && id === sequence.current) setQueryError(String(e)); }
+    finally { reading.current = false; }
+  }
   useEffect(() => {
-    let alive = true;
-    const refresh = () => {
-      if (document.hidden) return;
-      invoke<Status>("android_update", { action: "status" }).then(s => { if (alive) setStatus(s); }).catch(e => { if (alive) setError(String(e)); });
-    };
-    refresh();
-    const timer = window.setInterval(refresh, 1500);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { alive = false; window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+    alive.current = true;
+    void refresh();
+    const poll = () => void refresh();
+    const timer = window.setInterval(poll, 1500);
+    window.addEventListener("focus", poll); document.addEventListener("visibilitychange", poll);
+    return () => { alive.current = false; sequence.current++; window.clearInterval(timer); window.removeEventListener("focus", poll); document.removeEventListener("visibilitychange", poll); };
   }, []);
   async function action(action: string) {
-    setSending(true); setError("");
-    try { setStatus(await invoke<Status>("android_update", { action })); }
-    catch (e) { setError(String(e)); }
-    finally { setSending(false); }
+    if (mutation.current) return;
+    mutation.current = true; sequence.current++; setSending(true); setError("");
+    try { const value = await invoke<Status>("android_update", { action }); if (alive.current) { setStatus(value); setQueryError(""); } }
+    catch (e) { if (alive.current) setError(String(e)); }
+    finally { mutation.current = false; if (alive.current) setSending(false); }
   }
-  const busy = sending || !!status && busyPhases.includes(status.phase);
+  const busy = !!queryError || sending || !!status && busyPhases.includes(status.phase);
   const candidate = status?.candidate;
   return <section className="panel setting-panel">
     <div className="panel-heading"><div><h2>Actualizaciones</h2><p>Canal Android experimental</p></div>
-      <button className="secondary-button" disabled={busy || !status} onClick={() => action("check")}>{status?.phase === "checking" ? "Buscando…" : "Buscar actualizaciones"}</button>
+      {status && status.phase !== "ready" && <button className="secondary-button" disabled={busy} onClick={() => action("check")}>{status?.phase === "checking" ? "Buscando…" : status?.phase === "error" ? "Reintentar búsqueda" : "Buscar actualizaciones"}</button>}
     </div>
     {status && <p>Versión {status.installed_version} · compilación {status.installed_code} · {status.abi === "arm64-v8a" ? "ARM de 64 bits" : "ARM de 32 bits"}</p>}
-    <p role="status" aria-live="polite">{status ? labels[status.phase] ?? "Buscá una nueva compilación para este teléfono." : "Consultando versión instalada…"}</p>
+    <p role="status" aria-live="polite">{queryError ? "Estado de actualización no disponible." : status ? labels[status.phase] ?? (status.phase === "error" ? "No se pudo completar la actualización." : "Buscá una nueva compilación para este teléfono.") : "Consultando versión instalada…"}</p>
     {candidate && <div className="update-card">
       <b>Versión {candidate.version_name} · compilación {candidate.version_code}</b>
       <p>{mb(candidate.size)} · {candidate.tag}</p>
       {status?.phase === "downloading" && <><progress className="android-update-progress" aria-label="Descarga del APK" max={candidate.size} value={status.received} /><p>{mb(status.received)} de {mb(candidate.size)}</p></>}
       <div className="editor-actions android-update-actions">
-        {status?.phase === "available" && <button className="secondary-button" disabled={busy} onClick={() => action("download")}>Descargar actualización</button>}
+        {status?.phase === "available" && <button className="secondary-button" disabled={busy} onClick={() => action("download")}>{status.error ? "Reintentar descarga" : "Descargar actualización"}</button>}
         {status?.phase === "ready" && <>
           {!status.can_install && <button className="secondary-button" disabled={busy} onClick={() => action("permission")}>Permitir instalar actualizaciones</button>}
           <button className="secondary-button" disabled={busy || !status.can_install} onClick={() => action("install")}>Instalar actualización</button>
@@ -51,7 +60,8 @@ export function AndroidUpdates() {
     </div>}
     {status && ["checking", "downloading", "verifying"].includes(status.phase) && <button className="secondary-button" disabled={sending} onClick={() => action("cancel")}>Cancelar</button>}
     {status?.phase === "ready" && <p className="nota">Android te pedirá confirmar la instalación. Si abriste los permisos, volvé a esta pantalla y pulsá Instalar actualización. Si cancelás el instalador, podés abrirlo de nuevo.</p>}
-    {(error || status?.error) && <p role="alert">{error || status?.error}</p>}
+    {(error || queryError || status?.error) && <p role="alert">{error || queryError || status?.error}</p>}
+    {queryError && <button className="secondary-button" disabled={sending} onClick={() => void refresh()}>Reintentar consulta del estado</button>}
     <p className="nota">La búsqueda y la descarga usan Internet. Mantené la app abierta durante la descarga; si se interrumpe, podés volver a descargar. La app verifica el paquete y su firma antes de abrir el instalador.</p>
     <button className="secondary-button" onClick={() => openUrl("https://github.com/MarcosRehtanz/adhan-companion/releases").catch(e => setError(String(e)))}>Ver versiones publicadas</button>
   </section>;

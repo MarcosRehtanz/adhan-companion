@@ -26,14 +26,14 @@ export function useAppearance(appearance: Appearance) {
     return () => media.removeEventListener("change", apply);
   }, [theme, accent]);
 }
-export function AppearanceSettings({ value, editing, onEdit, onCancel, onChange }: { value: Appearance; editing: boolean; onEdit: () => void; onCancel: () => void; onChange: (value: Appearance) => void }) {
+export function AppearanceSettings({ value, disabled = false, editing, onEdit, onCancel, onChange }: { value: Appearance; disabled?: boolean; editing: boolean; onEdit: () => void; onCancel: () => void; onChange: (value: Appearance) => void }) {
   return <section className="panel setting-panel">
-    <div className="panel-heading"><div><h2>Apariencia</h2><p>Tema y color de acento de la aplicación.</p></div>{!editing && <button className="edit-button" onClick={onEdit}>Editar apariencia</button>}</div>
+    <div className="panel-heading"><div><h2>Apariencia</h2><p>Tema y color de acento de la aplicación.</p></div>{!editing && <button className="edit-button" disabled={disabled} onClick={onEdit}>Editar apariencia</button>}</div>
     {editing ? <div className="editor">
       <label>Tema<select value={value.theme} onChange={e => onChange({ ...value, theme: e.target.value as Appearance["theme"] })}>{Object.entries(themes).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <fieldset className="appearance-colors"><legend>Color de acento</legend>{Object.entries(palettes).map(([key, p]) => <button key={key} type="button" aria-pressed={value.accent === key} onClick={() => onChange({ ...value, accent: key as Appearance["accent"] })}><span className="color-swatch" style={{ background: p.solid }} />{p.name}{value.accent === key && <span aria-hidden="true"> ✓</span>}</button>)}</fieldset>
       <p className="nota">Vista previa en toda la ventana. Guardar conserva la elección; Cancelar restaura la apariencia anterior.</p>
-      <div className="editor-actions"><button className="secondary-button" onClick={() => onChange(DEFAULT_APPEARANCE)}>Restablecer predeterminados</button><button className="secondary-button" onClick={onCancel}>Cancelar</button></div>
+      <div className="editor-actions"><button className="secondary-button" disabled={value.theme === DEFAULT_APPEARANCE.theme && value.accent === DEFAULT_APPEARANCE.accent} onClick={() => onChange(DEFAULT_APPEARANCE)}>Restablecer predeterminados</button><button className="secondary-button" onClick={onCancel}>Cancelar</button></div>
     </div> : <div className="read-grid"><div><span>Tema</span><b>{themes[value.theme]}</b></div><div><span>Color de acento</span><b className="appearance-summary"><span className="color-swatch" style={{ background: palettes[value.accent].solid }} />{palettes[value.accent].name}</b></div></div>}
   </section>;
 }

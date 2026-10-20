@@ -16,6 +16,8 @@ mod mobile;
 pub mod prayer;
 pub mod qibla;
 pub mod quran;
+#[cfg(desktop)]
+pub mod quran_audio;
 pub mod registro;
 pub mod scheduler;
 pub mod updater;
@@ -101,6 +103,16 @@ async fn stop_alert() -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn alert_playback_status() -> Result<Option<bool>, String> {
+    #[cfg(desktop)]
+    { Ok(Some(audio::is_playing())) }
+    #[cfg(target_os = "android")]
+    { Ok(android_alerts::call("control", serde_json::json!({"action":"status"}))?.get("playing").and_then(|x| x.as_bool())) }
+    #[cfg(all(mobile, not(target_os = "android")))]
+    { Ok(None) }
+}
+
 // Contrato IPC del spec: test de audio — el futuro botón "Probar" de la tab Audio
 // Toca el muecín que sonaría en el PRÓXIMO rezo (test del ciclo completo real);
 // sin próximo (día pasado) cae al default embebido.
@@ -161,10 +173,10 @@ fn ejecutando_windows() -> bool {
 }
 
 #[tauri::command]
-fn check_update() -> Result<Option<updater::Disponible>, String> {
+async fn check_update() -> Result<Option<updater::Disponible>, String> {
     #[cfg(desktop)]
     {
-        updater::verificar()
+        tauri::async_runtime::spawn_blocking(updater::verificar).await.map_err(|e| e.to_string())?
     }
     #[cfg(mobile)]
     {
@@ -173,9 +185,12 @@ fn check_update() -> Result<Option<updater::Disponible>, String> {
 }
 
 #[tauri::command]
-fn instalar_update() -> Result<(), String> {
-    updater::instalar()
+async fn instalar_update() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(updater::instalar).await.map_err(|e| e.to_string())?
 }
+
+#[tauri::command]
+fn desktop_update_status() -> Result<serde_json::Value, String> { updater::status() }
 
 // Qibla: rumbo desde el norte hacia la Qaaba, con la ubicación del config real
 #[tauri::command]
@@ -189,13 +204,14 @@ fn get_qibla(state: tauri::State<'_, SharedConfig>) -> Result<f64, String> {
 
 // Rachas y stats sobre el registro — la pieza v1.2 del spec (App Vida como Juego)
 #[tauri::command]
-fn get_stats() -> registro::Stats {
-    registro::stats()
+fn get_stats() -> Result<registro::Stats, String> {
+    registro::ensure_readable()?;
+    Ok(registro::stats())
 }
 
 // Contrato IPC del spec: marcar/desmarcar rezado por fecha (toggle, last-wins)
 #[tauri::command]
-fn mark_prayed(
+async fn mark_prayed(
     date: String,
     prayer: String,
     sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
@@ -205,6 +221,7 @@ fn mark_prayed(
     }
     let parsed = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
         .map_err(|_| format!("fecha inválida: {date} (esperado YYYY-MM-DD)"))?;
+    registro::ensure_readable()?;
     if parsed > chrono::Local::now().date_naive() {
         return Err("no se pueden marcar rezos de fechas futuras".into());
     }
@@ -216,12 +233,14 @@ fn mark_prayed(
     }
     #[cfg(desktop)]
     {
-        sched_tx
-            .send(scheduler::Trigger::Pray {
-                date,
-                prayer: prayer.clone(),
-            })
-            .map_err(|e| format!("scheduler no disponible: {e}"))?;
+        let sender = sched_tx.inner().clone();
+        let name = prayer.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let (reply, received) = mpsc::channel();
+            sender.send(scheduler::Trigger::Pray { date, prayer: name, reply: Some(reply) })
+                .map_err(|e| format!("scheduler no disponible: {e}"))?;
+            received.recv().map_err(|_| "El scheduler se cerró antes de confirmar el guardado.".to_string())?
+        }).await.map_err(|e| e.to_string())??;
         Ok(prayer)
     }
 }
@@ -229,6 +248,7 @@ fn mark_prayed(
 // Estado del mes para el calendario de seguimiento: { date, prayers[] }
 #[tauri::command]
 fn get_marked(month: String) -> Result<Vec<registro::MarkedDay>, String> {
+    registro::ensure_readable()?;
     Ok(registro::marked_for_month(&month))
 }
 
@@ -250,11 +270,17 @@ fn get_schedule_for(
 
 // Contracts IPC de config (Spike de config): leer y guardar hot-reload
 #[tauri::command]
-fn get_config(state: tauri::State<'_, SharedConfig>) -> Result<config::Config, String> {
-    state
-        .read()
-        .map(|c| c.clone())
-        .map_err(|e| format!("config envenenado: {e}"))
+fn get_config(state: tauri::State<'_, SharedConfig>, sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>) -> Result<config::Config, String> {
+    let cfg = config::read_saved()?;
+    let changed = serde_json::to_value(&*state.read().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?
+        != serde_json::to_value(&cfg).map_err(|e| e.to_string())?;
+    if changed {
+        *state.write().map_err(|e| e.to_string())? = cfg.clone();
+        let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
+        #[cfg(target_os = "android")]
+        android_alerts::sync(&cfg)?;
+    }
+    Ok(cfg)
 }
 
 #[tauri::command]
@@ -324,6 +350,22 @@ async fn android_update(action: Option<String>) -> Result<serde_json::Value, Str
     { let _ = action; Err("Solo disponible en Android.".into()) }
 }
 
+// Contratos comunes; Android mantiene el lector de texto mientras se integra audio nativo.
+#[tauri::command]
+async fn quran_audio_status(sura: u16) -> Result<serde_json::Value, String> {
+    #[cfg(desktop)]
+    { tauri::async_runtime::spawn_blocking(move || quran_audio::status(sura)).await.map_err(|e| e.to_string())? }
+    #[cfg(mobile)]
+    { let _ = sura; Err("La recitación todavía está disponible solo en escritorio.".into()) }
+}
+#[tauri::command]
+async fn quran_audio_control(action: String, sura: Option<u16>, aya: Option<u16>, volume: Option<u8>) -> Result<(), String> {
+    #[cfg(desktop)]
+    { tauri::async_runtime::spawn_blocking(move || quran_audio::control(&action, sura, aya, volume)).await.map_err(|e| e.to_string())? }
+    #[cfg(mobile)]
+    { let _ = (action, sura, aya, volume); Err("La recitación todavía está disponible solo en escritorio.".into()) }
+}
+
 // Toggle real de autostart del plugin (checkbox de la tab Avanzado)
 #[cfg(desktop)]
 #[tauri::command]
@@ -377,10 +419,13 @@ pub fn run() {
         runtime_info,
         android_alert_status,
         android_update,
+        quran_audio_status,
+        quran_audio_control,
         quran::get_quran_reader,
         quran::update_quran_reader,
         get_schedule,
         preview_alert,
+        alert_playback_status,
         stop_alert,
         parse_google_maps_location,
         test_adhan,
@@ -398,6 +443,7 @@ pub fn run() {
         ejecutando_appimage,
         ejecutando_windows,
         check_update,
+        desktop_update_status,
         instalar_update
     ]);
     #[cfg(desktop)]

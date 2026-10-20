@@ -13,7 +13,7 @@ La primera edición Android comparte el cálculo local y la interfaz React con e
 | Apariencia | Temas y acentos con Guardar y Cancelar. |
 | Qur’an | Texto árabe y traducción offline, marcadores y punto de lectura locales. Recitación pendiente según su RDD. |
 | Adhan, tonos y preavisos | Integración nativa experimental: AlarmManager, notificaciones y MediaPlayer con servicio visible y acción Detener. Activación manual y permisos; preaviso y Adhan de Maghrib comprobados en el J7 con pantalla apagada y ahorro de energía (ver ensayo abajo). |
-| Actualizaciones | Sistema → Actualizaciones: buscar, descargar el APK compatible, verificarlo y abrir el instalador de Android. Canal experimental separado del escritorio. |
+| Actualizaciones | Configuración → Actualizaciones: buscar, descargar el APK compatible, verificarlo y abrir el instalador de Android. Canal experimental separado del escritorio. |
 
 La app muestra una indicación de **Android experimental**. El hilo que actualiza la consulta de horarios puede suspenderse junto con el proceso; los avisos se programan por separado en Android y no dependen de la WebView. El usuario confirmó que el menú hamburguesa funciona en el J7 con la compilación anterior a esta integración de audio.
 
@@ -74,9 +74,9 @@ Un emulador x86_64 necesita instalar el target Rust correspondiente y compilar p
 
 ## Workflow experimental
 
-`.github/workflows/android-experimental.yml` genera APK de depuración para ARM64 y ARMv7 en jobs separados. Se ejecuta manualmente desde GitHub Actions o al subir a `main` cambios en las rutas de la app incluidas en el workflow. Entrega los artefactos **android-experimental-arm64** y **android-experimental-armv7**, cada uno con APK, checksum por arquitectura y este documento; se conservan durante 30 días. Antes de subir un APK, comprueba que contenga la biblioteca del core para la arquitectura indicada.
+`.github/workflows/android-experimental.yml` genera APK de depuración para ARM64 y ARMv7 en jobs separados. Desde v0.1.9 se ejecuta solo manualmente desde GitHub Actions; los APK oficiales se validan en el PR y se publican mediante Release al etiquetar. Entrega los artefactos **android-experimental-arm64** y **android-experimental-armv7**, cada uno con APK, checksum por arquitectura y este documento; se conservan durante 30 días. Antes de subir un APK, comprueba que contenga la biblioteca del core para la arquitectura indicada.
 
-El workflow estable de Linux y Windows continúa separado. El APK experimental no se incorpora a la release estable ni se publica en Google Play.
+Desde v0.1.9, el workflow Release genera APK de producción firmados para ARMv7 y ARM64 y los incorpora al release oficial junto con Linux y Windows. Este workflow experimental conserva las compilaciones de depuración por separado; no se publica en Google Play.
 
 Al ejecutar manualmente el workflow sobre `main`, la opción **Publicar una prerelease con descarga directa del APK** está activada por defecto. Tras compilar ambas variantes, publica los dos `.apk`, un `SHA256SUMS` conjunto y `LEEME.md` en una prerelease `android-experimental-<commit>`. Los pushes automáticos generan únicamente los artefactos de Actions. Si ya existe una prerelease para el mismo commit, se conservan sus APK originales. Las prereleases no reemplazan la release estable marcada como Latest.
 
@@ -118,7 +118,7 @@ Referencias: [alarmas de Android](https://developer.android.com/develop/backgrou
 
 ## Actualizaciones desde la app
 
-**Sistema → Actualizaciones** muestra la versión, el número de compilación y la arquitectura instaladas. **Buscar actualizaciones** consulta las releases públicas del repositorio y considera exclusivamente el canal `android-experimental-*` con `android-update.json`. No utiliza `/releases/latest`, reservado al escritorio estable. Entre las veinte releases Android más recientes de la página de cien releases consultada, elige el mayor `version_code` compatible. Si no hay índices compatibles, muestra un problema; no declara que esté al día sin un índice válido.
+**Configuración → Actualizaciones** muestra la versión, el número de compilación y la arquitectura instaladas. **Buscar actualizaciones** consulta las releases públicas del repositorio y considera exclusivamente el canal `android-experimental-*` con `android-update.json`. No utiliza `/releases/latest`, reservado al escritorio estable. Entre las veinte releases Android más recientes de la página de cien releases consultada, elige el mayor `version_code` compatible. Si no hay índices compatibles, muestra un problema; no declara que esté al día sin un índice válido.
 
 El workflow genera un índice por arquitectura desde el APK firmado y combina ambos al publicar. `android-update.json` contiene `schema`, `package_id`, `tag`, `version_code`, `version_name`, `min_sdk` y, por ABI, nombre del APK, tamaño y SHA-256. La publicación comprueba que los índices de ambas arquitecturas coincidan y que los archivos correspondan con sus hashes. El índice solo se publica junto a los APK definitivos.
 
@@ -153,7 +153,7 @@ Dispositivo confirmado mediante ADB: **Samsung SM-J710MN**, Android 8.1.0. Antes
 1. Establecer la compilación **10017** con la firma persistente y confirmar sus datos visibles.
 2. Publicar una nueva compilación experimental con número superior, misma identidad y certificado. El número de versión de escritorio puede seguir siendo 0.1.8; el actualizador Android compara `version_code`.
 3. Registrar el estado que se va a comprobar: ubicación/preferencias, registro y, si existen, marcadores y última lectura. No crear registros de rezos realizados automáticamente solo para probar.
-4. Desde **Sistema → Actualizaciones**, buscar, descargar y abrir el instalador. Comprobar progreso, SHA-256/firma y permiso para instalar desde esta fuente. Cancelación de descarga y de instalador son pasos opcionales previos al intento definitivo.
+4. Desde **Configuración → Actualizaciones**, buscar, descargar y abrir el instalador. Comprobar progreso, SHA-256/firma y permiso para instalar desde esta fuente. Cancelación de descarga y de instalador son pasos opcionales previos al intento definitivo.
 5. Confirmar la actualización en Android sin desinstalar. Abrir la app, comprobar el nuevo código y comparar los archivos de datos y su significado con el respaldo. Las preferencias nativas de alarmas incluyen fechas de programación que pueden cambiar legítimamente al reabrir; comparar aparte las preferencias elegidas por el usuario.
 6. Comprobar también datos y avisos después de reiniciar el teléfono. Esa comprobación requiere coordinar el reinicio con el usuario.
 
@@ -170,3 +170,24 @@ El **19 de octubre de 2026**, en el **Samsung J7 SM-J710MN, Android 8.1.0, compi
 - El respaldo y las evidencias del ensayo se conservan en el directorio privado de pruebas, excluido de Git.
 
 **Resultado:** entrega audible comprobada para ese ciclo en ese dispositivo. Los identificadores guardados contienen el horario programado, no una medición de la hora efectiva de reproducción: no se midió la latencia exacta. No se identificó el nombre del perfil de ahorro de Samsung ni se verificó entrada en Doze profundo. Quedan por ampliar las pruebas a varios días, otros perfiles de ahorro, tonos discretos, retirada de recientes y arranque sin abrir la app.
+
+
+### Comprobación de Isha y alcance del ensayo de reinicio
+
+El 19/10/2026 se leyeron por ADB las entregas del preaviso de Isha (20:33:31) y del Adhan (20:43:31), sin error, con el siguiente ciclo programado. El usuario confirmó escuchar ambos sin abrir la app. Sin embargo, el identificador de arranque seguía siendo el de la captura previa de las 20:01 y el tiempo de actividad había aumentado continuamente. Estas evidencias confirman las entregas, pero **no prueban reprogramación después de un nuevo reinicio**. Esa comprobación continúa pendiente: capturar estado, reiniciar, desbloquear una vez sin abrir la app y verificar el cambio de arranque y las alarmas recreadas antes de observar su entrega.
+
+
+### Reprogramación automática tras un nuevo reinicio comprobado
+
+Después de ese intento se realizó un nuevo reinicio del J7. ADB confirmó cambio del identificador de arranque y un tiempo de actividad de unos 79 segundos. El usuario desbloqueó el teléfono una vez y lo dejó en Inicio sin abrir la app. Inicialmente no había alarmas de la app en AlarmManager: `BOOT_COMPLETED` todavía estaba en la cola ordenada del sistema y `PrayerAlarmReceiver` figuraba pendiente. Al recibirlo, el receiver terminó y Android mostró automáticamente las dos alarmas, sin errores ni apertura manual de la app:
+
+- Preaviso de Fajr: **20/10/2026 04:42:16**, hora de Buenos Aires.
+- Adhan de Fajr: **20/10/2026 04:52:16**, hora de Buenos Aires.
+
+**Resultado:** reprogramación después de reiniciar comprobada en el J7 SM-J710MN/Android 8.1, compilación 10018. La demora inicial correspondía a la entrega del broadcast de arranque, no a un fallo confirmado del scheduler. La entrega audible de estas alarmas recién recreadas queda pendiente del siguiente horario real; no confundir el registro en AlarmManager con haber escuchado ya ese ciclo. No se abrió la app ni se simularon broadcasts para obtener este resultado.
+
+## Transición al release oficial v0.1.9
+
+Los APK oficiales son builds release sin depuración, `versionCode` 1010900. Conservan `io.github.marcosrehtanz.adhancompanion.experimental`, el nombre y la firma persistente para actualizar sin reinstalar. No cambiar esta identidad para quitar la palabra experimental: provocaría una app y datos independientes.
+
+La compilación 10018 consulta exclusivamente el canal descrito arriba. El release crea un puente con los mismos APK y un índice compatible en una prerelease de ese canal. El código nuevo admite además tags oficiales `vX.Y.Z`, prioriza esos releases y sigue eligiendo el mayor código compatible. La recitación de Parhizgar se mantiene exclusiva de escritorio hasta su integración nativa móvil. El ensayo del J7 con 10018 no certifica la instalación ni el comportamiento de 1010900; se requiere una comprobación posterior en el dispositivo.

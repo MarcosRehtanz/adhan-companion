@@ -7,17 +7,6 @@ on:
         description: 'Publicar una prerelease con descarga directa del APK'
         type: boolean
         default: true
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'public/**'
-      - 'src-tauri/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'index.html'
-      - 'vite.config.ts'
-      - '.github/workflows/android-experimental.yml'
 
 permissions:
   contents: read

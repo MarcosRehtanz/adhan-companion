@@ -12,6 +12,10 @@ import kotlin.math.*
 
 /** Servicio corto, visible y cancelable. No depende de que siga viva la WebView. */
 class PrayerAudioService : Service() {
+    companion object {
+        @Volatile var active = false
+            private set
+    }
     private var player: MediaPlayer? = null
     private var focus: AudioFocusRequest? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -32,6 +36,7 @@ class PrayerAudioService : Service() {
                 if (intent.getBooleanExtra("preview", false)) "Prueba de sonido" else "Es hora del rezo.")
                 .setOngoing(true).setAutoCancel(false).addAction(R.drawable.ic_prayer_notification, "Detener", stop).build()
             startForeground(7104, notice)
+            active = true
             val granted = if (Build.VERSION.SDK_INT >= 26) {
                 val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(attributes)
                     .setOnAudioFocusChangeListener(listener, handler).build()
@@ -86,5 +91,5 @@ class PrayerAudioService : Service() {
         else { @Suppress("DEPRECATION") audio.abandonAudioFocus(listener) }
         focus = null
     }
-    override fun onDestroy() { release(); stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy() }
+    override fun onDestroy() { active = false; release(); stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy() }
 }

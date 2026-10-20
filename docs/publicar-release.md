@@ -20,13 +20,23 @@ Descargar los artefactos del workflow y comprobar instalación, arranque, config
 
 ## Publicar
 
-Después de validar ambos builds y revisar las notas, crear y subir el tag del commit validado:
+Después de validar todos los builds y revisar las notas, crear y subir el tag del commit validado:
 
 ```bash
-git tag -a v0.1.8 -m "Adhan Companion v0.1.8"
-git push origin v0.1.8
+git tag -a v0.1.9 -m "Adhan Companion v0.1.9"
+git push origin v0.1.9
 ```
 
-El workflow vuelve a ejecutar tests y builds, comprueba que el tag coincide con las versiones del proyecto y exige un paquete de cada tipo para esa versión. Luego publica los tres instaladores, `SHA256SUMS` y las notas de `docs/releases/v0.1.8.md`.
+El workflow vuelve a ejecutar tests y builds, comprueba que el tag coincide con las versiones del proyecto y exige un paquete de cada tipo para esa versión. Luego publica los tres instaladores de escritorio, los APK ARMv7/ARM64 firmados, el índice de actualización Android, `SHA256SUMS` y las notas de `docs/releases/v0.1.9.md`.
 
-La consulta de actualizaciones de la app usa la última release pública de GitHub. AppImage permite actualizar desde Sistema; `.deb` y Windows requieren ejecutar el instalador descargado.
+La consulta de actualizaciones de la app usa la última release pública de GitHub. AppImage permite actualizar desde Configuración; `.deb` y Windows requieren ejecutar el instalador descargado.
+
+## Android en el release oficial
+
+Desde v0.1.9, Release también compila ambas arquitecturas en modo release (sin `--debug`), comprueba ABI, identidad, versión, SDK mínimo y ausencia de depuración, y firma con los secretos persistentes existentes. La publicación espera estos jobs, además de Linux y Windows. Un fallo impide publicar una versión incompleta. Los PR del propio repositorio validan los cuatro builds; no se expone la firma a PR de forks.
+
+`ANDROID_VERSION_CODE` se deriva de la versión: `1000000 + major*1000000 + minor*10000 + patch*100` (minor y patch menores que 100). v0.1.9 corresponde a 1010900, superior a 10018. No reducirlo, cambiar la identidad ni rotar la clave. El workflow experimental conserva su contador anterior y no debe usarse para sustituir una versión oficial instalada con un código superior.
+
+`scripts/android-release.py` firma/prepara los APK, combina los índices y genera un puente para la compilación 10018. Después del release oficial se crea una prerelease `android-experimental-<commit>` con copias idénticas de los APK y nombres/índice compatibles con el actualizador anterior. No reemplaza Latest. El actualizador nuevo admite releases oficiales y conserva la compatibilidad anterior.
+
+Antes de etiquetar, revisar el PR, los tests Linux/Windows y las compilaciones de las cuatro plataformas/arquitecturas. Tras etiquetar, verificar los cinco paquetes, los hashes del índice y SHA256SUMS y la firma persistente de los APK. La publicación no equivale a haber probado visual/audio/instalación en todos los equipos.

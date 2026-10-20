@@ -47,8 +47,9 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
                 if (Build.VERSION.SDK_INT >= 31) activity.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${activity.packageName}")))
                 invoke.resolve(JSObject(PrayerAlarms.status(activity).toString()))
             }
-            "enable", "disable", "status" -> background(invoke) {
-                if (action != "status") PrayerAlarms.enable(activity, action == "enable")
+            "enable", "disable", "status", "reschedule" -> background(invoke) {
+                if (action == "reschedule") PrayerAlarms.reschedule(activity)
+                else if (action != "status") PrayerAlarms.enable(activity, action == "enable")
             }
             else -> invoke.reject("Acción desconocida")
         }

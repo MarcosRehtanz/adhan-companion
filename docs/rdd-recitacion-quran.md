@@ -2,13 +2,13 @@
 
 **Tipo:** documento de investigación y diseño (Research and Design Document).
 **Fecha:** 18 de octubre de 2026.
-**Estado:** propuesta documentada; implementación pendiente.
+**Estado:** implementación de escritorio incluida en v0.1.9; revisión nativa y auditiva Linux completada el 19/10/2026, Windows pendiente. Ver [uso, alcance y comprobaciones](recitacion-quran.md).
 **Versión de referencia:** v0.1.8, con lector de texto offline.
 **Plataformas:** Linux y Windows.
 
 La propuesta es incorporar la recitación de **Shahriar Parhizgar mediante Al Quran Cloud**, con reproducción por aleya, continuidad dentro de una sura y descarga opcional por sura. El audio acompañará al lector existente y funcionará desde el core Rust, incluso con la ventana cerrada. Los avisos sonoros de rezo tendrán prioridad.
 
-Este RDD reúne la recomendación y su diseño inicial. La [investigación de proveedores](investigacion-audio-quran.md) conserva el detalle de las fuentes y las condiciones consultadas. La documentación no asigna una versión de entrega ni modifica la app.
+Este RDD reúne la recomendación y su diseño inicial. La [investigación de proveedores](investigacion-audio-quran.md) conserva el detalle de las fuentes y las condiciones consultadas. La entrega inicial de escritorio corresponde a v0.1.9. La implementación y los criterios pendientes se describen por separado.
 
 ## Objetivo y contexto
 
@@ -175,7 +175,7 @@ Cada etapa deberá conservar el lector offline y los datos actuales del usuario.
 - Créditos y condiciones de la edición están visibles y registrados con los recursos.
 - Los flujos se revisan en la app nativa tanto en Linux como en Windows antes de publicar.
 
-Estos criterios definen la validación futura; no representan pruebas de una función ya implementada.
+Estos criterios siguen definiendo la revisión de aceptación; la compilación y las muestras técnicas de la implementación inicial no equivalen a haber completado estas pruebas.
 
 ## Cuestiones pendientes
 

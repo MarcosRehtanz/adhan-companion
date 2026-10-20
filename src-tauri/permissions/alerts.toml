@@ -1,4 +1,4 @@
 [[permission]]
 identifier = "prayer-alerts"
 description = "Prueba los avisos configurados y detiene el sonido."
-commands.allow = ["preview_alert", "stop_alert"]
+commands.allow = ["preview_alert", "stop_alert", "alert_playback_status"]

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 export type PrayerAlert = { mode: "adhan" | "tone" | "notification"; tone: "soft" | "double" | "bell"; duration_secs: number };
@@ -12,17 +12,38 @@ function alertFor(audio: AudioConfig, key: string): PrayerAlert {
 export function PrayerAlertsSettings({ audio, editing, onChange, previewAvailable = true }: { previewAvailable?: boolean; audio: AudioConfig; editing: boolean; onChange: (patch: Partial<AudioConfig>) => void }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [playing, setPlaying] = useState<boolean | null>(null);
+  const [queryError, setQueryError] = useState("");
+  const [queried, setQueried] = useState(false);
+  const lock = useRef(false);
+  const active = useRef(false);
+  const sequence = useRef(0);
+  async function refresh() {
+    const id = ++sequence.current;
+    try { const value = await invoke<boolean | null>("alert_playback_status"); if (active.current && id === sequence.current) { setPlaying(value); setQueryError(""); setQueried(true); } }
+    catch (e) { if (active.current && id === sequence.current) { setPlaying(null); setQueried(true); setQueryError(String(e)); } }
+  }
+  useEffect(() => {
+    active.current = true;
+    if (!previewAvailable) return () => { active.current = false; };
+    let pending = false;
+    const poll = async () => { if (pending || document.hidden) return; pending = true; try { await refresh(); } finally { pending = false; } };
+    void poll(); const timer = window.setInterval(() => void poll(), 1000);
+    return () => { active.current = false; sequence.current++; window.clearInterval(timer); };
+  }, [previewAvailable]);
   function change(key: string, patch: Partial<PrayerAlert>) {
     const alert = { ...alertFor(audio, key), ...patch };
     onChange({ alerts: { ...audio.alerts, [key]: alert }, enabled: { ...audio.enabled, [key]: alert.mode !== "notification" } });
   }
   async function preview(key: string) {
-    setBusy(true);
+    if (lock.current) return;
+    lock.current = true; setBusy(true); setMessage("");
     try {
       await invoke("preview_alert", { audio, prayer: key });
-      setMessage(alertFor(audio, key).mode === "notification" ? "Notificación de prueba enviada." : "Reproduciendo la configuración mostrada. Podés detenerla abajo.");
+      await refresh();
+      setMessage(alertFor(audio, key).mode === "notification" ? "Notificación de prueba enviada." : "Prueba de sonido iniciada.");
     } catch (error) { setMessage(`No se pudo probar el aviso: ${error}`); }
-    finally { setBusy(false); }
+    finally { lock.current = false; if (active.current) setBusy(false); }
   }
   return <div className="prayer-alerts">
     {editing ? <label>Volumen de los avisos · {audio.volume}%<input type="range" min="0" max="100" value={audio.volume} onChange={e => onChange({ volume: +e.target.value })} /></label> : <p>Volumen de los avisos: <b>{audio.volume}%</b></p>}
@@ -36,8 +57,17 @@ export function PrayerAlertsSettings({ audio, editing, onChange, previewAvailabl
         </div> : <span>{modes[alert.mode]}{alert.mode === "tone" ? ` · ${tones[alert.tone]} · ${alert.duration_secs} s` : ""}</span>}
       </div>;
     })}</div>
-    <button type="button" className="secondary-button" disabled={!previewAvailable} onClick={async () => { try { await invoke("stop_alert"); setMessage("Sonido detenido."); } catch (e) { setMessage(`No se pudo detener el sonido: ${e}`); } }}>Detener sonido</button>
+    {previewAvailable && <p role="status">{!queried ? "Consultando sonido…" : playing === true ? "Aviso sonoro en reproducción." : playing === false ? "No hay un aviso sonoro activo." : "Esta compilación no permite confirmar el estado del sonido."}</p>}
+    {previewAvailable && queried && playing !== false && <button type="button" className="secondary-button" disabled={busy} onClick={async () => {
+      if (lock.current) return;
+      lock.current = true; setBusy(true); setMessage("");
+      try { await invoke("stop_alert"); await refresh(); setMessage("Orden de detener enviada."); }
+      catch (e) { setMessage(`No se pudo detener el sonido: ${e}`); }
+      finally { lock.current = false; if (active.current) setBusy(false); }
+    }}>{busy ? "Aplicando…" : "Detener sonido"}</button>}
+    {queryError && <div role="alert"><p>{queryError}</p><button className="link-button" disabled={busy} onClick={() => void refresh()}>Consultar sonido</button></div>}
+    {!previewAvailable && <p className="nota">Las pruebas de sonido no están disponibles en esta plataforma.</p>}
     <p role="status" aria-live="polite">{message}</p>
-    <p className="nota">El volumen es compartido por el adhan y los tonos. Solo notificación no reproduce audio de la app; el sonido del sistema depende de tus preferencias de notificaciones. Probar no guarda cambios ni marca el rezo.</p>
+    <p className="nota">El volumen es compartido por el adhan y los tonos. Solo notificación no reproduce audio de la app; el sonido del sistema depende de tus preferencias de notificaciones. Probar usa los valores al pulsarlo; no guarda cambios ni marca el rezo.</p>
   </div>;
 }

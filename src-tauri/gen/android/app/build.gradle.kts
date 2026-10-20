@@ -23,9 +23,9 @@ android {
         applicationId = "io.github.marcosrehtanz.adhancompanion.experimental"
         minSdk = 24
         targetSdk = 36
-        // Cada ejecución de CI avanza aunque la versión de escritorio siga igual.
-        versionCode = System.getenv("ANDROID_EXPERIMENTAL_VERSION_CODE")?.let {
-            it.toInt().also { code -> require(code in 1009..2100000000) { "versionCode experimental fuera de rango" } }
+        // Los releases oficiales usan un código derivado de semver; el canal anterior conserva su contador.
+        versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: System.getenv("ANDROID_EXPERIMENTAL_VERSION_CODE"))?.let {
+            it.toInt().also { code -> require(code in 1009..2100000000) { "versionCode fuera de rango" } }
         } ?: tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
@@ -39,6 +39,8 @@ android {
             // al empaquetar para reducir descarga y espacio de instalación.
         }
         getByName("release") {
+            isDebuggable = false
+            isJniDebuggable = false
             optimization {
                enable = true
             }

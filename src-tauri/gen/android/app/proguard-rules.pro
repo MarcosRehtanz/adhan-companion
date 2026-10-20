@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Rust exporta Java_..._PrayerNative_calculate: el nombre forma parte del ABI JNI.
+# La clase también se utiliza con el proceso iniciado por BOOT_COMPLETED.
+-keep class io.github.marcosrehtanz.adhancompanion.experimental.PrayerNative { *; }

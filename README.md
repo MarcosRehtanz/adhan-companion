@@ -4,13 +4,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.8 para Linux y Windows** — interfaz reorganizada, preferencias en modo lectura con edición explícita, tray con estados, scheduler 24/7, calendario de seguimiento, notificaciones + preaviso, cálculo local por FFI y biblioteca fija de muecines por rezo. Descargas: `.deb`, `.AppImage` e instalador de Windows x64 en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.8.md).
+✅ **v0.1.9 para Linux, Windows y Android** — interfaz reorganizada, preferencias en modo lectura con edición explícita, tray con estados, scheduler 24/7, calendario de seguimiento, notificaciones + preaviso, cálculo local por FFI y biblioteca fija de muecines por rezo. Descargas: `.deb`, `.AppImage` e instalador de Windows x64 en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.9.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.8_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.9_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -23,7 +23,7 @@ Descargá el instalador de Windows x64 (`*-setup.exe`) desde [GitHub Releases](h
 
 ## Publicar una release
 
-GitHub Actions comprueba las versiones y las notas, ejecuta los tests del core en Ubuntu y Windows y compila los instaladores. Solo publica cuando ambos builds terminan correctamente: `.deb`, `.AppImage`, `*-setup.exe` y `SHA256SUMS` en el mismo release.
+GitHub Actions comprueba las versiones y las notas, ejecuta los tests del core en Ubuntu y Windows y compila los instaladores. Solo publica después de completar Linux, Windows y ambas arquitecturas Android: `.deb`, `.AppImage`, `*-setup.exe`, dos APK release firmados, `android-update.json` y `SHA256SUMS` en el mismo release.
 
 La ejecución manual (`workflow_dispatch`) permite validar los builds y descargar los artefactos sin publicar. El tag `vX.Y.Z` activa la publicación. Los pasos para preparar, validar y publicar están en [Publicar una release](docs/publicar-release.md).
 
@@ -43,14 +43,23 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - [Ubicación mediante Google Maps](docs/ubicacion-google-maps.md): importar coordenadas o enlaces y revisar antes de guardar.
 - [Avisos por rezo](docs/avisos-por-rezo.md): adhan, tres tonos discretos o solo notificación, con prueba y detención.
 - [Calendario islámico](docs/calendario-islamico.md) tabular local, consulta mensual y ajuste manual de −2 a +2 días.
-- Sistema → Apariencia: temas claro, oscuro o del sistema y cinco colores de acento.
+- Configuración → Apariencia: temas claro, oscuro o del sistema y cinco colores de acento.
 - [Lector del Qur'an](docs/lector-quran.md): árabe y español offline, marcadores y punto de lectura. Su contenido tiene condiciones independientes, incluida la restricción no comercial de la traducción.
 
-El lector se [revisó en la app nativa de Linux](docs/revision-lector-quran.md), con persistencia en dos reinicios completos. La revisión visual en Windows sigue pendiente. La recitación en audio tiene una [investigación de fuentes](docs/investigacion-audio-quran.md) y un [RDD con la propuesta de integración](docs/rdd-recitacion-quran.md); su implementación está pendiente y no se incluye en esta versión. El alcance de las mejoras está en el [roadmap](docs/roadmap.md).
+El lector se [revisó en la app nativa de Linux](docs/revision-lector-quran.md). La [recitación de Parhizgar en escritorio](docs/recitacion-quran.md) incluye controles por aleya, descargas por sura y prioridad de avisos. Ver la [revisión funcional de estados](docs/revision-estados-escritorio.md), el [RDD](docs/rdd-recitacion-quran.md) y el [roadmap](docs/roadmap.md). La revisión visual y auditiva en Windows requiere un equipo Windows.
 
-### Android experimental en desarrollo
+## Novedades de v0.1.9
 
-La [edición experimental de Android](docs/android-experimental.md) incluye interfaz móvil, cálculo local, registro, calendario y lector offline. Sus APK ARM64 y ARMv7 (32 bits) se distribuyen mediante artefactos de Actions y [prereleases con descarga directa](https://github.com/MarcosRehtanz/adhan-companion/releases), separadas de las releases estables. El workflow permite publicar una prerelease desde una ejecución manual. En Android, **Sistema → Actualizaciones** permite buscar, descargar y abrir la instalación de una compilación compatible, con verificación de firma y confirmación de Android. **Adhan, tonos y preavisos tienen una integración nativa experimental**, con activación manual, permisos y control Detener. La validación con pantalla apagada y ahorro de batería en el J7 sigue pendiente. Ver el documento para compilación, alcance y firma experimental persistente y migración desde los primeros APK con otras firmas.
+- Recitación de Parhizgar para Linux y Windows y descarga de audio por sura.
+- Estados, errores y reintentos confirmados por el core; ediciones en modo lectura con Editar, Guardar y Cancelar.
+- Menú responsive lateral desde la izquierda. Sonidos y preavisos en **Configuración → Adhan y avisos**.
+- APK oficiales ARMv7 y ARM64, sin depuración y firmados con la clave persistente existente.
+
+### Android
+
+Descargá el APK **ARMv7** para dispositivos de 32 bits (incluido el J7 probado) o **ARM64** para dispositivos de 64 bits desde el [release oficial](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Requiere Android 7.0/API 24 o superior. Instalalo sobre la app existente, sin desinstalar ni borrar datos. Mantiene el identificador y la indicación experimental anteriores para preservar compatibilidad y describir su validación limitada.
+
+**Configuración → Actualizaciones** busca, descarga y verifica el APK antes de abrir el instalador de Android; la instalación necesita confirmación del usuario. La compilación 10018 recibe el release mediante una prerelease puente compatible con su actualizador anterior. **Adhan, tonos y preavisos** usan alarmas y audio nativos, con activación y permisos. El J7/Android 8.1 comprobó la compilación anterior con pantalla apagada y ahorro de batería; no generalizar ese resultado a todos los dispositivos ni a este nuevo APK sin probarlo. El lector escrito del Qur’an está incluido; su recitación en Android sigue pendiente. Ver [detalles Android](docs/android-experimental.md).
 
 ## Stack
 

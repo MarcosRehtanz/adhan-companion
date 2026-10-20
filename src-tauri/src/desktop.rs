@@ -112,6 +112,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             None
         }
     };
+    let stop_quran = MenuItem::with_id(app, "stop_quran", "Detener recitación del Qur’an", true, None::<&str>)?;
     let silenciar = MenuItem::with_id(app, "silence_adhan", "Detener sonido", true, None::<&str>)?;
     let test_notif: Option<MenuItem<tauri::Wry>> = {
         #[cfg(debug_assertions)]
@@ -139,6 +140,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     menu = menu
         .separator()
         .item(&silenciar)
+        .item(&stop_quran)
         .item(&config)
         .separator()
         .item(&salir);
@@ -187,6 +189,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                     Err(e) => log!("audio falló: {e}"),
                 }
             }
+            "stop_quran" => { crate::quran_audio::stop(); }
             "silence_adhan" => {
                 crate::audio::stop_adhan();
                 log!("adhan silenciado desde el tray");
@@ -208,6 +211,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(name) = scheduler::PRAYERS.get(idx) {
                         if let Err(e) = pray_tx.send(scheduler::Trigger::Pray {
                             date: String::new(), // hoy
+                            reply: None,
                             prayer: (*name).to_string(),
                         }) {
                             log!("marcado no entregó al scheduler: {e}");

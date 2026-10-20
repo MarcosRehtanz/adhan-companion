@@ -311,17 +311,42 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .quran-sources { line-height: 1.7; overflow-wrap: anywhere; }
 .quran-sources pre { white-space: pre-wrap; font-size: 11px; background: var(--bg); padding: 12px; border-radius: var(--r-control); }
 
-/* Navegación móvil con etiquetas, foco modal y espacio completo para el contenido. */
+/* Panel móvil desde la izquierda; el dialog mantiene el foco dentro del menú. */
 .App-root { height: 100dvh; padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); }
 .mobile-menu-toggle { display: none; }
 .platform-android .mobile-menu-toggle { display: inline-flex; flex-shrink: 0; }
-.mobile-navigation { width: 92vw; max-width: 380px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; padding: 20px; border: 1px solid var(--borde); border-radius: 18px; background: var(--tarjeta); color: var(--texto); }
+.mobile-navigation {
+  position: fixed; top: 0; left: 0; right: auto; bottom: auto; margin: 0;
+  width: 320px; max-width: calc(100vw - 48px);
+  height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh;
+  overflow-y: auto; overscroll-behavior-y: contain;
+  padding: 20px 16px;
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(16px + env(safe-area-inset-left, 0px));
+  border: 0; border-radius: 0; background: var(--sidebar); color: #fff;
+  box-shadow: 8px 0 32px rgba(0, 0, 0, .22);
+}
+.mobile-navigation[open] { display: flex; flex-direction: column; }
+.mobile-navigation.open { animation: navigation-enter 200ms ease-out both; }
+.mobile-navigation.closing { animation: navigation-leave 200ms ease-in both; pointer-events: none; }
 .mobile-navigation::backdrop { background: rgba(0, 0, 0, .5); }
-.mobile-menu-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.mobile-menu-heading h2 { margin: 0; font-size: 18px; }
-.mobile-navigation nav { display: grid; gap: 6px; margin-bottom: 16px; }
-.mobile-menu-item { display: flex; align-items: center; gap: 14px; min-height: 48px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--texto); text-align: left; cursor: pointer; }
-.mobile-menu-item.activa { background: var(--acento-claro); color: var(--acento); border-color: var(--acento); font-weight: 650; }
+.mobile-menu-heading { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.mobile-menu-brand { display: flex; align-items: center; gap: 10px; }
+.mobile-menu-heading h2 { margin: 0; font-size: 17px; line-height: 1.15; }
+.mobile-menu-close { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 8px; color: #fff; background: transparent; border-color: rgba(255,255,255,.25); }
+.mobile-navigation nav { display: grid; flex-shrink: 0; gap: 6px; margin-bottom: 24px; }
+.mobile-menu-item { display: flex; align-items: center; gap: 14px; min-height: 48px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: rgba(255,255,255,.85); text-align: left; cursor: pointer; }
+.mobile-menu-item:hover { background: rgba(255,255,255,.08); }
+.mobile-menu-item.activa { background: var(--tarjeta); color: var(--acento); font-weight: 650; }
+.mobile-menu-item svg { flex-shrink: 0; }
+.mobile-menu-version { margin: auto 0 0; padding: 12px; color: rgba(255,255,255,.65); font-size: 12px; }
+.mobile-navigation button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; box-shadow: none; }
+@keyframes navigation-enter { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes navigation-leave { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .mobile-navigation.open, .mobile-navigation.closing { animation: none; }
+}
 .experimental-notice { display: grid; gap: 5px; max-width: 780px; margin: 0 auto 16px; padding: 12px 16px; border: 1px solid var(--borde); border-left: 4px solid var(--acento); border-radius: 10px; background: var(--acento-claro); font-size: 12px; line-height: 1.5; }
 .experimental-notice span { color: var(--texto-suave); }
 
@@ -381,3 +406,66 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 
 .android-update-actions { flex-wrap: wrap; justify-content: flex-start; }
 .android-update-actions > button { max-width: 100%; }
+
+/* Reproductor fuera del área desplazable: reserva su espacio al pie del lector. */
+#quran-player-slot { flex-shrink: 0; min-width: 0; }
+.quran-player { border-top: 1px solid var(--borde); background: var(--tarjeta); color: var(--texto); }
+.quran-player-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 20px; max-width: 828px; margin: 0 auto; padding: 12px 24px; min-height: 78px; }
+.quran-player-track { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.quran-player-track > div { min-width: 0; }
+.quran-player-mark { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; background: var(--acento-claro); color: var(--acento); border-radius: 11px; }
+.quran-player-position { display: flex; align-items: baseline; gap: 8px; padding: 0; border: 0; background: none; color: var(--texto); font: inherit; text-align: left; cursor: pointer; max-width: 100%; }
+.quran-player-position b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 650; }
+.quran-player-position span { flex-shrink: 0; color: var(--acento); font-size: 11px; }
+.quran-player-track p { margin: 4px 0 0; color: var(--texto-tenue); font-size: 11px; line-height: 1.45; }
+.quran-player-controls { display: flex; align-items: center; gap: 5px; }
+.quran-player-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 36px; padding: 0; flex-shrink: 0; border: 0; border-radius: 9px; color: var(--texto-suave); background: transparent; cursor: pointer; }
+.quran-player-icon:hover:not(:disabled) { background: var(--chip); color: var(--acento); }
+.quran-player-icon:disabled { opacity: .35; cursor: default; }
+.quran-player-play { width: 44px; height: 44px; border-radius: 50%; background: var(--acento-solido); color: #fff; margin: 0 3px; }
+.quran-player-play:hover:not(:disabled) { background: var(--acento-solido); color: #fff; filter: brightness(1.1); }
+.quran-player-options-toggle { display: flex; align-items: center; gap: 6px; border: 1px solid var(--borde); border-radius: var(--r-control); background: transparent; color: var(--texto-suave); cursor: pointer; padding: 8px 10px; font: inherit; font-size: 11px; }
+.quran-player-options-toggle[aria-expanded="true"] { border-color: var(--acento); color: var(--acento); background: var(--acento-claro); }
+.quran-download-dot { height: 6px; width: 6px; border-radius: 50%; background: var(--acento); }
+.quran-player-options { max-height: 45vh; overflow: auto; border-bottom: 1px solid var(--borde); padding: 16px 24px; }
+.quran-options-heading, .quran-options-grid, .quran-audio-sources { max-width: 780px; margin-left: auto; margin-right: auto; }
+.quran-options-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.quran-options-heading h2 { font-size: 14px; margin: 0; }
+.quran-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.quran-option-block { min-width: 0; }
+.quran-option-block h3 { display: flex; align-items: center; gap: 7px; font-size: 12px; margin: 0 0 10px; }
+.quran-option-block p, .quran-audio-sources p { font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.quran-last-listened { margin-top: 16px; }
+.quran-last-listened > span { font-size: 10px; color: var(--texto-tenue); text-transform: uppercase; letter-spacing: .5px; }
+.quran-last-listened p { margin: 4px 0; }
+.quran-audio-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.quran-audio-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.quran-download-status progress { width: 100%; accent-color: var(--acento); }
+.quran-audio-sources { border-top: 1px solid var(--borde); margin-top: 16px; padding-top: 4px; }
+.quran-audio-sources summary { cursor: pointer; color: var(--texto-suave); padding: 10px 0; font-size: 11px; }
+.quran-player-alert { padding: 9px 24px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; max-height: 20vh; overflow: auto; border-bottom: 1px solid var(--borde); }
+.quran-player-alert .link-button { margin-left: 8px; }
+.quran-verse.listening { box-shadow: inset 4px 0 0 var(--acento); background: color-mix(in srgb, var(--acento) 7%, var(--bg)); }
+@media (max-width: 1000px) {
+  .quran-player-bar { gap: 10px; padding-left: 16px; padding-right: 16px; }
+  .quran-player-mark { display: none; }
+}
+@media (max-width: 560px) {
+  .quran-player-bar { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 10px 16px; }
+  .quran-player-controls { grid-column: 1 / -1; grid-row: 2; justify-content: center; gap: 12px; }
+  .quran-player-icon { min-height: 44px; width: 44px; }
+  .quran-player-options-toggle { min-height: 38px; }
+  .quran-player-position { min-height: 0; }
+  .quran-player-options { padding: 12px 16px; max-height: 40vh; }
+  .quran-options-grid { grid-template-columns: 1fr; gap: 16px; }
+}
+
+.quran-download-state { display: flex; align-items: center; gap: 7px; margin: 10px 0 5px; color: var(--texto-suave); font-size: 12px; }
+.quran-download-state.complete { color: var(--acento); font-weight: 600; }
+.quran-download-state.error, .quran-download-state.damaged { color: var(--error); }
+.quran-state-spinner { animation: quran-state-spin 1s linear infinite; flex-shrink: 0; }
+@keyframes quran-state-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .quran-state-spinner { animation: none; } }
+
+.page-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.page-fields:disabled { opacity: .78; }

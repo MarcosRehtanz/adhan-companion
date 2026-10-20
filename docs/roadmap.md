@@ -124,7 +124,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 **Aceptación:** contenido contrastado con su fuente, numeración consistente, presentación correcta del árabe, persistencia de marcadores y última lectura, y uso offline para el contenido instalado.
 
-**Recitación en audio:** propuesta documentada en el [RDD de recitación del Qur’an](rdd-recitacion-quran.md), pendiente de implementación y sin versión asignada. Recomienda Parhizgar mediante Al Quran Cloud, primero reproducción por aleya y después descargas por sura. Incluye prioridad del Adhan y tonos, reanudación manual, control desde el tray y progreso de escucha separado de la lectura.
+**Recitación en audio:** [implementación de escritorio](recitacion-quran.md) incluida en v0.1.9, con revisión funcional nativa/auditiva Linux documentada; Windows pendiente de comprobación física. El [RDD de recitación del Qur’an](rdd-recitacion-quran.md) conserva el diseño. Recomienda Parhizgar mediante Al Quran Cloud, primero reproducción por aleya y después descargas por sura. Incluye prioridad del Adhan y tonos, reanudación manual, control desde el tray y progreso de escucha separado de la lectura.
 
 ## Android experimental
 
@@ -134,7 +134,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 - Adaptar la navegación y los controles para pantallas táctiles.
 - Separar el arranque móvil del tray y usar almacenamiento privado de Android.
 - Generar APK ARM64 y ARMv7 (32 bits) de prueba en un workflow propio, con prereleases experimentales separadas de las releases estables.
-- Integración nativa experimental de AlarmManager, Adhan, tonos por rezo y preavisos implementada. Preaviso y Adhan de Maghrib comprobados el 19/10/2026 en J7 SM-J710MN/Android 8.1, compilación 10018, con pantalla apagada, sin USB y ahorro de energía activo; ambos escuchados y registrados sin error. Pendiente ampliar a tonos, permisos, Doze profundo y varios días.
+- Integración nativa experimental de AlarmManager, Adhan, tonos por rezo y preavisos implementada. Preaviso y Adhan de Maghrib comprobados el 19/10/2026 en J7 SM-J710MN/Android 8.1, compilación 10018, con pantalla apagada, sin USB y ahorro de energía activo; ambos escuchados y registrados sin error. Reprogramación de ambas alarmas tras un nuevo reinicio comprobada sin abrir la app; pendiente observar la entrega audible de ese ciclo. Pendiente ampliar a tonos, permisos, Doze profundo y varios días.
 - Firma experimental persistente y número de compilación creciente configurados en CI. Actualizador desde Sistema implementado con búsqueda, descarga compatible, verificación y apertura del instalador. Ensayo real 10017 → 10018 desde la app comprobado en J7 SM-J710MN con Android 8.1: búsqueda, descarga, instalación y conservación de configuración, marcador y última lectura. Conservación de configuración, marcador, última lectura y preferencias de avisos comprobada también tras reiniciar el teléfono. Las copias con otra firma requieren migración manual con respaldo y autorización.
 
 ## Orden sugerido
@@ -145,3 +145,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 4. Lector del Qur'an revisado en Linux: repetir la revisión nativa en Windows antes de publicar.
 
 El modo Ramadán continúa como propuesta documentada. MQTT/dispositivos continúa condicionado al hardware; estas solicitudes no cambian ese estado.
+
+## Release oficial v0.1.9
+
+Linux, Windows y APK Android ARMv7/ARM64 se publican juntos. Se mantiene identidad/firma Android para conservar los datos y se ofrece un puente al actualizador de 10018. Ver [notas](releases/v0.1.9.md) y [procedimiento](publicar-release.md). La publicación oficial del APK no amplía por sí sola la validación limitada del J7.

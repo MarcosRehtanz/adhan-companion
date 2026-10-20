@@ -1,6 +1,6 @@
 [package]
 name = "adhan-companion"
-version = "0.1.8"
+version = "0.1.9"
 description = "App de escritorio tray-first para Linux y Windows: horarios de rezo, adhan y seguimiento — cálculo 100% local"
 authors = ["Marcos Rehtanz"]
 edition = "2024"
@@ -31,7 +31,8 @@ tauri-plugin-notification = "2.6.0"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-autostart = "2"
-rodio = { version = "0.23", default-features = false, features = ["playback", "wav"] }
+sha2 = "0.10"
+rodio = { version = "0.23", default-features = false, features = ["playback", "wav", "mp3"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # D-Bus login1 permite realinear el scheduler cuando Linux vuelve de suspensión.
