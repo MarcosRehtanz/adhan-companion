@@ -41,7 +41,7 @@ const PAGES: { id: Page; label: string; Icon: LucideIcon }[] = [
 ];
 const SYSTEM_PAGE: { id: Page; label: string; Icon: LucideIcon } = { id: "sistema", label: "Configuración", Icon: Settings };
 
-interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean }
+interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean; quran_audio: boolean }
 
 interface Config {
   version: number;
@@ -317,7 +317,7 @@ export default function App() {
         <nav aria-label="Navegación móvil">
           {[...PAGES, SYSTEM_PAGE].map(({ id, label, Icon }) => <button key={id} className={"mobile-menu-item " + (page === id ? "activa" : "")} aria-current={page === id ? "page" : undefined} disabled={saving || menuPhase === "closing"} onClick={() => { setPage(id); closeMenu(); }}><Icon size={21} /><span>{label}</span></button>)}
         </nav>
-        <p className="mobile-menu-version">v{verActual || "0.1.10"}{isAndroid ? " · Android" : ""}</p>
+        <p className="mobile-menu-version">v{verActual || "0.1.11"}{isAndroid ? " · Android" : ""}</p>
       </dialog>
       {!isAndroid && <aside className="sidebar">
         <div className="brand"><img src={logo} className="logo" alt="" /><span>Adhan<br />Companion</span></div>
@@ -332,22 +332,25 @@ export default function App() {
           <button className={"nav-item " + (page === SYSTEM_PAGE.id ? "activa" : "")} aria-label={SYSTEM_PAGE.label} aria-current={page === SYSTEM_PAGE.id ? "page" : undefined} disabled={saving} onClick={() => setPage(SYSTEM_PAGE.id)}>
             <Settings size={17} strokeWidth={2} /><span>{SYSTEM_PAGE.label}</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.10"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.11"}</span>
         </div>
       </aside>}
 
       <div className="workspace">
-        <header className="topbar">
+        <header className={"topbar" + (page === "quran" ? " topbar-quran" : "")}>
           <button className="secondary-button mobile-menu-toggle" aria-label="Abrir menú de navegación" aria-haspopup="dialog" aria-controls="mobile-navigation" aria-expanded={menuPhase !== "closed"} onClick={openMenu}><Menu size={24} /></button>
-          <div><span className="eyebrow">Adhan Companion</span><h1>{pageTitle}</h1></div>
-          <div className="topbar-meta">
-            {page === "hoy" && <span className="today-date">{hoy ? fmtBonito(hoy) : "Cargando horarios…"}</span>}
-          </div>
+          {/* En el Qur’an, la barra del lector ocupa el lugar del título (portal desde QuranReader). */}
+          {page === "quran" ? <><h1 className="visually-hidden">{pageTitle}</h1><div id="quran-topbar-slot" className="quran-topbar-slot" /></> : <>
+            <div><span className="eyebrow">Adhan Companion</span><h1>{pageTitle}</h1></div>
+            <div className="topbar-meta">
+              {page === "hoy" && <span className="today-date">{hoy ? fmtBonito(hoy) : "Cargando horarios…"}</span>}
+            </div>
+          </>}
         </header>
 
-        <main className="page-content" id="main-content"><fieldset className="page-fields" disabled={saving}>
+        <main className={"page-content" + (page === "quran" ? " page-quran" : "")} id="main-content"><fieldset className="page-fields" disabled={saving}>
           {isAndroid && <aside className="android-notice" role="note"><strong>Avisos en Android</strong><span>Adhan y avisos nativos disponibles. Activá los avisos y revisá los permisos en “Configuración → Adhan y avisos”.</span></aside>}
-          {page === "quran" && <QuranReader audioAvailable={runtime?.platform === "linux" || runtime?.platform === "windows" || runtime?.platform === "macos"} />}
+          {page === "quran" && <QuranReader audioAvailable={runtime?.quran_audio ?? false} />}
           {page === "calendario" && (scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>)}
           {page === "hoy" && (
             <div className="page-stack">

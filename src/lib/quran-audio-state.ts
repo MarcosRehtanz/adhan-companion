@@ -2,6 +2,8 @@
 export interface AudioState {
   phase: string; position: { sura: number; aya: number } | null;
   last: { sura: number; aya: number } | null; volume: number; error: string; interrupted: boolean; storage_error: string;
+  /** Solo Android: la escucha requiere notificaciones para pausar o detener desde ahí. */
+  notifications?: boolean;
   offline: { sura: number; completed: number; total: number; bytes: number };
   download: { sura: number | null; phase: string; completed: number; total: number; bytes: number; error: string };
 }

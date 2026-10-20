@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maqueta · Lectura del Qur’an — Adhan Companion</title>
+  <link rel="preload" href="../../../public/quran/fonts/AmiriQuran.ttf" as="font" type="font/ttf" crossorigin />
+  <link rel="stylesheet" href="lectura.css" />
+</head>
+<body data-tema="papel" data-modo="traduccion">
+  <div class="lector">
+    <header class="barra" id="barra">
+      <button class="icono" id="abrir-indice" aria-label="Índice de suras" title="Índice de suras"></button>
+      <div class="barra-sura">
+        <button class="icono" id="sura-anterior" aria-label="Sura anterior" title="Sura anterior"></button>
+        <button class="barra-titulo" id="barra-titulo" title="Elegir sura"><b id="barra-nombre">—</b><span lang="ar" dir="rtl" id="barra-arabe"></span></button>
+        <button class="icono" id="sura-siguiente" aria-label="Sura siguiente" title="Sura siguiente"></button>
+      </div>
+      <div class="barra-progreso" aria-live="off">
+        <span id="barra-posicion">—</span>
+        <span class="pista" aria-hidden="true"><span class="pista-relleno" id="pista-relleno"></span></span>
+      </div>
+      <button class="chip" id="retomar" hidden></button>
+      <div class="barra-acciones">
+        <button class="icono" id="abrir-marcadores" aria-label="Marcadores" title="Marcadores"></button>
+        <button class="icono texto-aa" id="abrir-preferencias" aria-label="Preferencias de lectura" title="Preferencias de lectura">Aa</button>
+        <button class="icono" id="entrar-enfoque" aria-label="Modo enfoque" title="Modo enfoque"></button>
+      </div>
+    </header>
+
+    <main class="hoja" id="hoja">
+      <div class="columna" id="columna">
+        <div class="estado" id="estado" role="status">Abriendo los textos instalados…</div>
+        <article id="sura" hidden></article>
+      </div>
+      <div class="contexto" id="contexto" hidden></div>
+    </main>
+
+    <footer class="reproductor" id="reproductor" aria-label="Reproductor del Qur’an">
+      <div class="rep-pista">
+        <span class="rep-marca" aria-hidden="true" id="rep-icono"></span>
+        <div>
+          <button class="rep-posicion" id="rep-posicion" title="Ver aleya de la recitación"><b id="rep-nombre">—</b><span id="rep-ref"></span></button>
+          <p>Shahriar Parhizgar · <span class="rep-aviso">maqueta sin audio</span></p>
+        </div>
+      </div>
+      <div class="rep-controles" role="group" aria-label="Controles de recitación">
+        <button class="icono" id="rep-anterior" aria-label="Aleya anterior" title="Aleya anterior"></button>
+        <button class="icono rep-play" id="rep-play" aria-label="Escuchar" title="Escuchar"></button>
+        <button class="icono" id="rep-siguiente" aria-label="Aleya siguiente" title="Aleya siguiente"></button>
+        <button class="icono" id="rep-detener" aria-label="Detener recitación" title="Detener recitación"></button>
+      </div>
+      <button class="rep-opciones" disabled title="Volumen y audio sin conexión (igual que en la app)">Opciones</button>
+    </footer>
+  </div>
+
+  <button class="salir-enfoque" id="salir-enfoque" hidden>Salir del enfoque <kbd>Esc</kbd></button>
+
+  <dialog class="panel" id="indice" aria-labelledby="indice-titulo">
+    <div class="panel-cabecera"><h2 id="indice-titulo">Suras</h2><button class="icono cerrar" aria-label="Cerrar"></button></div>
+    <input class="filtro" id="indice-filtro" type="search" placeholder="Número o nombre de la sura" aria-label="Filtrar suras" />
+    <ol class="indice-lista" id="indice-lista"></ol>
+  </dialog>
+
+  <dialog class="panel" id="marcadores" aria-labelledby="marcadores-titulo">
+    <div class="panel-cabecera"><h2 id="marcadores-titulo">Marcadores</h2><button class="icono cerrar" aria-label="Cerrar"></button></div>
+    <div id="marcadores-contenido"></div>
+  </dialog>
+
+  <dialog class="panel" id="preferencias" aria-labelledby="preferencias-titulo">
+    <div class="panel-cabecera"><h2 id="preferencias-titulo">Preferencias de lectura</h2><button class="icono cerrar" aria-label="Cerrar"></button></div>
+    <div id="preferencias-contenido"></div>
+  </dialog>
+
+  <p class="solo-lector" id="anuncio" aria-live="polite"></p>
+  <script src="lectura.js"></script>
+</body>
+</html>

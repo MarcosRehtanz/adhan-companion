@@ -1,12 +1,17 @@
-//! Recitación de escritorio. Red acotada fuera del scheduler y datos separados del lector.
+//! Recitación. Red acotada fuera del scheduler y datos separados del lector.
+//! Descargas, verificación y punto de escucha son comunes; reproduce rodio en
+//! escritorio y un servicio nativo en Android (`QuranPlayer.kt`).
 use crate::quran::Position;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+#[cfg(desktop)]
+use std::{
+    io::Cursor,
+    process::{Command, Stdio},
+};
 use std::{
     fs,
-    io::Cursor,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex, OnceLock,
@@ -28,6 +33,9 @@ struct Metadata {
 #[derive(Deserialize)]
 struct Sura {
     count: u16,
+    // Título de la notificación de Android.
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    name: String,
 }
 fn counts() -> &'static [Sura] {
     static META: OnceLock<Metadata> = OnceLock::new();
@@ -113,11 +121,18 @@ struct Download {
 }
 struct Inner {
     saved: Saved,
+    // En Android la sesión de reproducción vive en el servicio nativo.
+    #[cfg(desktop)]
     phase: String,
+    #[cfg(desktop)]
     position: Option<Position>,
+    #[cfg(desktop)]
     error: String,
+    #[cfg(desktop)]
     interrupted: bool,
+    #[cfg(desktop)]
     session: u64,
+    #[cfg(desktop)]
     player: Option<Arc<rodio::Player>>,
     download: Download,
 }
@@ -128,8 +143,8 @@ struct Engine {
 fn engine() -> Result<&'static Arc<Engine>, String> {
     static ENGINE: OnceLock<Result<Arc<Engine>, String>> = OnceLock::new();
     ENGINE.get_or_init(|| {
-        // Solo hay una instancia de escritorio; una transferencia de un proceso anterior
-        // no es una descarga utilizable y no debe acumularse entre reinicios.
+        // Solo hay una instancia (escritorio) o un proceso (Android); una transferencia de un
+        // proceso anterior no es una descarga utilizable y no debe acumularse entre reinicios.
         if let Ok(entries) = fs::read_dir(root()) {
             for entry in entries.flatten() {
                 let name = entry.file_name();
@@ -145,7 +160,25 @@ fn engine() -> Result<&'static Arc<Engine>, String> {
         };
         if saved.edition != EDITION || saved.volume > 100 { return Err("El estado de escucha tiene una edición o volumen inválidos; se conservó el archivo.".into()); }
         if let Some(p) = saved.last { number(p)?; }
-        Ok(Arc::new(Engine { inner: Mutex::new(Inner { saved, phase: "stopped".into(), position: None, error: String::new(), interrupted: false, session: 0, player: None, download: Download::default() }), cancel: AtomicBool::new(false) }))
+        Ok(Arc::new(Engine {
+            inner: Mutex::new(Inner {
+                saved,
+                #[cfg(desktop)]
+                phase: "stopped".into(),
+                #[cfg(desktop)]
+                position: None,
+                #[cfg(desktop)]
+                error: String::new(),
+                #[cfg(desktop)]
+                interrupted: false,
+                #[cfg(desktop)]
+                session: 0,
+                #[cfg(desktop)]
+                player: None,
+                download: Download::default(),
+            }),
+            cancel: AtomicBool::new(false),
+        }))
     }).as_ref().map_err(Clone::clone)
 }
 fn save(saved: &Saved) -> Result<(), String> {
@@ -154,6 +187,7 @@ fn save(saved: &Saved) -> Result<(), String> {
         &serde_json::to_vec_pretty(saved).map_err(|e| e.to_string())?,
     )
 }
+#[cfg(desktop)]
 fn decode(bytes: Vec<u8>) -> Result<rodio::Decoder<Cursor<Vec<u8>>>, String> {
     rodio::Decoder::new(Cursor::new(bytes))
         .map_err(|e| format!("No se pudo decodificar la recitación MP3: {e}"))
@@ -209,17 +243,21 @@ fn cached(p: Position) -> Result<Option<Vec<u8>>, String> {
     }
     Ok(Some(bytes))
 }
+/// Una ruta temporal diferente por operación: reproducción y descarga no pisan archivos.
+fn transfer_path() -> Result<PathBuf, String> {
+    fs::create_dir_all(root()).map_err(|e| e.to_string())?;
+    Ok(root().join(format!(
+        "transfer-{}-{}.part",
+        std::process::id(),
+        TEMP_ID.fetch_add(1, Ordering::Relaxed)
+    )))
+}
+#[cfg(desktop)]
 fn fetch(p: Position, cancelled: impl Fn() -> bool) -> Result<Vec<u8>, String> {
     if cancelled() {
         return Err("Operación cancelada.".into());
     }
-    // Una ruta temporal diferente por operación: reproducción y descarga no pisan archivos.
-    fs::create_dir_all(root()).map_err(|e| e.to_string())?;
-    let temp = root().join(format!(
-        "transfer-{}-{}.part",
-        std::process::id(),
-        TEMP_ID.fetch_add(1, Ordering::Relaxed)
-    ));
+    let temp = transfer_path()?;
     let mut command = Command::new("curl");
     command
         .args([
@@ -290,6 +328,36 @@ fn fetch(p: Position, cancelled: impl Fn() -> bool) -> Result<Vec<u8>, String> {
     let _ = fs::remove_file(temp);
     result
 }
+/// Android no ejecuta curl: la red la hace Kotlin (`QuranFetch.kt`) con los mismos límites
+/// y Rust valida el resultado antes de guardarlo con su manifiesto.
+#[cfg(target_os = "android")]
+fn fetch(p: Position, cancelled: impl Fn() -> bool) -> Result<Vec<u8>, String> {
+    if cancelled() {
+        return Err("Operación cancelada.".into());
+    }
+    let temp = transfer_path()?;
+    let result = (|| {
+        native(
+            "fetch",
+            serde_json::json!({ "url": url(p)?, "path": temp.to_string_lossy(), "max": MAX_FILE }),
+        )?;
+        if cancelled() {
+            return Err("Descarga cancelada.".into());
+        }
+        let bytes = fs::read(&temp).map_err(|e| e.to_string())?;
+        if bytes.is_empty() || bytes.len() as u64 > MAX_FILE {
+            return Err("Tamaño de audio inválido.".into());
+        }
+        // Sin decodificador en Android: al menos no publicar HTML ni errores del servidor.
+        let mpeg = bytes.starts_with(b"ID3") || (bytes[0] == 0xFF && bytes.get(1).is_some_and(|b| b & 0xE0 == 0xE0));
+        if !mpeg {
+            return Err("La descarga no es un archivo MP3 de recitación.".into());
+        }
+        Ok(bytes)
+    })();
+    let _ = fs::remove_file(temp);
+    result
+}
 fn storage_size() -> u64 {
     (1..=114)
         .filter_map(|s| fs::read_dir(folder(s)).ok())
@@ -330,6 +398,7 @@ fn store(p: Position, bytes: &[u8]) -> Result<(), String> {
         include_bytes!("../../public/quran/audio-provenance.json"),
     )
 }
+#[cfg(desktop)]
 fn fail(e: &Engine, session: u64, error: String) {
     if let Ok(mut i) = e.inner.lock() {
         if i.session == session {
@@ -341,6 +410,7 @@ fn fail(e: &Engine, session: u64, error: String) {
         }
     }
 }
+#[cfg(desktop)]
 fn playback(e: Arc<Engine>, session: u64, mut p: Position) {
     let result = (|| -> Result<(), String> {
         let mut device = rodio::DeviceSinkBuilder::open_default_sink()
@@ -421,6 +491,7 @@ fn playback(e: Arc<Engine>, session: u64, mut p: Position) {
         fail(&e, session, error);
     }
 }
+#[cfg(desktop)]
 fn start(p: Position, preserve_pause: bool) -> Result<(), String> {
     number(p)?;
     let e = engine()?.clone();
@@ -451,6 +522,7 @@ fn start(p: Position, preserve_pause: bool) -> Result<(), String> {
     std::thread::spawn(move || playback(e, session, p));
     Ok(())
 }
+#[cfg(desktop)]
 /// Se invoca bajo el coordinador común antes de comenzar Adhan o tonos.
 pub(crate) fn interrupt() {
     if let Ok(e) = engine() {
@@ -465,6 +537,7 @@ pub(crate) fn interrupt() {
         }
     }
 }
+#[cfg(desktop)]
 pub fn stop() {
     if let Ok(e) = engine() {
         if let Ok(mut i) = e.inner.lock() {
@@ -589,9 +662,35 @@ pub fn status(sura: u16) -> Result<serde_json::Value, String> {
         .inner
         .lock()
         .map_err(|_| "No se pudo acceder a la escucha.")?;
-    Ok(
-        serde_json::json!({ "phase": i.phase, "position": i.position, "last": i.saved.last, "volume": i.saved.volume, "error": i.error, "interrupted": i.interrupted, "download": i.download, "offline": offline, "storage_error": storage_error }),
-    )
+    #[cfg(desktop)]
+    let value = serde_json::json!({ "phase": i.phase, "position": i.position, "last": i.saved.last, "volume": i.saved.volume, "error": i.error, "interrupted": i.interrupted, "download": i.download, "offline": offline, "storage_error": storage_error });
+    #[cfg(target_os = "android")]
+    let value = {
+        let mut value = serde_json::json!({ "last": i.saved.last, "volume": i.saved.volume, "download": i.download, "offline": offline, "storage_error": storage_error });
+        // El servicio nativo informa la sesión; nunca se consulta con el estado bloqueado.
+        drop(i);
+        let session = native("state", serde_json::json!({}))?;
+        for key in ["phase", "position", "error", "interrupted", "notifications"] {
+            value[key] = session[key].clone();
+        }
+        value
+    };
+    Ok(value)
+}
+/// Aleya de destino de anterior, siguiente, reintentar y retomar escucha.
+fn target(action: &str, current: Option<Position>, last: Option<Position>) -> Result<Position, String> {
+    let mut p = if action == "retake" { last } else { current.or(last) }
+        .ok_or("Todavía no hay un punto de escucha.")?;
+    if action == "previous" {
+        p.aya = p.aya.saturating_sub(1).max(1);
+    }
+    if action == "next" {
+        if p.aya >= count(p.sura)? {
+            return Err("Llegaste al final de la sura.".into());
+        }
+        p.aya += 1;
+    }
+    Ok(p)
 }
 pub fn control(
     action: &str,
@@ -600,6 +699,65 @@ pub fn control(
     volume: Option<u8>,
 ) -> Result<(), String> {
     let e = engine()?;
+    match action {
+        "volume" => {
+            let volume = volume
+                .filter(|v| *v <= 100)
+                .ok_or("Volumen fuera de rango.")?;
+            {
+                let mut i = e
+                    .inner
+                    .lock()
+                    .map_err(|_| "No se pudo acceder a la escucha.")?;
+                let mut saved = i.saved.clone();
+                saved.volume = volume;
+                save(&saved)?;
+                i.saved = saved;
+                #[cfg(desktop)]
+                if let Some(p) = &i.player {
+                    p.set_volume(volume as f32 / 100.0);
+                }
+            }
+            #[cfg(target_os = "android")]
+            native("volume", serde_json::json!({ "volume": volume }))?;
+            Ok(())
+        }
+        "download" => download(sura.ok_or("Falta la sura.")?),
+        "cancel" => {
+            e.cancel.store(true, Ordering::Relaxed);
+            // Corta también la transferencia nativa en curso.
+            #[cfg(target_os = "android")]
+            native("cancelFetch", serde_json::json!({}))?;
+            Ok(())
+        }
+        "delete" => {
+            let sura = sura.ok_or("Falta la sura.")?;
+            count(sura)?;
+            let mut i = e
+                .inner
+                .lock()
+                .map_err(|_| "No se pudo acceder a la escucha.")?;
+            if i.download.phase == "downloading" {
+                return Err("Esperá o cancelá la descarga antes de eliminar audio.".into());
+            }
+            let _storage = STORAGE
+                .lock()
+                .map_err(|_| "Almacenamiento de audio ocupado.")?;
+            match fs::remove_dir_all(folder(sura)) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(format!("No se pudo eliminar el audio: {e}")),
+            }
+            if i.download.sura == Some(sura) {
+                i.download = Download::default();
+            }
+            Ok(())
+        }
+        _ => playback_control(e, action, sura, aya),
+    }
+}
+#[cfg(desktop)]
+fn playback_control(e: &Engine, action: &str, sura: Option<u16>, aya: Option<u16>) -> Result<(), String> {
     match action {
         "play" => start(
             Position {
@@ -648,74 +806,132 @@ pub fn control(
             Ok(())
         }
         "previous" | "next" | "retry" | "retake" => {
-            let mut p = {
+            let (current, last) = {
                 let i = e
                     .inner
                     .lock()
                     .map_err(|_| "No se pudo acceder a la escucha.")?;
-                if action == "retake" {
-                    i.saved.last
-                } else {
-                    i.position.or(i.saved.last)
-                }
-            }
-            .ok_or("Todavía no hay un punto de escucha.")?;
-            if action == "previous" {
-                p.aya = p.aya.saturating_sub(1).max(1);
-            }
-            if action == "next" {
-                if p.aya >= count(p.sura)? {
-                    return Err("Llegaste al final de la sura.".into());
-                }
-                p.aya += 1;
-            }
-            start(p, matches!(action, "previous" | "next"))
-        }
-        "volume" => {
-            let volume = volume
-                .filter(|v| *v <= 100)
-                .ok_or("Volumen fuera de rango.")?;
-            let mut i = e
-                .inner
-                .lock()
-                .map_err(|_| "No se pudo acceder a la escucha.")?;
-            let mut saved = i.saved.clone();
-            saved.volume = volume;
-            save(&saved)?;
-            i.saved = saved;
-            if let Some(p) = &i.player {
-                p.set_volume(volume as f32 / 100.0);
-            }
-            Ok(())
-        }
-        "download" => download(sura.ok_or("Falta la sura.")?),
-        "cancel" => {
-            e.cancel.store(true, Ordering::Relaxed);
-            Ok(())
-        }
-        "delete" => {
-            let sura = sura.ok_or("Falta la sura.")?;
-            count(sura)?;
-            let mut i = e
-                .inner
-                .lock()
-                .map_err(|_| "No se pudo acceder a la escucha.")?;
-            if i.download.phase == "downloading" {
-                return Err("Esperá o cancelá la descarga antes de eliminar audio.".into());
-            }
-            let _storage = STORAGE
-                .lock()
-                .map_err(|_| "Almacenamiento de audio ocupado.")?;
-            match fs::remove_dir_all(folder(sura)) {
-                Ok(()) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => return Err(format!("No se pudo eliminar el audio: {e}")),
-            }
-            if i.download.sura == Some(sura) {
-                i.download = Download::default();
-            }
-            Ok(())
+                (i.position, i.saved.last)
+            };
+            start(target(action, current, last)?, matches!(action, "previous" | "next"))
         }
         _ => Err("Acción de recitación desconocida.".into()),
+    }
+}
+
+/// Android: el servicio `QuranPlayer` reproduce, pide el foco de audio y cede ante el Adhan.
+#[cfg(target_os = "android")]
+fn native(action: &str, mut args: serde_json::Value) -> Result<serde_json::Value, String> {
+    args["action"] = action.into();
+    crate::android_alerts::call("quran", args)
+}
+#[cfg(target_os = "android")]
+fn playback_control(e: &Engine, action: &str, sura: Option<u16>, aya: Option<u16>) -> Result<(), String> {
+    let start = |p: Position, keep_pause: bool| -> Result<(), String> {
+        number(p)?;
+        let volume = e
+            .inner
+            .lock()
+            .map_err(|_| "No se pudo acceder a la escucha.")?
+            .saved
+            .volume;
+        native(
+            "play",
+            serde_json::json!({ "sura": p.sura, "aya": p.aya, "count": count(p.sura)?, "volume": volume, "keep": keep_pause }),
+        )
+        .map(|_| ())
+    };
+    match action {
+        "play" => start(
+            Position {
+                sura: sura.ok_or("Falta la sura.")?,
+                aya: aya.ok_or("Falta la aleya.")?,
+            },
+            false,
+        ),
+        "stop" | "pause" | "resume" => native(action, serde_json::json!({})).map(|_| ()),
+        "previous" | "next" | "retry" | "retake" => {
+            let current: Option<Position> =
+                serde_json::from_value(native("state", serde_json::json!({}))?["position"].clone())
+                    .unwrap_or(None);
+            let last = e
+                .inner
+                .lock()
+                .map_err(|_| "No se pudo acceder a la escucha.")?
+                .saved
+                .last;
+            start(target(action, current, last)?, matches!(action, "previous" | "next"))
+        }
+        _ => Err("Acción de recitación desconocida.".into()),
+    }
+}
+#[cfg(target_os = "android")]
+fn jni_position(sura: jni::sys::jint, aya: jni::sys::jint) -> Result<Position, String> {
+    let p = Position {
+        sura: u16::try_from(sura).map_err(|_| "Sura inválida.")?,
+        aya: u16::try_from(aya).map_err(|_| "Aleya inválida.")?,
+    };
+    number(p)?;
+    Ok(p)
+}
+/// El servicio pide cada aleya: la ruta del archivo descargado y verificado, o la URL del proveedor.
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_github_marcosrehtanz_adhancompanion_experimental_QuranNative_resolve(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    sura: jni::sys::jint,
+    aya: jni::sys::jint,
+) -> jni::sys::jstring {
+    let result = std::panic::catch_unwind(|| -> Result<String, String> {
+        let p = jni_position(sura, aya)?;
+        engine()?;
+        let mut source = match cached(p)? {
+            Some(_) => serde_json::json!({ "path": file(p).to_string_lossy() }),
+            None => serde_json::json!({ "url": url(p)? }),
+        };
+        source["name"] = counts()[p.sura as usize - 1].name.clone().into();
+        Ok(source.to_string())
+    });
+    match result {
+        Ok(Ok(json)) => env
+            .new_string(json)
+            .map(|s| s.into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        Ok(Err(error)) => {
+            let _ = env.throw_new("java/lang/IllegalStateException", error);
+            std::ptr::null_mut()
+        }
+        Err(_) => {
+            let _ = env.throw_new("java/lang/IllegalStateException", "No se pudo preparar la aleya.");
+            std::ptr::null_mut()
+        }
+    }
+}
+/// Guarda la última aleya escuchada (Retomar escucha), igual que en escritorio.
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_github_marcosrehtanz_adhancompanion_experimental_QuranNative_listened(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    sura: jni::sys::jint,
+    aya: jni::sys::jint,
+) {
+    let result = std::panic::catch_unwind(|| -> Result<(), String> {
+        let p = jni_position(sura, aya)?;
+        let mut i = engine()?
+            .inner
+            .lock()
+            .map_err(|_| "No se pudo acceder a la escucha.")?;
+        if i.saved.last != Some(p) {
+            let mut saved = i.saved.clone();
+            saved.last = Some(p);
+            save(&saved)?;
+            i.saved = saved;
+        }
+        Ok(())
+    });
+    if !matches!(result, Ok(Ok(()))) {
+        let _ = env.throw_new("java/lang/IllegalStateException", "No se pudo guardar el punto de escucha.");
     }
 }

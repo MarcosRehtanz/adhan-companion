@@ -130,6 +130,8 @@ object PrayerAlarms {
             c.stopService(Intent(c, PrayerAudioService::class.java))
             notify(c, prayer, if (preview) "Prueba de aviso" else "Es hora del rezo.", false)
         } else {
+            // Como en escritorio: el Adhan o tono pausa la recitación y se reanuda a mano.
+            QuranPlayer.interrupt()
             val i = Intent(c, PrayerAudioService::class.java).putExtra("audio", audio.toString()).putExtra("prayer", prayer).putExtra("preview", preview)
             if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i) else c.startService(i)
         }
@@ -140,6 +142,7 @@ object PrayerAlarms {
             val n = c.getSystemService(NotificationManager::class.java)
             n.createNotificationChannel(NotificationChannel("prayer", "Rezos y reproducción", NotificationManager.IMPORTANCE_DEFAULT).apply { setSound(null, null); enableVibration(false) })
             n.createNotificationChannel(NotificationChannel("pre-prayer", "Preavisos", NotificationManager.IMPORTANCE_DEFAULT))
+            n.createNotificationChannel(NotificationChannel("quran", "Recitación del Qur’an", NotificationManager.IMPORTANCE_LOW).apply { setSound(null, null); enableVibration(false) })
         }
     }
     fun builder(c: Context, title: String, body: String, pre: Boolean = false): NotificationCompat.Builder =
