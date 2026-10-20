@@ -13,3 +13,7 @@ El corpus y la fuente tipográfica tienen sus condiciones propias, separadas de 
 Para preparar metadatos y procedencia desde los originales: `python3 scripts/prepare-quran.py`. Requiere Python 3 y su biblioteca estándar. Al actualizar recursos se debe revisar su procedencia, versión, condiciones y fecha de descarga antes de ejecutar el script. No usar OCR ni generar o corregir el texto con IA.
 
 Los recursos se copian íntegramente desde `public/` a `dist/` durante el build de Vite y quedan dentro del frontend de la app de escritorio. El lector los abre localmente, sin API externa ni descarga automática.
+
+## Recitación en desarrollo
+
+`audio-provenance.json` registra la edición Parhizgar de Al Quran Cloud, fuentes, condiciones y muestras técnicas consultadas el 19/10/2026. Los MP3 no se empaquetan en `public/`; se obtienen por acción del usuario en el core de escritorio. El manifiesto del corpus de texto y sus hashes permanecen separados. Ver `docs/recitacion-quran.md` para el estado de revisión y las condiciones propias del audio.

@@ -44,15 +44,15 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             let mut changed = false;
             match rx.recv_timeout(Duration::from_secs(1)) {
-                Ok(scheduler::Trigger::Pray { date, prayer }) => {
+                Ok(scheduler::Trigger::Pray { date, prayer, reply }) => {
                     let date = if date.is_empty() {
                         chrono::Local::now().format("%Y-%m-%d").to_string()
                     } else {
                         date
                     };
-                    if let Err(error) = mark_prayed(&date, &prayer) {
-                        crate::log!("registro Android: {error}");
-                    }
+                    let result = mark_prayed(&date, &prayer);
+                    if let Err(error) = &result { crate::log!("registro Android: {error}"); }
+                    if let Some(reply) = reply { let _ = reply.send(result); }
                     changed = true;
                 }
                 Ok(_) => changed = true,

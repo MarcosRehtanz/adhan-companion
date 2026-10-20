@@ -50,4 +50,4 @@ La [revisión nativa en Linux del 18 de octubre de 2026](revision-lector-quran.m
 
 Pendientes: revisión nativa en Windows, ampliación del muestreo de signos y recuperación de errores de almacenamiento. La concordancia estructural y visual no sustituye una revisión textual o religiosa.
 
-Audio de recitación, búsqueda avanzada y notas externas no forman parte de esta primera versión.
+La [recitación de Parhizgar en escritorio](recitacion-quran.md) está implementada en desarrollo local, pendiente de revisión nativa y publicación. No forma parte de la release v0.1.8 ya publicada. Búsqueda avanzada y notas externas siguen fuera del alcance actual.

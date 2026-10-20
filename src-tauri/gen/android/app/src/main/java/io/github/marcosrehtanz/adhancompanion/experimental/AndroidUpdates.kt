@@ -115,12 +115,14 @@ object AndroidUpdates {
         }
     }
     private fun find(c: Context) {
-        check(abi() in Build.SUPPORTED_ABIS) { "No hay APK experimental para esta arquitectura." }
+        check(abi() in Build.SUPPORTED_ABIS) { "No hay APK para esta arquitectura." }
         val releases = JSONArray(json(API, 4 * 1024 * 1024))
-        // Canal separado; no se consulta /latest, reservado al escritorio estable.
+        // Los releases oficiales tienen prioridad; el canal anterior permite migrar sin perder datos.
         val entries = (0 until releases.length()).map { releases.getJSONObject(it) }
-            .filter { !it.optBoolean("draft") && it.optString("tag_name").matches(Regex("android-experimental-[a-f0-9]{7}")) }
-            .sortedByDescending { it.optString("published_at") }
+            .filter { !it.optBoolean("draft") && (
+                !it.optBoolean("prerelease") && it.optString("tag_name").matches(Regex("v[0-9]+\\.[0-9]+\\.[0-9]+")) ||
+                !it.optBoolean("draft") && it.optString("tag_name").matches(Regex("android-experimental-[a-f0-9]{7}")) }
+            .sortedWith(compareBy<JSONObject> { it.optBoolean("prerelease") }.thenByDescending { it.optString("published_at") })
         var latest: JSONObject? = null
         for (release in entries.take(20)) {
             val assets = release.getJSONArray("assets")
@@ -136,7 +138,8 @@ object AndroidUpdates {
             if (manifest.getInt("min_sdk") > Build.VERSION.SDK_INT) continue
             val packageData = manifest.getJSONObject("packages").optJSONObject(abi()) ?: continue
             val name = packageData.getString("name")
-            check(name.matches(Regex("Adhan-Companion-android-experimental-(armv7|arm64)-[a-f0-9]{7}\\.apk"))) { "Nombre de APK inválido." }
+            check(name.matches(Regex("Adhan-Companion-android-experimental-(armv7|arm64)-[a-f0-9]{7}\\.apk")) ||
+                name.matches(Regex("Adhan-Companion_[0-9]+\\.[0-9]+\\.[0-9]+_android-(armv7|arm64)\\.apk"))) { "Nombre de APK inválido." }
             check(all.any { it.optString("name") == name && it.optString("browser_download_url") == prefix + name && it.optLong("size") == packageData.getLong("size") }) { "El APK no coincide con la release." }
             check(packageData.getLong("size") in 1..MAX_APK && packageData.getString("sha256").matches(Regex("[a-f0-9]{64}"))) { "Datos de descarga inválidos." }
             val proposed = JSONObject(packageData.toString()).put("url", prefix + name).put("version_code", manifest.getLong("version_code"))

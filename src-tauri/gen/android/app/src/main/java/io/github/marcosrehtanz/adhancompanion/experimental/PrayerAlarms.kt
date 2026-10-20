@@ -39,9 +39,14 @@ object PrayerAlarms {
         schedule(c)
     }
     @Synchronized fun enable(c: Context, enabled: Boolean) {
+        if (enabled) check(exact(c) && notifications(c)) { "Concedé los permisos antes de activar los avisos." }
         val p = prefs(c)
         check(p.edit().putBoolean("enabled", enabled).putLong("generation", p.getLong("generation", 0) + 1).remove("error").commit())
         if (!enabled) c.stopService(Intent(c, PrayerAudioService::class.java))
+        schedule(c)
+    }
+    @Synchronized fun reschedule(c: Context) {
+        prefs(c).edit().remove("error").commit()
         schedule(c)
     }
     private data class Event(val prayer: String, val at: Long, val pre: Boolean)
@@ -94,6 +99,7 @@ object PrayerAlarms {
             .put("notifications", notifications(c)).put("next", p.getLong("next", 0))
             .put("next_pre", p.getLong("next_pre", 0)).put("error", p.getString("error", ""))
             .put("last_event", p.getString("last_event", ""))
+            .put("playing", PrayerAudioService.active)
     }
     @Synchronized fun deliver(c: Context, intent: Intent) {
         val p = prefs(c)

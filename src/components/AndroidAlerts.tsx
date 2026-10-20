@@ -1,39 +1,45 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-
 type Status = { enabled: boolean; exact: boolean; notifications: boolean; next: number; next_pre: number; error: string };
 export function AndroidAlerts() {
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const mounted = useRef(false);
   async function action(action = "status") {
-    setBusy(true);
-    try { setStatus(await invoke<Status>("android_alert_status", { action })); setError(""); }
-    catch (e) { setError(String(e)); }
-    finally { setBusy(false); }
+    if (lock.current) return;
+    lock.current = true; setBusy(true);
+    try { const value = await invoke<Status>("android_alert_status", { action }); if (mounted.current) { setStatus(value); setError(""); } }
+    catch (e) { if (mounted.current) setError(String(e)); }
+    finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
   useEffect(() => {
+    mounted.current = true;
     const refresh = () => { if (!document.hidden) void action(); };
-    refresh();
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
+    refresh(); window.addEventListener("focus", refresh); document.addEventListener("visibilitychange", refresh);
     const timer = window.setInterval(refresh, 15000);
-    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+    return () => { mounted.current = false; window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, []);
+  const known = !!status && !error;
+  const permissions = !!status?.exact && !!status?.notifications;
   return <section className="panel setting-panel">
     <div className="panel-heading"><div><h2>Avisos en este teléfono</h2><p>Revisá tu ubicación y los horarios antes de activar los avisos.</p></div></div>
-    {status && <>
-      <div className="read-grid"><div><span>Estado</span><b>{!status.enabled ? "Desactivados" : !status.exact || !status.notifications ? "Faltan permisos" : status.next ? "Programados" : "Sin programación"}</b></div><div><span>Notificaciones</span><b>{status.notifications ? "Permitidas" : "Sin permiso"}</b></div><div><span>Alarmas exactas</span><b>{status.exact ? "Permitidas" : "Sin permiso"}</b></div><div><span>Próximo aviso de rezo</span><b>{status.enabled && status.next ? new Date(status.next).toLocaleString() : "—"}</b></div></div>
+    {!status && !error && <p role="status">Consultando permisos y programación…</p>}
+    {known && status && <>
+      <div className="read-grid"><div><span>Estado</span><b>{status.error ? "Requieren atención" : !status.enabled ? "Desactivados" : !permissions ? "Faltan permisos" : status.next ? "Programados" : "Sin programación"}</b></div><div><span>Notificaciones</span><b>{status.notifications ? "Permitidas" : "Sin permiso"}</b></div><div><span>Alarmas exactas</span><b>{status.exact ? "Permitidas" : "Sin permiso"}</b></div><div><span>Próximo aviso de rezo</span><b>{status.enabled && permissions && !status.error && status.next ? new Date(status.next).toLocaleString() : "—"}</b></div></div>
       <div className="editor-actions">
-        <button className="secondary-button" disabled={busy} onClick={() => action(status.enabled ? "disable" : "enable")}>{status.enabled ? "Desactivar avisos" : "Activar avisos"}</button>
-        {!status.notifications && <button className="secondary-button" disabled={busy} onClick={() => action("notifications")}>Permitir notificaciones</button>}
-        {!status.exact && <button className="secondary-button" disabled={busy} onClick={() => action("exact")}>Permitir alarmas exactas</button>}
-        <button className="secondary-button" disabled={busy} onClick={() => action()}>Actualizar estado</button>
+        {(status.enabled || permissions) && <button className="secondary-button" disabled={busy} onClick={() => void action(status.enabled ? "disable" : "enable")}>{busy ? "Aplicando…" : status.enabled ? "Desactivar avisos" : "Activar avisos"}</button>}
+        {!status.notifications && <button className="secondary-button" disabled={busy} onClick={() => void action("notifications")}>Permitir notificaciones</button>}
+        {!status.exact && <button className="secondary-button" disabled={busy} onClick={() => void action("exact")}>Permitir alarmas exactas</button>}
+        {status.enabled && permissions && (!status.next || !!status.error) && <button className="secondary-button" disabled={busy} onClick={() => void action("reschedule")}>Reintentar programación</button>}
+        <button className="secondary-button" disabled={busy} onClick={() => void action()}>Actualizar estado</button>
       </div>
+      {!permissions && <p className="nota">Concedé los permisos antes de activar los avisos.</p>}
       {status.error && <p role="alert">Último problema: {status.error}</p>}
     </>}
-    <p className="nota">El Adhan y los tonos usan el volumen de alarmas del teléfono junto con el volumen de la app. El preaviso usa su propio canal de notificación. Podés detener el sonido desde la notificación o desde esta pantalla.</p>
-    <p className="nota">Android muestra el próximo rezo como una alarma del sistema. Si forzás la detención de la app, abrila de nuevo para reprogramar los avisos. En Samsung, permití la actividad en segundo plano si el ahorro de batería los bloquea.</p>
-    {error && <p role="alert">{error}</p>}
+    {error && <div role="alert"><p>No se pudo confirmar el estado de los avisos: {error}</p><button className="secondary-button" disabled={busy} onClick={() => void action()}>Reintentar consulta</button></div>}
+    <p className="nota">El Adhan y los tonos combinan el volumen de alarmas del teléfono y el de la app. El preaviso usa su canal de notificación.</p>
+    <p className="nota">Android muestra el próximo rezo como una alarma del sistema. Si forzás la detención de la app, abrila para reprogramar los avisos. En Samsung, permití la actividad en segundo plano si el ahorro de batería los bloquea.</p>
   </section>;
 }

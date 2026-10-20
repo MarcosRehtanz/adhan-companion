@@ -356,6 +356,16 @@ pub fn load_or_init() -> Config {
     }
 }
 
+/// Consulta confirmada: no presentar defaults en memoria como un archivo guardado.
+pub fn read_saved() -> Result<Config, String> {
+    let bytes = std::fs::read(config_path()).map_err(|e| format!("No se pudo leer la configuración guardada; el archivo se conserva: {e}"))?;
+    let cfg: Config = serde_json::from_slice(&bytes).map_err(|e| format!("La configuración guardada no es válida; el archivo se conserva: {e}"))?;
+    crate::location::Coordinates::validated(cfg.lat, cfg.lon)?;
+    cfg.audio.validate()?;
+    if !(-2..=2).contains(&cfg.calendar.adjustment_days) { return Err("El ajuste del calendario guardado está fuera de rango.".into()); }
+    Ok(cfg)
+}
+
 pub fn save(cfg: &Config) -> Result<(), String> {
     let path = config_path();
     if let Some(parent) = path.parent() {

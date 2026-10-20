@@ -1,0 +1,70 @@
+{
+  "provider": "Al Quran Cloud / Islamic Network",
+  "edition": "ar.parhizgar",
+  "reciter": "Shahriar Parhizgar",
+  "format": "MP3 by ayah",
+  "published_bitrate_kbps": 48,
+  "url_template": "https://cdn.islamic.network/quran/audio/48/ar.parhizgar/{global_ayah}.mp3",
+  "edition_reference": "https://api.alquran.cloud/v1/ayah/1/ar.parhizgar",
+  "cdn_reference": "https://alquran.cloud/cdn",
+  "terms": "https://alquran.cloud/terms-and-conditions",
+  "terms_updated": "2026-06-14",
+  "consulted": "2026-10-19",
+  "conditions": "Provider states free non-commercial redistribution at published bitrates and personal/educational streaming, embedding and downloading. Copyrights remain with reciters or estates; removal requests may apply. Separate from code MIT license.",
+  "verification": "API identifies ar.parhizgar as Parhizgar and returns the 48 kbps CDN path. Local hashes detect later changes; they do not independently authenticate the source. Editorial/auditory correspondence review remains pending. No added or synthesized basmala.",
+  "technical_samples": [
+    {
+      "sura": 1,
+      "aya": 1,
+      "global_ayah": 1,
+      "source": "https://cdn.islamic.network/quran/audio/48/ar.parhizgar/1.mp3",
+      "bytes": 67712,
+      "sha256": "2b2a58dcf018292cbc38edfd3b98dd5ff048ef3742f986f60e09762da481288f",
+      "codec": "mp3",
+      "sample_rate": "22050",
+      "channels": 2,
+      "measured_bitrate": "48000",
+      "duration_seconds": "9.791167"
+    },
+    {
+      "sura": 2,
+      "aya": 1,
+      "global_ayah": 8,
+      "source": "https://cdn.islamic.network/quran/audio/48/ar.parhizgar/8.mp3",
+      "bytes": 63957,
+      "sha256": "22af417890f5f71ed7b51266042bdabfa88795161359525fabcb28ce5689c90d",
+      "codec": "mp3",
+      "sample_rate": "22050",
+      "channels": 2,
+      "measured_bitrate": "48000",
+      "duration_seconds": "9.242500"
+    },
+    {
+      "sura": 9,
+      "aya": 1,
+      "global_ayah": 1236,
+      "source": "https://cdn.islamic.network/quran/audio/48/ar.parhizgar/1236.mp3",
+      "bytes": 82048,
+      "sha256": "27c78beac6b0b2296d20983e64ebf1d80122f8671c821eea7c35988edea2c62b",
+      "codec": "mp3",
+      "sample_rate": "22050",
+      "channels": 2,
+      "measured_bitrate": "48000",
+      "duration_seconds": "12.063833"
+    },
+    {
+      "sura": 112,
+      "aya": 2,
+      "global_ayah": 6223,
+      "source": "https://cdn.islamic.network/quran/audio/48/ar.parhizgar/6223.mp3",
+      "bytes": 14336,
+      "sha256": "a8d5de06a32a42ae2cff3dab7a1dd571c484036a86c7d7091b452a23c1a3d278",
+      "codec": "mp3",
+      "sample_rate": "11025",
+      "channels": 1,
+      "measured_bitrate": "18006",
+      "duration_seconds": "2.562701"
+    }
+  ],
+  "notes": "The /48 endpoint is the published quality; measured files vary in bitrate, channel count and sample rate. Technical structure and identifiers checked; listening and basmala review remain pending."
+}

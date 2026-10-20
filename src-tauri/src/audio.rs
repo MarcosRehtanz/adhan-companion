@@ -88,7 +88,7 @@ fn current() -> &'static Mutex<Option<Arc<rodio::Player>>> {
 
 
 
-fn is_playing() -> bool {
+pub(crate) fn is_playing() -> bool {
     current().lock().unwrap().is_some()
 }
 
@@ -101,8 +101,13 @@ pub fn play_adhan(volume: f32, muecin: Option<&str>) -> Result<(), String> {
     play_source(volume, source)
 }
 
+/// Orden común: coordinación → recitación → audio de avisos. Nunca espera a la red.
+pub(crate) static COORDINATION: Mutex<()> = Mutex::new(());
+
 fn play_source<S>(volume: f32, source: S) -> Result<(), String>
 where S: rodio::Source + Send + 'static {
+    let _coordination = COORDINATION.lock().map_err(|_| "No se pudo coordinar el audio.")?;
+    crate::quran_audio::interrupt();
     let mut device_sink = rodio::DeviceSinkBuilder::open_default_sink()
         .map_err(|e| format!("dispositivo de audio: {e}"))?;
     device_sink.log_on_drop(false);

@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Bookmark, BookOpen, Settings } from "lucide-react";
 import { loadQuran, positionLabel, SURAS, type Corpus, type Position, type ReaderAction, type ReaderState } from "../lib/quran";
+import { QuranAudio, useQuranAudio } from "./QuranAudio";
 const PAGE_SIZE = 8;
 type Preferences = Pick<ReaderState, "arabic_size" | "translation_size" | "show_translation">;
 
-export default function QuranReader() {
+export default function QuranReader({ audioAvailable = false }: { audioAvailable?: boolean }) {
   const [corpus, setCorpus] = useState<Corpus | null>(null);
   const [state, setState] = useState<ReaderState | null>(null);
   const [position, setPosition] = useState<Position>({ sura: 1, aya: 1 });
+  const audio = useQuranAudio(audioAvailable, position.sura);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -49,8 +51,7 @@ export default function QuranReader() {
   }
   function go(p: Position) {
     if (saving.current) return;
-    setPosition(p);
-    void update({ kind: "position", ...p });
+    void update({ kind: "position", ...p }).then(ok => { if (ok) setPosition(p); });
   }
   if (error) return <section className="panel" role="alert"><h2>No se pudo abrir el lector</h2><p>{error}</p><button className="secondary-button" onClick={() => setAttempt(n => n + 1)}>Reintentar</button></section>;
   if (!corpus || !state) return <p role="status">Abriendo los textos instalados…</p>;
@@ -75,19 +76,20 @@ export default function QuranReader() {
       <p className="nota">La navegación guarda un punto de lectura por grupo de aleyas. Para recordar una aleya concreta, elegí «Continuar desde aquí».</p>
       {state.last && <p className="quran-last">Último punto guardado: <b>{positionLabel(state.last)}</b><button className="link-button" disabled={busy} onClick={() => go(state.last!)}>Retomar</button></p>}
       <details className="quran-bookmarks"><summary>Mis marcadores ({state.bookmarks.length})</summary>{state.bookmarks.length === 0 ? <p>Todavía no tenés marcadores. Usá «Marcar» en una aleya.</p> : <ul>{state.bookmarks.map(p => <li key={`${p.sura}:${p.aya}`}><button className="link-button" disabled={busy} onClick={() => go(p)}>{positionLabel(p)}</button><button className="secondary-button" disabled={busy} aria-label={`Quitar marcador de ${positionLabel(p)}`} onClick={() => void update({ kind: "bookmark", ...p })}>Quitar</button></li>)}</ul>}</details>
-      <p role="status" aria-live="polite" className="quran-message">{message}</p>
+      <p role="status" aria-live="polite" className="quran-message">{busy ? "Guardando en el lector…" : message}</p>{state.bookmarks.length >= 1000 && <p className="nota">Alcanzaste el máximo de 1000 marcadores. Quitá alguno para agregar otro.</p>}
     </section>
+    {audioAvailable && <QuranAudio audio={audio} position={position} onLocate={setPosition} />}
     <section className="panel setting-panel">
       <div className="panel-heading"><div><h2>Preferencias de lectura</h2><p>{state.show_translation ? "Árabe y traducción de Bórnez" : "Solo árabe"} · árabe {state.arabic_size}px · español {state.translation_size}px</p></div>{!draft && <button className="edit-button" onClick={() => setDraft({ arabic_size: state.arabic_size, translation_size: state.translation_size, show_translation: state.show_translation })}><Settings size={14} />Editar lectura</button>}</div>
-      {draft && <div className="editor"><label>Tamaño del árabe · {draft.arabic_size}px<input type="range" min="22" max="48" value={draft.arabic_size} onChange={e => setDraft({ ...draft, arabic_size: Number(e.target.value) })} /></label><label>Tamaño del español · {draft.translation_size}px<input type="range" min="12" max="24" value={draft.translation_size} onChange={e => setDraft({ ...draft, translation_size: Number(e.target.value) })} /></label><label>Traducción<select value={draft.show_translation ? "show" : "hide"} onChange={e => setDraft({ ...draft, show_translation: e.target.value === "show" })}><option value="show">Mostrar español</option><option value="hide">Solo árabe</option></select></label><p className="nota">Vista previa en los textos de abajo.</p><div className="editor-actions"><button className="secondary-button" disabled={busy} onClick={() => setDraft(null)}>Cancelar</button><button className="secondary-button" disabled={busy} onClick={async () => { if (await update({ kind: "preferences", ...draft })) setDraft(null); }}>Guardar preferencias</button></div></div>}
+      {draft && <fieldset className="editor page-fields" disabled={busy}><label>Tamaño del árabe · {draft.arabic_size}px<input type="range" min="22" max="48" value={draft.arabic_size} onChange={e => setDraft({ ...draft, arabic_size: Number(e.target.value) })} /></label><label>Tamaño del español · {draft.translation_size}px<input type="range" min="12" max="24" value={draft.translation_size} onChange={e => setDraft({ ...draft, translation_size: Number(e.target.value) })} /></label><label>Traducción<select value={draft.show_translation ? "show" : "hide"} onChange={e => setDraft({ ...draft, show_translation: e.target.value === "show" })}><option value="show">Mostrar español</option><option value="hide">Solo árabe</option></select></label><p className="nota">Vista previa en los textos de abajo.</p><div className="editor-actions"><button className="secondary-button" disabled={busy} onClick={() => setDraft(null)}>Cancelar</button><button className="secondary-button" disabled={busy} onClick={async () => { if (await update({ kind: "preferences", ...draft })) setDraft(null); }}>Guardar preferencias</button></div></fieldset>}
     </section>
     <section className="panel quran-text-panel">
       <div className="panel-heading"><div><h2>{sura.number}. {sura.name}</h2><p>Aleyas {start + 1}–{end} de {sura.count} · el borde identifica tu punto actual.</p></div><span lang="ar" dir="rtl" className="quran-sura-name">{sura.arabic_name}</span></div>
       <p className="nota">Árabe: Tanzil Uthmani 1.1. Español: Raúl González Bórnez, versión es.bornez de Tanzil. La traducción ayuda a comprender el texto y tiene sus propias interpretaciones.</p>
       <div className="quran-verses">{verses.map(v => {
         const marked = state.bookmarks.some(p => p.sura === v.sura && p.aya === v.aya);
-        return <article key={v.aya} ref={v.aya === position.aya ? selected : undefined} className={`quran-verse ${v.aya === position.aya ? "current" : ""}`} aria-label={`Sura ${v.sura}, aleya ${v.aya}`}>
-          <div className="quran-verse-heading"><b>{v.sura}:{v.aya}</b><div><button className="link-button" disabled={busy} onClick={() => go({ sura: v.sura, aya: v.aya })}>Continuar desde aquí</button><button className="secondary-button" aria-pressed={marked} aria-label={`${marked ? "Quitar marcador" : "Marcar"} ${v.sura}:${v.aya}`} disabled={busy} onClick={() => void update({ kind: "bookmark", sura: v.sura, aya: v.aya })}><Bookmark size={14} fill={marked ? "currentColor" : "none"} />{marked ? "Marcado" : "Marcar"}</button></div></div>
+        return <article key={v.aya} ref={v.aya === position.aya ? selected : undefined} className={`quran-verse ${v.aya === position.aya ? "current" : ""} ${audio.state?.position?.sura === v.sura && audio.state.position.aya === v.aya && ["playing", "paused", "loading"].includes(audio.state.phase) ? "listening" : ""}`} aria-label={`Sura ${v.sura}, aleya ${v.aya}`}>
+          <div className="quran-verse-heading"><b>{v.sura}:{v.aya}</b><div>{audioAvailable && <button className="link-button" disabled={audio.busy || !audio.state} onClick={() => void audio.command("play", { sura: v.sura, aya: v.aya })}>Escuchar desde aquí</button>}<button className="link-button" disabled={busy} onClick={() => go({ sura: v.sura, aya: v.aya })}>Continuar desde aquí</button><button className="secondary-button" aria-pressed={marked} aria-label={`${marked ? "Quitar marcador" : "Marcar"} ${v.sura}:${v.aya}`} disabled={busy || !marked && state.bookmarks.length >= 1000} onClick={() => void update({ kind: "bookmark", sura: v.sura, aya: v.aya })}><Bookmark size={14} fill={marked ? "currentColor" : "none"} />{marked ? "Marcado" : "Marcar"}</button></div></div>
           <p className="quran-arabic" dir="rtl" lang="ar" style={{ fontSize: preferences.arabic_size }}>{v.arabic}</p>
           {preferences.show_translation && <p className="quran-translation" dir="ltr" lang="es" style={{ fontSize: preferences.translation_size }}>{v.translation}</p>}
         </article>;

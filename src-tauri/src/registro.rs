@@ -42,6 +42,22 @@ pub fn append(date: &str, prayer: &str, status: &str) -> Result<(), String> {
     writeln!(f, "{line}").map_err(|e| format!("append registro: {e}"))
 }
 
+/// Las consultas IPC distinguen archivo inexistente de lectura fallida o dañada.
+pub fn ensure_readable() -> Result<(), String> {
+    let _guard = WRITE_LOCK.lock().map_err(|_| "No se pudo acceder al registro.")?;
+    let text = match std::fs::read_to_string(registro_path()) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(format!("No se pudo leer el registro; se conserva el archivo: {e}")),
+    };
+    for (i, line) in text.lines().enumerate() {
+        if !line.trim().is_empty() {
+            serde_json::from_str::<RegistroEntry>(line).map_err(|e| format!("El registro tiene un error en la línea {}; se conserva sin modificar: {e}", i + 1))?;
+        }
+    }
+    Ok(())
+}
+
 /// pares (prayer, status) registrados para una fecha — para pintar ✓ y para
 /// el estado inicial del día (sin rebuild del archivo completo)
 pub fn load_for_date(date: &str) -> Vec<(String, String)> {

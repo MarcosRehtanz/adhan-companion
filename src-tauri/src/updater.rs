@@ -98,7 +98,31 @@ fn fetch_latest() -> Result<Release, String> {
 /// Chequeo: compara la semver del último release con la versión del binario.
 /// `Ok(None)` = al día; `Ok(Some(info))` = hay versión nueva (estado guardado
 /// para la UI + notificación hecha por el caller).
+#[derive(serde::Serialize, Default)]
+struct Operation { phase: String, error: String }
+static OPERATION: OnceLock<Mutex<Operation>> = OnceLock::new();
+static OPERATION_LOCK: Mutex<()> = Mutex::new(());
+fn operation() -> &'static Mutex<Operation> { OPERATION.get_or_init(|| Mutex::new(Operation { phase: "idle".into(), error: String::new() })) }
+fn progress(phase: &str, error: String) {
+    if let Ok(mut state) = operation().lock() { state.phase = phase.into(); state.error = error; }
+}
+pub fn status() -> Result<serde_json::Value, String> {
+    let op = operation().lock().map_err(|_| "No se pudo consultar el actualizador.")?;
+    let candidate = estado().lock().map_err(|_| "No se pudo consultar la versión disponible.")?.clone();
+    Ok(serde_json::json!({"phase": op.phase, "error": op.error, "candidate": candidate}))
+}
 pub fn verificar() -> Result<Option<Disponible>, String> {
+    let _lock = OPERATION_LOCK.try_lock().map_err(|_| "Ya hay una operación del actualizador en curso.")?;
+    progress("checking", String::new());
+    let result = verificar_inner();
+    match &result {
+        Ok(Some(_)) => progress("available", String::new()),
+        Ok(None) => progress("current", String::new()),
+        Err(error) => { *estado().lock().map_err(|_| "No se pudo actualizar el estado.")? = None; progress("error", error.clone()); }
+    }
+    result
+}
+fn verificar_inner() -> Result<Option<Disponible>, String> {
     let actual = versión_actual();
     let release = fetch_latest()?;
     let nueva = release.tag_name.trim_start_matches('v');
@@ -143,6 +167,14 @@ pub fn es_windows() -> bool {
 /// error manejable en la UI con el instructivo manual.
 #[cfg(target_os = "linux")]
 pub fn instalar() -> Result<(), String> {
+    let _lock = OPERATION_LOCK.try_lock().map_err(|_| "Ya hay una operación del actualizador en curso.")?;
+    progress("installing", String::new());
+    let result = instalar_inner();
+    if let Err(error) = &result { progress("error", error.clone()); }
+    result
+}
+#[cfg(target_os = "linux")]
+fn instalar_inner() -> Result<(), String> {
     if !es_appimage() {
         return Err(
             "instalación automática solo sobre AppImage — para el .deb descargá el release de \

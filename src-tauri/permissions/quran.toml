@@ -2,3 +2,8 @@
 identifier = "quran-reader"
 description = "Lee y guarda el punto de lectura, los marcadores y las preferencias locales del lector."
 commands.allow = ["get_quran_reader", "update_quran_reader"]
+
+[[permission]]
+identifier = "quran-audio"
+description = "Controla la recitación de Parhizgar y sus descargas por sura en el core de escritorio."
+commands.allow = ["quran_audio_status", "quran_audio_control"]

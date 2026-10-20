@@ -180,7 +180,7 @@ pub enum Trigger {
     ConfigChanged,
     /// el usuario marcó/desmarcó un rezo (menú del tray o IPC mark_prayed).
     /// `date` vacía = hoy (lo resuelve el scheduler con el schedule del día)
-    Pray { date: String, prayer: String },
+    Pray { date: String, prayer: String, reply: Option<std::sync::mpsc::Sender<Result<(), String>>> },
 }
 
 /// Rezos (los 5) calculados para una fecha concreta con el config dado.
@@ -462,7 +462,7 @@ pub fn run(s: SchedulerLoop) {
 
         // Trigger: resume del sleep / cambio de config (IPC set_config) / marcar rezado
         let mut recal: Option<&str> = None;
-        let mut pray: Option<(String, String)> = None;
+        let mut prayers = Vec::new();
         while let Ok(t) = s.rx.try_recv() {
             match t {
                 Trigger::Resume => {
@@ -473,7 +473,7 @@ pub fn run(s: SchedulerLoop) {
                     crate::log!("trigger: cambio de config → recalcular con el config nuevo");
                     recal = Some("config");
                 }
-                Trigger::Pray { date, prayer } => pray = Some((date, prayer)),
+                Trigger::Pray { date, prayer, reply } => prayers.push((date, prayer, reply)),
             }
         }
         if let Some(via) = recal {
@@ -491,7 +491,7 @@ pub fn run(s: SchedulerLoop) {
             refresh_prayer_items(&s, &schedule);
             publish_schedule(&s, &schedule);
         }
-        if let Some((date_arg, name)) = pray {
+        for (date_arg, name, reply) in prayers {
             if PRAYERS.contains(&name.as_str()) {
                 let date = if date_arg.is_empty() { schedule.date.clone() } else { date_arg };
                 let already = crate::registro::is_prayer_marked(&date, &name);
@@ -503,6 +503,10 @@ pub fn run(s: SchedulerLoop) {
                     name,
                     result.is_ok()
                 );
+                if let Err(error) = result {
+                    if let Some(reply) = reply { let _ = reply.send(Err(error)); }
+                    continue;
+                }
                 // solo si es el día de hoy se actualiza el estado del schedule/menú
                 if date == schedule.date {
                     if already {
@@ -517,7 +521,8 @@ pub fn run(s: SchedulerLoop) {
                     refresh_prayer_items(&s, &schedule);
                 }
                 publish_schedule(&s, &schedule);
-            }
+                if let Some(reply) = reply { let _ = reply.send(Ok(())); }
+            } else if let Some(reply) = reply { let _ = reply.send(Err("Rezo desconocido.".into())); }
         }
 
         // Trigger: medianoche (cambió la fecha local)
