@@ -10,11 +10,29 @@ La sección **Qur’an** abre los textos instalados sin conexión:
 - Español de Raúl González Bórnez, archivo digital `es.bornez` publicado por Tanzil, con actualización indicada 15/07/2014.
 - 114 suras y 6.236 aleyas por idioma. La navegación usa los identificadores originales.
 
-Se elige sura y aleya o se avanza por grupos de ocho aleyas. La navegación guarda el punto seleccionado. **Continuar desde aquí** fija una aleya concreta como punto de lectura; **Retomar** vuelve al último punto guardado. Abrir por primera vez no crea automáticamente un historial. El desplazamiento con la rueda no cambia por sí solo el punto guardado.
+La sura se lee completa, de corrido. En la página del Qur’an, la barra superior de la app muestra la barra del lector: ‹ › para la sura anterior o siguiente, el nombre de la sura (abre el índice), la aleya a la vista («Aleya X de N»), **Retomar** cuando el punto guardado es otro, y los accesos a **Marcadores**, preferencias (**Aa**) y modo enfoque. El índice filtra por número o nombre y acepta `sura:aleya` (por ejemplo, `2:255`) para ir directo.
 
-**Marcar** agrega o quita una aleya. **Mis marcadores** permite volver a ella o quitarla. No se registra ni se modifica ningún rezo al leer o guardar marcadores.
+Navegar (‹ ›, índice, **Continuar con** la siguiente sura, **Retomar** o un marcador) guarda el punto de lectura y lo muestra cuando el core lo confirma. Tocar una aleya solo la selecciona para sus acciones (**Escuchar**, **Marcar**, **Continuar aquí**); **Continuar aquí** fija esa aleya como punto de lectura. El desplazamiento solo actualiza el indicador «Aleya X de N» y no cambia el punto guardado. Con el teclado, ↑/↓, Inicio y Fin mueven la selección. Abrir por primera vez no crea automáticamente un historial.
 
-**Editar lectura** habilita el tamaño del árabe (22–48 px), el español (12–24 px) y la visibilidad de la traducción. La vista previa se aplica a los textos; **Guardar preferencias** persiste y **Cancelar** descarta esa edición. Estas preferencias pertenecen al lector y se guardan por separado de la configuración general. Al salir de la sección se descarta una edición de lectura no guardada.
+**Seguimiento de la recitación (escritorio):** mientras suena una aleya de la sura en pantalla, la vista la acompaña con un desplazamiento suave. Con traducción, la aleya queda al inicio de la pantalla; en solo árabe, centrada. Con el movimiento reducido del sistema, el salto es inmediato. El seguimiento empieza con **Escuchar** y vuelve con reanudar, anterior o siguiente, **Retomar escucha**, reintentar o tocar la aleya del reproductor. La aleya que suena pasa a ser la seleccionada: muestra sus acciones y, en solo árabe, su traducción en la barra del pie. Desplazarse a mano (rueda, toque, barra o teclado), tocar otra aleya o navegar lo suspende. También empieza suspendido si se vuelve al lector con la recitación en curso. Mientras está suspendido, una pastilla **Seguir la recitación** con la referencia de la aleya permite retomarlo. No cambia de sura ni guarda el punto de lectura. Dentro de una aleya muy larga, la vista no avanza: no hay tiempos por palabra.
+
+**Marcar** agrega o quita una aleya. El panel **Marcadores** permite volver a ella o quitarla. No se registra ni se modifica ningún rezo al leer o guardar marcadores.
+
+**Aa** → **Editar lectura** habilita el modo (con traducción o solo árabe, de corrido), el tamaño del árabe (22–48 px) y el del español (12–24 px). La vista previa se aplica a los textos; **Guardar preferencias** persiste y **Cancelar** o cerrar el panel descartan esa edición. Si el guardado falla, la edición se conserva. Estas preferencias pertenecen al lector y se guardan por separado de la configuración general. Al salir de la sección se descarta una edición de lectura no guardada.
+
+## Presentación
+
+Rediseño del 20/10/2026, a partir de la [maqueta simplificada](maquetas/lectura-quran/README.md) de un prototipo externo. Solo cambia la presentación: el corpus, los comandos del core y `quran-reader.json` no cambian.
+
+- **Superficie de lectura:** Papel con el tema claro y Noche con el oscuro de Configuración → Apariencia. La traducción tiene contraste de 9,9:1 (Papel) y 11,3:1 (Noche).
+- **Un solo ornamento:** el encabezado de la sura (nombre árabe, nombre, tipo de revelación y cantidad de aleyas) entre filetes. El dorado se reserva para el ornamento y la marca de fin de aleya; los estados y acciones usan el color de acento de la app.
+- **Con traducción:** una aleya por bloque, sin tarjetas. La aleya seleccionada lleva un filete de acento y sus acciones; las demás muestran solo sus estados (punto de lectura, marcada, recitando).
+- **Solo árabe:** texto de corrido, como en un mushaf: justificado en escritorio y alineado a la derecha en celular (hasta 480 px), para no abrir huecos grandes con pocas palabras por línea. La aleya tocada muestra al pie su referencia, su traducción completa y sus acciones. Una traducción larga ocupa hasta el 30 % de la altura de la pantalla y se desplaza dentro de la barra.
+- **Marca de fin de aleya:** ۝ con el número en dígitos arábigo-índicos, compuesta por Amiri Quran. Es presentación: no se agrega al texto ni modifica los originales.
+- **Tipo de revelación** (mequí o mediní): se lee del `quran-data.xml` de Tanzil ya incluido. Si no se puede leer, el encabezado lo omite y el lector sigue funcionando.
+- **Modo enfoque:** oculta la navegación de la app y el reproductor. Se sale con **Salir del enfoque** o con Esc.
+- **Pantallas chicas y Android:** la barra pasa a dos filas y los paneles se abren como hoja inferior. El aviso general de Android no se muestra dentro del lector.
+- **Fuentes y condiciones:** al final de cada sura, con un enlace al panel que reúne los avisos completos.
 
 ## Datos locales
 
@@ -48,6 +66,18 @@ La importación comprobó los 6.236 identificadores ordenados de cada idioma con
 
 La [revisión nativa en Linux del 18 de octubre de 2026](revision-lector-quran.md) comprobó muestras árabe/español, temas claro/oscuro, tamaños, navegación y persistencia de marcadores, eliminación y punto de lectura en dos reinicios reales. Se corrigió el encuadre de la aleya tras cargar la fuente o guardar tamaños.
 
-Pendientes: revisión nativa en Windows, ampliación del muestreo de signos y recuperación de errores de almacenamiento. La concordancia estructural y visual no sustituye una revisión textual o religiosa.
+El rediseño del 20/10/2026 se comprobó en Firefox con un sustituto del core (sin Tauri), en escritorio de 1440 y 1024 px y en Android simulado a 390 px, con temas claro y oscuro. Se recorrieron ambos modos, el índice con salto `2:255`, Marcar, Continuar aquí, Retomar, edición y cancelación de preferencias, modo enfoque con Esc, navegación con teclado, la aleya en recitación y un error de guardado. La consola quedó sin errores. Compilación TypeScript/Vite completada.
 
-La [recitación de Parhizgar en escritorio](recitacion-quran.md) está implementada en desarrollo local, pendiente de revisión nativa y publicación. No forma parte de la release v0.1.8 ya publicada. Búsqueda avanzada y notas externas siguen fuera del alcance actual.
+El seguimiento de la recitación se probó con el mismo sustituto, que simula el avance de aleyas. Se comprobaron 15 escenarios:
+
+- Encuadre al inicio con traducción y centrado en solo árabe.
+- La selección y la traducción del pie acompañan a la aleya que suena.
+- Suspensión por rueda, por teclado, al tocar otra aleya y por navegación a otra sura y de vuelta.
+- Pastilla al volver con la recitación en curso y retomar desde ella.
+- Retomar con «siguiente» y con la aleya del reproductor.
+- En modo enfoque a 390 px, la pastilla no se superpone con «Salir del enfoque».
+- El aviso de estado ya no desplaza el texto al aparecer.
+
+Pendientes: revisión del rediseño en la app nativa de Linux, en Windows y en el WebView del J7 (incluido el rendimiento de suras largas como Al-Baqara, que ahora se dibuja completa). También la ampliación del muestreo de signos y la recuperación de errores de almacenamiento. La concordancia estructural y visual no sustituye una revisión textual o religiosa.
+
+La [recitación de Parhizgar en escritorio](recitacion-quran.md) se publicó en v0.1.9. Búsqueda avanzada y notas externas siguen fuera del alcance actual.

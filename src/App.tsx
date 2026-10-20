@@ -337,15 +337,18 @@ export default function App() {
       </aside>}
 
       <div className="workspace">
-        <header className="topbar">
+        <header className={"topbar" + (page === "quran" ? " topbar-quran" : "")}>
           <button className="secondary-button mobile-menu-toggle" aria-label="Abrir menú de navegación" aria-haspopup="dialog" aria-controls="mobile-navigation" aria-expanded={menuPhase !== "closed"} onClick={openMenu}><Menu size={24} /></button>
-          <div><span className="eyebrow">Adhan Companion</span><h1>{pageTitle}</h1></div>
-          <div className="topbar-meta">
-            {page === "hoy" && <span className="today-date">{hoy ? fmtBonito(hoy) : "Cargando horarios…"}</span>}
-          </div>
+          {/* En el Qur’an, la barra del lector ocupa el lugar del título (portal desde QuranReader). */}
+          {page === "quran" ? <><h1 className="visually-hidden">{pageTitle}</h1><div id="quran-topbar-slot" className="quran-topbar-slot" /></> : <>
+            <div><span className="eyebrow">Adhan Companion</span><h1>{pageTitle}</h1></div>
+            <div className="topbar-meta">
+              {page === "hoy" && <span className="today-date">{hoy ? fmtBonito(hoy) : "Cargando horarios…"}</span>}
+            </div>
+          </>}
         </header>
 
-        <main className="page-content" id="main-content"><fieldset className="page-fields" disabled={saving}>
+        <main className={"page-content" + (page === "quran" ? " page-quran" : "")} id="main-content"><fieldset className="page-fields" disabled={saving}>
           {isAndroid && <aside className="android-notice" role="note"><strong>Avisos en Android</strong><span>Adhan y avisos nativos disponibles. Activá los avisos y revisá los permisos en “Configuración → Adhan y avisos”.</span></aside>}
           {page === "quran" && <QuranReader audioAvailable={runtime?.platform === "linux" || runtime?.platform === "windows" || runtime?.platform === "macos"} />}
           {page === "calendario" && (scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>)}

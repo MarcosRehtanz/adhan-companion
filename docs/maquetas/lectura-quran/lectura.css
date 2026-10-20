@@ -1,0 +1,355 @@
+/* Maqueta de lectura del Qur’an — versión simplificada del prototipo.
+   Sin dependencias ni fuentes remotas. Evita sintaxis que el WebView
+   antiguo no entiende (media queries de rango, color-mix, :is, inset). */
+
+@font-face {
+  font-family: "Amiri Quran";
+  src: url("../../../public/quran/fonts/AmiriQuran.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Acento: los mismos valores que Configuración → Apariencia (verde por
+   defecto). La maqueta acepta ?acento=azul|violeta|rosa|ambar. */
+:root {
+  --acento-claro-solido: #0e6f63;
+  --acento-oscuro-brillante: #6ed6bd;
+  --ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ar-size: 32px;
+  --es-size: 17px;
+  --ar-interlineado: 2.3;
+  --columna: 42rem;
+}
+
+/* Tema Papel: lectura clara, cálida. */
+body[data-tema="papel"] {
+  color-scheme: light;
+  --bg: #f5efe2;
+  --superficie: #fbf8f1;
+  --borde: #e0d6c2;
+  --actual: #ebe1cc;
+  --texto-ar: #261d14;
+  --texto-es: #42392e;
+  --tenue: #6b5f50;
+  --ornamento: #9b7a35;
+  --acento: var(--acento-claro-solido);
+  --sombra: rgba(60, 45, 20, .12);
+}
+
+/* Tema Noche: el azul noche y dorado del prototipo, con el dorado
+   reservado al ornamento y el texto en blanco cálido. */
+body[data-tema="noche"] {
+  color-scheme: dark;
+  --bg: #0e131b;
+  --superficie: #151c27;
+  --borde: #2a3445;
+  --actual: #18212e;
+  --texto-ar: #efe8d8;
+  --texto-es: #c3cad6;
+  --tenue: #929db0;
+  --ornamento: #c9a54e;
+  --acento: var(--acento-oscuro-brillante);
+  --sombra: rgba(0, 0, 0, .45);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: var(--ui);
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--texto-es);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, .aleya:focus-visible, .aleya-m:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+[hidden] { display: none !important; }
+svg { display: block; }
+
+.lector { display: flex; flex-direction: column; height: 100vh; min-height: 0; }
+
+/* ── Barra del lector ─────────────────────────────────────────── */
+.barra {
+  flex: none;
+  display: flex; align-items: center; gap: 6px;
+  min-height: 56px; padding: 6px 12px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  position: relative;
+}
+.icono {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex: none;
+  padding: 0; border: 0; border-radius: 8px;
+  background: transparent; color: var(--tenue); cursor: pointer;
+}
+.icono:hover:not(:disabled) { background: var(--actual); color: var(--acento); }
+.icono:disabled { opacity: .35; cursor: default; }
+.texto-aa { font-weight: 650; font-size: 14px; letter-spacing: .02em; }
+.barra-sura { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; }
+.barra-titulo {
+  display: flex; align-items: baseline; gap: 10px; min-width: 0;
+  padding: 4px 8px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--texto-ar); cursor: pointer;
+}
+.barra-titulo:hover { background: var(--actual); }
+.barra-titulo b { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barra-titulo span { font-family: "Amiri Quran", serif; font-size: 19px; color: var(--ornamento); line-height: 1; }
+.barra-progreso { display: flex; align-items: center; gap: 10px; margin-left: auto; color: var(--tenue); font-size: 12px; white-space: nowrap; }
+.pista { display: block; width: 80px; height: 3px; border-radius: 2px; background: var(--borde); overflow: hidden; }
+.pista-relleno { display: block; height: 100%; width: 0; background: var(--acento); }
+.chip {
+  flex: none; margin-left: 4px;
+  padding: 6px 11px; border: 1px solid var(--borde); border-radius: 999px;
+  background: transparent; color: var(--acento); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.chip:hover { background: var(--actual); }
+.barra-acciones { display: flex; align-items: center; gap: 2px; margin-left: 4px; }
+
+/* ── Hoja de lectura ──────────────────────────────────────────── */
+.hoja { flex: 1; min-height: 0; overflow-y: auto; position: relative; scrollbar-color: var(--borde) transparent; }
+.hoja::-webkit-scrollbar { width: 10px; }
+.hoja::-webkit-scrollbar-thumb { background: var(--borde); border-radius: 5px; border: 2px solid var(--bg); }
+.columna { max-width: var(--columna); margin: 0 auto; padding: 8px 28px 48px; }
+.estado { padding: 64px 0; text-align: center; color: var(--tenue); font-size: 14px; line-height: 1.7; }
+.estado button { margin-top: 12px; }
+.estado code { font-size: 12px; }
+
+/* El único ornamento: la cartela de la sura. */
+.cartela { text-align: center; padding: 36px 0 28px; }
+.filete { display: flex; align-items: center; justify-content: center; color: var(--ornamento); }
+.filete::before, .filete::after { content: ""; display: block; width: 84px; height: 1px; background: currentColor; opacity: .55; }
+.filete svg { width: 15px; height: 15px; margin: 0 12px; opacity: .85; }
+.cartela h1 {
+  margin: 10px 0 0;
+  font-family: "Amiri Quran", serif; font-weight: 400;
+  font-size: 48px; line-height: 1.7; color: var(--ornamento);
+}
+.cartela-nombre { margin: 0; font-size: 15px; font-weight: 650; color: var(--texto-ar); }
+.cartela-datos { margin: 4px 0 18px; font-size: 12px; color: var(--tenue); }
+
+/* Modo con traducción: una aleya por bloque, sin tarjetas. */
+.aleyas { list-style: none; margin: 0; padding: 0; }
+.aleya {
+  position: relative;
+  padding: 18px 20px 20px;
+  border-top: 1px solid var(--borde);
+  border-radius: 0;
+  scroll-margin: 72px;
+  cursor: pointer;
+}
+.aleya:first-child { border-top: 0; }
+.aleya.actual {
+  background: var(--actual);
+  border-radius: 10px;
+  border-top-color: transparent;
+  box-shadow: inset 3px 0 0 var(--acento);
+}
+.aleya.actual + .aleya { border-top-color: transparent; }
+.aleya-cabecera { display: flex; align-items: center; justify-content: space-between; min-height: 30px; }
+.aleya-estado { display: flex; align-items: center; gap: 10px; color: var(--tenue); font-size: 11px; }
+.aleya-estado span { display: inline-flex; align-items: center; gap: 4px; }
+.aleya-estado svg { width: 13px; height: 13px; }
+.aleya-estado .es-marcada { color: var(--acento); }
+.acciones { display: flex; align-items: center; gap: 2px; visibility: hidden; }
+.aleya.actual .acciones, .aleya:focus-within .acciones { visibility: visible; }
+@media (hover: hover) { .aleya:hover .acciones { visibility: visible; } }
+/* En pantallas táctiles no hay hover: las acciones solo existen en la aleya
+   actual y las demás no reservan una fila vacía. */
+@media (hover: none) {
+  .aleya .aleya-cabecera { min-height: 0; }
+  .aleya:not(.actual) .acciones { display: none; }
+}
+.accion {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 9px;
+  border: 0; border-radius: 7px; background: transparent;
+  color: var(--tenue); font-size: 12px; cursor: pointer;
+}
+.accion svg { width: 15px; height: 15px; }
+.accion:hover { color: var(--acento); background: var(--bg); }
+.accion[aria-pressed="true"] { color: var(--acento); }
+.ar {
+  margin: 6px 0 0;
+  font-family: "Amiri Quran", serif; font-weight: 400;
+  font-size: var(--ar-size); line-height: var(--ar-interlineado);
+  color: var(--texto-ar); text-align: right;
+  overflow-wrap: break-word;
+}
+.fin { color: var(--ornamento); white-space: nowrap; }
+.es {
+  margin: 10px 0 0;
+  font-size: var(--es-size); line-height: 1.75; color: var(--texto-es);
+  overflow-wrap: anywhere;
+}
+.es .num { margin-right: 8px; font-size: .72em; font-weight: 650; color: var(--tenue); font-variant-numeric: tabular-nums; }
+
+/* Modo solo árabe: texto de corrido, como en un mushaf. */
+.mushaf {
+  margin: 4px 0 0; padding: 0 4px;
+  font-family: "Amiri Quran", serif; font-weight: 400;
+  font-size: var(--ar-size); line-height: calc(var(--ar-interlineado) + .2);
+  color: var(--texto-ar);
+  text-align: justify; text-align-last: center;
+}
+.aleya-m { border-radius: 6px; cursor: pointer; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.aleya-m:hover { background: var(--actual); }
+.aleya-m.actual { background: var(--actual); box-shadow: 0 2px 0 var(--acento); }
+.aleya-m.marcada .fin { color: var(--acento); }
+.aleya-m.escuchando { box-shadow: 0 2px 0 var(--ornamento); }
+
+/* Barra contextual del modo solo árabe: la aleya elegida y su traducción. */
+.contexto {
+  position: sticky; bottom: 0; z-index: 2;
+  max-width: calc(var(--columna) - 24px); margin: 0 auto;
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 12px 14px; border: 1px solid var(--borde); border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--superficie); box-shadow: 0 -6px 18px var(--sombra);
+}
+.contexto-ref { flex: none; font-weight: 650; color: var(--acento); padding-top: 6px; }
+.contexto-texto { flex: 1; min-width: 0; margin: 0; padding-top: 5px; font-size: 13px; line-height: 1.6; color: var(--texto-es);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.contexto .acciones { visibility: visible; flex: none; }
+
+/* Cierre de sura y fuentes. */
+.fin-sura { padding: 36px 0 8px; text-align: center; }
+.continuar {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin-top: 22px; padding: 10px 16px;
+  border: 1px solid var(--borde); border-radius: 10px;
+  background: var(--superficie); color: var(--texto-ar); cursor: pointer;
+}
+.continuar:hover { border-color: var(--acento); }
+.continuar span { color: var(--tenue); }
+.continuar b { font-weight: 650; }
+.continuar .ar-mini { font-family: "Amiri Quran", serif; font-size: 18px; color: var(--ornamento); }
+.continuar svg { width: 16px; height: 16px; color: var(--acento); }
+.fuentes { margin: 30px auto 0; max-width: 34rem; font-size: 11px; line-height: 1.6; color: var(--tenue); }
+.fuentes a { color: var(--acento); }
+
+/* ── Reproductor (misma estructura que el de la app) ──────────── */
+.reproductor {
+  flex: none;
+  display: flex; align-items: center; gap: 18px;
+  padding: 10px 20px; min-height: 68px;
+  background: var(--superficie); border-top: 1px solid var(--borde);
+}
+.rep-pista { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.rep-pista > div { min-width: 0; }
+.rep-marca { width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--actual); color: var(--acento); }
+.rep-marca svg { width: 18px; height: 18px; }
+.rep-posicion { display: flex; align-items: baseline; gap: 8px; padding: 0; border: 0; background: none; color: var(--texto-ar); cursor: pointer; max-width: 100%; }
+.rep-posicion b { font-size: 13px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rep-posicion span { color: var(--acento); font-size: 11px; }
+.rep-pista p { margin: 3px 0 0; color: var(--tenue); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rep-aviso { font-style: italic; }
+.rep-controles { display: flex; align-items: center; gap: 2px; }
+.rep-play { width: 42px; height: 42px; border-radius: 50%; background: var(--acento); color: var(--superficie); margin: 0 4px; }
+.rep-play:hover:not(:disabled) { background: var(--acento); color: var(--superficie); opacity: .9; }
+.rep-opciones { flex: none; padding: 8px 11px; border: 1px solid var(--borde); border-radius: 8px; background: transparent; color: var(--tenue); font-size: 11px; }
+
+/* ── Modo enfoque ─────────────────────────────────────────────── */
+body.enfoque .barra, body.enfoque .reproductor, body.enfoque .contexto { display: none; }
+body.enfoque .columna { padding-top: 24px; }
+.salir-enfoque {
+  position: fixed; top: 12px; right: 12px; z-index: 5;
+  padding: 8px 12px; border: 1px solid var(--borde); border-radius: 999px;
+  background: var(--superficie); color: var(--tenue); font-size: 12px; cursor: pointer;
+  opacity: .45;
+}
+.salir-enfoque:hover, .salir-enfoque:focus-visible { opacity: 1; }
+.salir-enfoque kbd { margin-left: 6px; font: inherit; font-size: 10px; padding: 1px 5px; border: 1px solid var(--borde); border-radius: 4px; }
+
+/* ── Paneles (índice, marcadores, preferencias) ───────────────── */
+dialog.panel {
+  width: 420px; max-width: calc(100vw - 24px); max-height: calc(100vh - 48px);
+  padding: 0; border: 1px solid var(--borde); border-radius: 14px;
+  background: var(--superficie); color: var(--texto-es);
+  box-shadow: 0 18px 50px var(--sombra);
+  overflow: auto;
+}
+dialog.panel::backdrop { background: rgba(10, 12, 16, .45); }
+.panel-cabecera { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 10px 18px; background: var(--superficie); border-bottom: 1px solid var(--borde); }
+.panel-cabecera h2 { margin: 0; font-size: 15px; color: var(--texto-ar); }
+.panel p { line-height: 1.6; }
+.filtro {
+  display: block; width: calc(100% - 24px); margin: 12px; padding: 9px 11px;
+  border: 1px solid var(--borde); border-radius: 8px; background: var(--bg); color: var(--texto-ar); font: inherit;
+  position: sticky; top: 64px; z-index: 1; box-shadow: 0 0 0 12px var(--superficie);
+}
+.indice-lista { list-style: none; margin: 0; padding: 0 8px 12px; }
+.indice-lista button {
+  display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px;
+  width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; cursor: pointer;
+}
+.indice-lista button:hover { background: var(--actual); }
+.indice-lista button[aria-current="true"] { background: var(--actual); box-shadow: inset 3px 0 0 var(--acento); }
+.indice-num { color: var(--tenue); font-variant-numeric: tabular-nums; text-align: right; }
+.indice-nombre b { display: block; color: var(--texto-ar); font-weight: 600; }
+.indice-nombre span { font-size: 11px; color: var(--tenue); }
+.indice-ar { font-family: "Amiri Quran", serif; font-size: 19px; color: var(--ornamento); }
+.lista-marcadores { list-style: none; margin: 0; padding: 8px 12px 14px; }
+.lista-marcadores li { display: flex; align-items: center; gap: 8px; padding: 8px 6px; border-bottom: 1px solid var(--borde); }
+.lista-marcadores li:last-child { border-bottom: 0; }
+.lista-marcadores .ref { flex: 1; min-width: 0; color: var(--texto-ar); }
+.lista-marcadores .ref span { display: block; font-size: 11px; color: var(--tenue); }
+.vacio { padding: 18px; color: var(--tenue); }
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 34px; padding: 0 12px; border: 1px solid var(--borde); border-radius: 8px;
+  background: var(--superficie); color: var(--texto-ar); font-size: 12px; cursor: pointer;
+}
+.boton:hover { border-color: var(--acento); color: var(--acento); }
+.boton.primario { background: var(--acento); border-color: var(--acento); color: var(--superficie); font-weight: 600; }
+.boton.primario:hover { color: var(--superficie); opacity: .9; }
+.enlace { padding: 4px 6px; border: 0; background: none; color: var(--acento); font-size: 12px; font-weight: 600; cursor: pointer; }
+
+.prefs { padding: 14px 18px 18px; }
+.prefs-resumen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin: 0 0 16px; }
+.prefs-resumen div span { display: block; font-size: 11px; color: var(--tenue); }
+.prefs-resumen div b { color: var(--texto-ar); font-weight: 600; }
+.prefs fieldset { margin: 0 0 14px; padding: 0; border: 0; }
+.prefs legend, .prefs label.campo { display: block; margin-bottom: 7px; font-weight: 600; color: var(--texto-ar); }
+.segmentos { display: flex; flex-wrap: wrap; gap: 6px; }
+.segmentos label { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; }
+.segmentos input { accent-color: var(--acento); margin: 0; }
+.prefs input[type="range"] { width: 100%; accent-color: var(--acento); }
+.prefs .nota { margin: 4px 0 14px; font-size: 11px; color: var(--tenue); }
+.prefs-acciones { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── Pantallas chicas (Android y ventanas angostas) ───────────── */
+@media (max-width: 720px) {
+  /* Dos filas: navegación y acciones arriba; progreso y Retomar abajo. */
+  .barra { flex-wrap: wrap; padding: 4px 6px 8px; gap: 0; }
+  #abrir-indice { order: 0; }
+  .barra-sura { order: 1; flex: 1 1 120px; min-width: 0; }
+  .barra-titulo { padding: 4px 2px; }
+  .barra-acciones { order: 2; margin-left: 0; gap: 0; }
+  .barra-progreso { order: 3; flex: 1 0 55%; margin: 0 8px; }
+  .pista { flex: 1; width: auto; }
+  .chip { order: 4; margin: 0 4px 0 0; padding: 5px 10px; }
+  .icono { width: 42px; height: 42px; }
+  .columna { padding: 4px 14px 40px; }
+  .aleya { padding: 14px 12px 16px; }
+  .accion { height: 40px; padding: 0 8px; }
+  .accion .etiqueta { display: none; }
+  .cartela { padding: 22px 0 16px; }
+  .cartela h1 { font-size: 40px; }
+  .contexto { margin: 0 6px; flex-wrap: wrap; }
+  .contexto .acciones { width: 100%; justify-content: flex-end; }
+  .reproductor { gap: 8px; padding: 8px 10px; }
+  .rep-opciones { display: none; }
+  dialog.panel { width: 100vw; max-width: 100vw; max-height: 85vh; margin: auto 0 0; border-radius: 14px 14px 0 0; }
+}
+@media (max-width: 480px) {
+  .barra-titulo span { display: none; }
+}
+@media (max-width: 380px) {
+  .rep-pista p { display: none; }
+}
+.solo-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
