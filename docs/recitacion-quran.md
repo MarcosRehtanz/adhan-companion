@@ -1,6 +1,6 @@
 # Recitación del Qur’an
 
-Implementación incorporada al release v0.1.9, desarrollada desde el 19/10/2026. Disponible en el lector de Linux y Windows. Desde el 20/10/2026 se integra también en Android con un reproductor nativo, todavía en desarrollo y sin comprobar en el J7 (ver [Android](#android)).
+Implementación incorporada al release v0.1.9, desarrollada desde el 19/10/2026. Disponible en el lector de Linux y Windows. Desde v0.1.11 también en Android, con un reproductor nativo comprobado en el J7 (ver [Android](#android)).
 
 ## Uso
 
@@ -72,7 +72,17 @@ Desarrollada el 20/10/2026, con las mismas pantallas y el mismo contrato (`quran
 - **Convivencia:** un Adhan o tono, incluida la prueba de sonido, pausa la recitación y la marca como pausada por aviso. No se reanuda sola. Mientras suena un aviso no se puede iniciar ni reanudar. Una llamada u otra app con audio la pausan; un sonido breve solo baja el volumen.
 - **Descargas:** **Descargar sura** usa `QuranFetch.kt`, con las mismas reglas que escritorio. Solo admite HTTPS al host del proveedor, sin redirecciones. Las conexiones tienen 10 s y 45 s de límite y cada archivo, 12 MiB. Rust comprueba que el resultado sea un MP3, calcula el SHA-256 y lo guarda con su manifiesto. En esta primera versión, por decisión del usuario, la descarga de una sura requiere tener la app abierta.
 
-Pendiente: compilación del APK, ya que esta máquina no tiene SDK de Android. El código Rust exclusivo de Android se comprobó con `cargo check` en un crate aislado. Después hay que hacer la prueba en el J7: escucha con y sin conexión, pantalla apagada, Adhan y tono durante la recitación, llamada entrante, controles de la notificación, quitar la app de recientes, y cancelar o eliminar descargas.
+### Comprobación en el J7 — 20/10/2026
+
+El código Rust exclusivo de Android se verificó con `cargo check` en un crate aislado; el Kotlin, en la CI del PR #3, que compiló y firmó los APK ARMv7 y ARM64. El APK ARMv7 1011100, con el mismo certificado que v0.1.10, se distribuyó en una prerelease de prueba sin índice de actualización y se instaló como actualización en el J7 SM-J710MN/Android 8.1.
+
+El usuario confirmó:
+- El lector, Escuchar, el seguimiento con desplazamiento y la notificación con Pausar/Detener.
+- Que sigue sonando con la pantalla apagada y al quitar la app de recientes, y que se detiene desde la notificación.
+- Que **Probar** el Adhan durante la recitación la pausa y no se reanuda sola.
+- La descarga de una sura y su escucha en modo avión.
+
+Sin comprobar: llamada entrante, cancelar o eliminar descargas, y otros dispositivos o versiones de Android.
 
 El [RDD](rdd-recitacion-quran.md) mantiene las decisiones y los criterios de aceptación pendientes; la [investigación de proveedores](investigacion-audio-quran.md) conserva las alternativas.
 

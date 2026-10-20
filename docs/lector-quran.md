@@ -78,6 +78,6 @@ El seguimiento de la recitación se probó con el mismo sustituto, que simula el
 - En modo enfoque a 390 px, la pastilla no se superpone con «Salir del enfoque».
 - El aviso de estado ya no desplaza el texto al aparecer.
 
-Pendientes: revisión del rediseño en la app nativa de Linux, en Windows y en el WebView del J7 (incluido el rendimiento de suras largas como Al-Baqara, que ahora se dibuja completa). También la ampliación del muestreo de signos y la recuperación de errores de almacenamiento. La concordancia estructural y visual no sustituye una revisión textual o religiosa.
+El 20/10/2026 el usuario usó el rediseño y el seguimiento en la app nativa de Linux (compilación de desarrollo) y en el J7 con el APK de prueba de v0.1.11. Pendientes: revisión en Windows y una medición específica del rendimiento de suras largas como Al-Baqara en el J7, que ahora se dibuja completa. También la ampliación del muestreo de signos y la recuperación de errores de almacenamiento. La concordancia estructural y visual no sustituye una revisión textual o religiosa.
 
 La [recitación de Parhizgar](recitacion-quran.md) se publicó en v0.1.9 para escritorio y se está integrando en Android. Búsqueda avanzada y notas externas siguen fuera del alcance actual.

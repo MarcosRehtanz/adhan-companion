@@ -11,7 +11,7 @@ La primera edición Android comparte el cálculo local y la interfaz React con e
 | Registro | Historial local y marcado manual por fecha. No se registran disparos automáticos de Adhan. |
 | Calendario islámico | Tabular civil con ajuste manual existente. |
 | Apariencia | Temas y acentos con Guardar y Cancelar. |
-| Qur’an | Texto árabe y traducción offline, marcadores y punto de lectura locales. Recitación con reproductor nativo en desarrollo desde el 20/10/2026, sin comprobar en el J7 (ver [recitación](recitacion-quran.md#android)). |
+| Qur’an | Texto árabe y traducción offline, marcadores y punto de lectura locales. Recitación con reproductor nativo desde v0.1.11, comprobada en el J7 (ver [recitación](recitacion-quran.md#android)). |
 | Adhan, tonos y preavisos | Integración nativa experimental: AlarmManager, notificaciones y MediaPlayer con servicio visible y acción Detener. Activación manual y permisos; preaviso y Adhan de Maghrib comprobados en el J7 con pantalla apagada y ahorro de energía (ver ensayo abajo). |
 | Actualizaciones | Configuración → Actualizaciones: buscar, descargar el APK compatible, verificarlo y abrir el instalador de Android. Canal experimental separado del escritorio. |
 

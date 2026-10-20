@@ -124,7 +124,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 **Aceptación:** contenido contrastado con su fuente, numeración consistente, presentación correcta del árabe, persistencia de marcadores y última lectura, y uso offline para el contenido instalado.
 
-**Recitación en audio:** [implementación de escritorio](recitacion-quran.md) incluida en v0.1.9, con revisión funcional nativa/auditiva Linux documentada; Windows pendiente de comprobación física. Android: reproductor nativo en desarrollo desde el 20/10/2026, pendiente del APK y de la prueba en el J7. El [RDD de recitación del Qur’an](rdd-recitacion-quran.md) conserva el diseño. Recomienda Parhizgar mediante Al Quran Cloud, primero reproducción por aleya y después descargas por sura. Incluye prioridad del Adhan y tonos, reanudación manual, control desde el tray y progreso de escucha separado de la lectura.
+**Recitación en audio:** [implementación de escritorio](recitacion-quran.md) incluida en v0.1.9, con revisión funcional nativa/auditiva Linux documentada; Windows pendiente de comprobación física. Android: reproductor nativo incluido en v0.1.11 y comprobado en el J7. El [RDD de recitación del Qur’an](rdd-recitacion-quran.md) conserva el diseño. Recomienda Parhizgar mediante Al Quran Cloud, primero reproducción por aleya y después descargas por sura. Incluye prioridad del Adhan y tonos, reanudación manual, control desde el tray y progreso de escucha separado de la lectura.
 
 ## Android experimental
 
