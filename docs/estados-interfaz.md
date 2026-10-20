@@ -37,6 +37,10 @@ El core rechaza descargar una sura que ya está completa y elimina el resultado 
 
 Los estados y acciones se derivan en `src/lib/quran-audio-state.ts`. La consulta inicial y los errores de consulta no habilitan acciones basadas en una copia obsoleta de otra sura. Los estados transitorios no sustituyen una confirmación del core.
 
+## Resolución de enlaces de Google Maps en Android
+
+Desde v0.1.10, el estado «Leyendo ubicación» espera la resolución nativa de enlaces cortos con límites de tiempo y hasta cuatro saltos validados por el core. Durante la consulta se bloquean envíos repetidos y la entrada; al terminar, se ofrece incorporar el punto encontrado o reintentar el error. El trabajador de red está separado del de alarmas. La consulta no guarda la configuración ni elige el centro del mapa como ubicación. Un pin explícito prevalece sobre su representación redondeada en la ruta.
+
 ## Edición de preferencias
 
 Vista con valor guardado → Editar → borrador → Guardar o Cancelar. Durante el guardado se bloquean envíos duplicados; el éxito vuelve al valor confirmado por el core. Si falla, se conserva el borrador y se ofrece recuperación. Cancelar descarta solo el borrador.

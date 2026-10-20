@@ -37,6 +37,7 @@ def prepare():
     for field in (f"name='{PACKAGE}'", f"versionCode='{version_code()}'", f"versionName='{VERSION}'", "sdkVersion:'24'"):
         assert field in badging, f'APK metadata mismatch: {field}'
     assert 'application-debuggable' not in badging, 'Official APK must not be debuggable'
+    assert "application-label:'Adhan Companion'" in badging, "Android launcher must use official app name"
     with zipfile.ZipFile(original) as archive:
         native = {name.split('/')[1] for name in archive.namelist() if name.startswith('lib/') and name.endswith('.so')}
         assert native == {abi} and f'lib/{abi}/libadhan_companion_lib.so' in archive.namelist(), 'Incorrect ABI'

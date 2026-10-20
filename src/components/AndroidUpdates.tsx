@@ -41,7 +41,7 @@ export function AndroidUpdates() {
   const busy = !!queryError || sending || !!status && busyPhases.includes(status.phase);
   const candidate = status?.candidate;
   return <section className="panel setting-panel">
-    <div className="panel-heading"><div><h2>Actualizaciones</h2><p>Canal Android experimental</p></div>
+    <div className="panel-heading"><div><h2>Actualizaciones</h2><p>Versiones oficiales para Android</p></div>
       {status && status.phase !== "ready" && <button className="secondary-button" disabled={busy} onClick={() => action("check")}>{status?.phase === "checking" ? "Buscando…" : status?.phase === "error" ? "Reintentar búsqueda" : "Buscar actualizaciones"}</button>}
     </div>
     {status && <p>Versión {status.installed_version} · compilación {status.installed_code} · {status.abi === "arm64-v8a" ? "ARM de 64 bits" : "ARM de 32 bits"}</p>}

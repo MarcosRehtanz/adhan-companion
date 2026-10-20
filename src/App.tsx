@@ -317,7 +317,7 @@ export default function App() {
         <nav aria-label="Navegación móvil">
           {[...PAGES, SYSTEM_PAGE].map(({ id, label, Icon }) => <button key={id} className={"mobile-menu-item " + (page === id ? "activa" : "")} aria-current={page === id ? "page" : undefined} disabled={saving || menuPhase === "closing"} onClick={() => { setPage(id); closeMenu(); }}><Icon size={21} /><span>{label}</span></button>)}
         </nav>
-        <p className="mobile-menu-version">v{verActual || "0.1.9"}{isAndroid ? " · Android experimental" : ""}</p>
+        <p className="mobile-menu-version">v{verActual || "0.1.10"}{isAndroid ? " · Android" : ""}</p>
       </dialog>
       {!isAndroid && <aside className="sidebar">
         <div className="brand"><img src={logo} className="logo" alt="" /><span>Adhan<br />Companion</span></div>
@@ -332,7 +332,7 @@ export default function App() {
           <button className={"nav-item " + (page === SYSTEM_PAGE.id ? "activa" : "")} aria-label={SYSTEM_PAGE.label} aria-current={page === SYSTEM_PAGE.id ? "page" : undefined} disabled={saving} onClick={() => setPage(SYSTEM_PAGE.id)}>
             <Settings size={17} strokeWidth={2} /><span>{SYSTEM_PAGE.label}</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.9"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.10"}</span>
         </div>
       </aside>}
 
@@ -346,7 +346,7 @@ export default function App() {
         </header>
 
         <main className="page-content" id="main-content"><fieldset className="page-fields" disabled={saving}>
-          {isAndroid && <aside className="experimental-notice" role="note"><strong>Android experimental</strong><span>Adhan y avisos nativos disponibles. Activá los avisos y revisá los permisos en “Configuración → Adhan y avisos”.</span></aside>}
+          {isAndroid && <aside className="android-notice" role="note"><strong>Avisos en Android</strong><span>Adhan y avisos nativos disponibles. Activá los avisos y revisá los permisos en “Configuración → Adhan y avisos”.</span></aside>}
           {page === "quran" && <QuranReader audioAvailable={runtime?.platform === "linux" || runtime?.platform === "windows" || runtime?.platform === "macos"} />}
           {page === "calendario" && (scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>)}
           {page === "hoy" && (

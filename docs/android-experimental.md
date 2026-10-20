@@ -191,3 +191,19 @@ Después de ese intento se realizó un nuevo reinicio del J7. ADB confirmó camb
 Los APK oficiales son builds release sin depuración, `versionCode` 1010900. Conservan `io.github.marcosrehtanz.adhancompanion.experimental`, el nombre y la firma persistente para actualizar sin reinstalar. No cambiar esta identidad para quitar la palabra experimental: provocaría una app y datos independientes.
 
 La compilación 10018 consulta exclusivamente el canal descrito arriba. El release crea un puente con los mismos APK y un índice compatible en una prerelease de ese canal. El código nuevo admite además tags oficiales `vX.Y.Z`, prioriza esos releases y sigue eligiendo el mayor código compatible. La recitación de Parhizgar se mantiene exclusiva de escritorio hasta su integración nativa móvil. El ensayo del J7 con 10018 no certifica la instalación ni el comportamiento de 1010900; se requiere una comprobación posterior en el dispositivo.
+
+### Comprobación de actualización al release oficial — 20/10/2026
+
+En el J7 SM-J710MN/Android 8.1 se encontró instalada **v0.1.9, compilación 1010900, ARMv7**, al restablecer la conexión ADB. El usuario confirmó que actualizó mediante búsqueda, descarga e instalación desde la app y que conservó ubicación, sonidos/preavisos, registro de rezos, marcadores y punto de lectura del Qur’an.
+
+Se extrajo una copia del APK instalado y se comprobó su SHA-256 contra el oficial publicado: `f9e19d5dbf531d1b393091be469afdced6201d687966398b7dbda08dd7809b45`. Coincide exactamente con el APK release cuya firma persistente, versión, arquitectura, ausencia de depuración y puente JNI se verificaron en la publicación.
+
+**Límite de la comprobación de datos:** la actualización ya había terminado cuando se conectó el teléfono; no se creó un nuevo respaldo inmediatamente anterior a este salto. El APK release no permite `run-as`, por lo que no se compararon hashes de sus archivos privados después de actualizar. La conservación de datos de este ensayo está confirmada por la revisión del usuario en la interfaz, junto con la comprobación técnica del paquete instalado; no equivale a la comparación binaria realizada en el ensayo anterior 10017 → 10018. Los respaldos privados previos se conservan.
+
+AlarmManager mantiene registrados el preaviso de Fajr del 20/10/2026 a las **04:42:16** y el Adhan a las **04:52:16**, hora local del teléfono. Esta observación confirma programación presente después de actualizar; no demuestra por sí sola una nueva reprogramación ni la entrega audible del ciclo. No se reinició, desinstaló ni borró datos del J7 durante esta comprobación.
+
+## Presentación oficial y Google Maps — v0.1.10
+
+El nombre visible pasa a **Adhan Companion**, sin «Experimental», tanto en el launcher como en la actividad. El menú identifica Android y Actualizaciones indica versiones oficiales. La nota de avisos explica cómo activarlos, sin rotular la plataforma como experimental. La identidad técnica `io.github.marcosrehtanz.adhancompanion.experimental`, los nombres de clases JNI, la firma persistente y la compatibilidad del canal anterior se conservan: no representan el nombre visible y cambiarlos rompería actualizaciones/datos.
+
+El importador resuelve los enlaces cortos de Google Maps mediante red nativa y utiliza el pin preciso cuando Google redondea las coordenadas en la ruta. Ver [detalles de ubicación](ubicacion-google-maps.md). Compilación Android oficial: **1011000**. Los APK antiguos sin buscador integrado deben actualizarse manualmente con el APK de su arquitectura y firma, sin desinstalar. Si Android rechaza la instalación, revisar firma/versiones y preparar respaldo antes de cualquier migración; no recomendar borrar los datos como solución.
