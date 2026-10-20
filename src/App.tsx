@@ -41,7 +41,7 @@ const PAGES: { id: Page; label: string; Icon: LucideIcon }[] = [
 ];
 const SYSTEM_PAGE: { id: Page; label: string; Icon: LucideIcon } = { id: "sistema", label: "Configuración", Icon: Settings };
 
-interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean }
+interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean; quran_audio: boolean }
 
 interface Config {
   version: number;
@@ -350,7 +350,7 @@ export default function App() {
 
         <main className={"page-content" + (page === "quran" ? " page-quran" : "")} id="main-content"><fieldset className="page-fields" disabled={saving}>
           {isAndroid && <aside className="android-notice" role="note"><strong>Avisos en Android</strong><span>Adhan y avisos nativos disponibles. Activá los avisos y revisá los permisos en “Configuración → Adhan y avisos”.</span></aside>}
-          {page === "quran" && <QuranReader audioAvailable={runtime?.platform === "linux" || runtime?.platform === "windows" || runtime?.platform === "macos"} />}
+          {page === "quran" && <QuranReader audioAvailable={runtime?.quran_audio ?? false} />}
           {page === "calendario" && (scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>)}
           {page === "hoy" && (
             <div className="page-stack">

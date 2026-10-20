@@ -23,3 +23,6 @@
 # Rust exporta Java_..._PrayerNative_calculate: el nombre forma parte del ABI JNI.
 # La clase también se utiliza con el proceso iniciado por BOOT_COMPLETED.
 -keep class io.github.marcosrehtanz.adhancompanion.experimental.PrayerNative { *; }
+
+# Rust exporta Java_..._QuranNative_resolve/listened para el servicio de recitación.
+-keep class io.github.marcosrehtanz.adhancompanion.experimental.QuranNative { *; }

@@ -104,13 +104,14 @@ export function QuranAudio({ audio, position, onLocate }: { audio: QuranAudioCon
         </div>
       </div>
       <details className="quran-audio-sources"><summary>Acerca de la recitación y sus fuentes</summary>
-        <p>El audio continúa hasta el final de la sura y al cerrar la ventana. Puede haber pausas entre aleyas. Los avisos de rezo tienen prioridad; después debés reanudar la escucha manualmente. Escuchar o ver la aleya no cambia tu punto de lectura.</p>
+        <p>El audio continúa hasta el final de la sura, también con la ventana cerrada o la pantalla apagada. Puede haber pausas entre aleyas. Los avisos de rezo tienen prioridad; después debés reanudar la escucha manualmente. Escuchar o ver la aleya no cambia tu punto de lectura.</p>
         <p>Las descargas se guardan por sura. Cancelar conserva las aleyas verificadas; eliminar audio conserva marcadores y lectura. Espacio máximo: 300 MiB por sura y 1 GiB en total. Para conservar audio sin conexión, usá Descargar sura.</p>
         <p>Recitador: Shahriar Parhizgar. Edición <code>ar.parhizgar</code> de Al Quran Cloud / Islamic Network. Grabaciones originales, sin agregar basmalas ni voces sintéticas. Calidad publicada: 48 kbps; la tasa real puede variar.</p>
         <p>El proveedor publica permisos para redistribución gratuita no comercial y reproducción y descarga personal o educativa. Los derechos permanecen con los recitadores o sus herederos, que pueden solicitar su retirada. Condiciones independientes de MIT, del texto y de la traducción.</p>
         <p><a href="https://alquran.cloud/terms-and-conditions" target="_blank" rel="noreferrer">Condiciones del proveedor</a> · <a href="https://alquran.cloud/cdn" target="_blank" rel="noreferrer">Procedencia</a> · consultadas el 19/10/2026.</p>
       </details>
     </div>}
+    {state?.notifications === false && <div className="quran-player-alert" role="alert"><span>Para escuchar, permití las notificaciones de la app: desde ahí podés pausar o detener la recitación.</span><button className="link-button" disabled={busy} onClick={() => void invoke("android_alert_status", { action: "notifications" }).then(refresh, refresh)}>Permitir notificaciones</button></div>}
     {alert && <div className="quran-player-alert" role="alert"><span>{alert}</span>{state?.phase === "error" && <button className="link-button" disabled={busy} onClick={() => void command("retry")}>Reintentar aleya</button>}</div>}
     <div className="quran-player-bar">
       <div className="quran-player-track"><span className="quran-player-mark" aria-hidden="true"><Volume2 size={19} /></span><div><button className="quran-player-position" title={hasPlaybackPosition ? "Ver aleya de la recitación" : "Ver aleya seleccionada"} onClick={() => onLocate(shown)}><b>{SURAS[shown.sura - 1].name}</b><span>{shown.sura}:{shown.aya}</span></button><p>Parhizgar <span aria-hidden="true">·</span> <span role="status">{state?.interrupted ? "Pausada por aviso de rezo" : !state ? "Conectando…" : sessionActive ? labels[state.phase] : state.phase === "error" ? "Error de reproducción" : "Escuchar desde aquí"}</span></p></div></div>

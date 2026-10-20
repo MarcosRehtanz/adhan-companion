@@ -16,7 +16,7 @@ mod mobile;
 pub mod prayer;
 pub mod qibla;
 pub mod quran;
-#[cfg(desktop)]
+#[cfg(any(desktop, target_os = "android"))]
 pub mod quran_audio;
 pub mod registro;
 pub mod scheduler;
@@ -311,6 +311,7 @@ struct RuntimeInfo {
     config_path: String,
     background_alerts: bool,
     audio_preview: bool,
+    quran_audio: bool,
 }
 
 #[tauri::command]
@@ -320,6 +321,7 @@ fn runtime_info() -> RuntimeInfo {
         config_path: config::config_path().display().to_string(),
         background_alerts: cfg!(any(desktop, target_os = "android")),
         audio_preview: cfg!(any(desktop, target_os = "android")),
+        quran_audio: cfg!(any(desktop, target_os = "android")),
     }
 }
 
@@ -350,20 +352,20 @@ async fn android_update(action: Option<String>) -> Result<serde_json::Value, Str
     { let _ = action; Err("Solo disponible en Android.".into()) }
 }
 
-// Contratos comunes; Android mantiene el lector de texto mientras se integra audio nativo.
+// Contratos comunes: escritorio reproduce con rodio y Android con su servicio nativo.
 #[tauri::command]
 async fn quran_audio_status(sura: u16) -> Result<serde_json::Value, String> {
-    #[cfg(desktop)]
+    #[cfg(any(desktop, target_os = "android"))]
     { tauri::async_runtime::spawn_blocking(move || quran_audio::status(sura)).await.map_err(|e| e.to_string())? }
-    #[cfg(mobile)]
-    { let _ = sura; Err("La recitación todavía está disponible solo en escritorio.".into()) }
+    #[cfg(not(any(desktop, target_os = "android")))]
+    { let _ = sura; Err("La recitación no está disponible en esta plataforma.".into()) }
 }
 #[tauri::command]
 async fn quran_audio_control(action: String, sura: Option<u16>, aya: Option<u16>, volume: Option<u8>) -> Result<(), String> {
-    #[cfg(desktop)]
+    #[cfg(any(desktop, target_os = "android"))]
     { tauri::async_runtime::spawn_blocking(move || quran_audio::control(&action, sura, aya, volume)).await.map_err(|e| e.to_string())? }
-    #[cfg(mobile)]
-    { let _ = (action, sura, aya, volume); Err("La recitación todavía está disponible solo en escritorio.".into()) }
+    #[cfg(not(any(desktop, target_os = "android")))]
+    { let _ = (action, sura, aya, volume); Err("La recitación no está disponible en esta plataforma.".into()) }
 }
 
 // Toggle real de autostart del plugin (checkbox de la tab Avanzado)

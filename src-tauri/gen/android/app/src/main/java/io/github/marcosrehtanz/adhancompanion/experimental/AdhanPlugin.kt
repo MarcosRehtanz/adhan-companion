@@ -19,6 +19,10 @@ import org.json.JSONObject
 @InvokeArg class ControlArgs { var action: String = "status" }
 @InvokeArg class PreviewArgs { lateinit var audio: String; lateinit var prayer: String }
 @InvokeArg class MapsLinkArgs { lateinit var url: String }
+@InvokeArg class QuranArgs {
+    var action: String = "state"; var sura: Int = 0; var aya: Int = 0; var count: Int = 0
+    var volume: Int = 70; var keep: Boolean = false; var url: String = ""; var path: String = ""; var max: Long = 0
+}
 
 @TauriPlugin
 class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
@@ -75,6 +79,31 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
     }
     @Command fun stop(invoke: Invoke) {
         activity.stopService(Intent(activity, PrayerAudioService::class.java)); invoke.resolve()
+    }
+    /** Recitación: Rust conserva descargas y punto de escucha; QuranPlayer reproduce. */
+    @Command fun quran(invoke: Invoke) {
+        val args = invoke.parseArgs(QuranArgs::class.java)
+        val context = activity.applicationContext
+        if (args.action == "fetch") {
+            QuranFetch.worker.execute {
+                try { QuranFetch.fetch(args.url, args.path, args.max); invoke.resolve() }
+                catch (e: Throwable) { invoke.reject(e.message ?: "No se pudo descargar la recitación.") }
+            }
+            return
+        }
+        try {
+            when (args.action) {
+                "state" -> {}
+                "play" -> QuranPlayer.play(context, args.sura, args.aya, args.count, args.volume, args.keep)
+                "pause" -> QuranPlayer.pause()
+                "resume" -> QuranPlayer.resume()
+                "stop" -> QuranPlayer.stop()
+                "volume" -> QuranPlayer.volume(args.volume)
+                "cancelFetch" -> QuranFetch.cancel()
+                else -> error("Acción de recitación desconocida.")
+            }
+            invoke.resolve(JSObject(QuranPlayer.state(context).toString()))
+        } catch (e: Throwable) { invoke.reject(e.message ?: "No se pudo controlar la recitación.") }
     }
     @Command fun update(invoke: Invoke) {
         try {

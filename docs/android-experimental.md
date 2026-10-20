@@ -11,7 +11,7 @@ La primera edición Android comparte el cálculo local y la interfaz React con e
 | Registro | Historial local y marcado manual por fecha. No se registran disparos automáticos de Adhan. |
 | Calendario islámico | Tabular civil con ajuste manual existente. |
 | Apariencia | Temas y acentos con Guardar y Cancelar. |
-| Qur’an | Texto árabe y traducción offline, marcadores y punto de lectura locales. Recitación pendiente según su RDD. |
+| Qur’an | Texto árabe y traducción offline, marcadores y punto de lectura locales. Recitación con reproductor nativo en desarrollo desde el 20/10/2026, sin comprobar en el J7 (ver [recitación](recitacion-quran.md#android)). |
 | Adhan, tonos y preavisos | Integración nativa experimental: AlarmManager, notificaciones y MediaPlayer con servicio visible y acción Detener. Activación manual y permisos; preaviso y Adhan de Maghrib comprobados en el J7 con pantalla apagada y ahorro de energía (ver ensayo abajo). |
 | Actualizaciones | Configuración → Actualizaciones: buscar, descargar el APK compatible, verificarlo y abrir el instalador de Android. Canal experimental separado del escritorio. |
 
@@ -112,7 +112,7 @@ Android y los fabricantes pueden restringir actividad de fondo. En Samsung, revi
 
 Interfaz, core Linux y Android y código Kotlin compilados. Entrega real de preaviso y Adhan de Maghrib comprobada en el J7 con pantalla apagada, sin USB y ahorro de energía activo (ensayo abajo). Pendiente comprobar: **Probar** Adhan/los tres tonos/solo notificación, volumen y Detener desde la notificación; entregas después de retirar la app de recientes y sin abrirla tras reiniciar; cambio de ubicación/hora, permisos, Doze profundo y otros modos de ahorro. La compatibilidad declarada no sustituye esta revisión en hardware.
 
-La firma experimental persistente y el actualizador dentro de la app están implementados. En el J7 se comprobó la actualización real 10017 → 10018 y la conservación de los datos del ensayo. Las instalaciones con otra firma siguen necesitando una migración manual con respaldo y autorización. La recitación del Qur’an y sus controles multimedia siguen fuera de esta integración.
+La firma experimental persistente y el actualizador dentro de la app están implementados. En el J7 se comprobó la actualización real 10017 → 10018 y la conservación de los datos del ensayo. Las instalaciones con otra firma siguen necesitando una migración manual con respaldo y autorización. La recitación del Qur’an tiene su propio servicio y notificación (`QuranPlayer.kt`); el Adhan la pausa antes de sonar.
 
 Referencias: [alarmas de Android](https://developer.android.com/develop/background-work/services/alarms), [tipos de servicio en primer plano](https://developer.android.com/develop/background-work/services/fgs/service-types) y [plugins móviles de Tauri](https://v2.tauri.app/develop/plugins/develop-mobile/). Android 15+ restringe iniciar reproducción desde BOOT_COMPLETED; por eso el receiver de arranque únicamente reprograma las alarmas.
 

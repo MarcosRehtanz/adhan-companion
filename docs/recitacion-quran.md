@@ -1,6 +1,6 @@
-# Recitación del Qur’an en escritorio
+# Recitación del Qur’an
 
-Implementación incorporada al release v0.1.9, desarrollada desde el 19/10/2026. Disponible en el lector de Linux y Windows. Android conserva el lector escrito: necesita una integración nativa de reproducción antes de habilitar estos controles.
+Implementación incorporada al release v0.1.9, desarrollada desde el 19/10/2026. Disponible en el lector de Linux y Windows. Desde el 20/10/2026 se integra también en Android con un reproductor nativo, todavía en desarrollo y sin comprobar en el J7 (ver [Android](#android)).
 
 ## Uso
 
@@ -11,6 +11,7 @@ Controles:
 - **Escuchar desde aquí** en una aleya inicia su recitación y continúa hasta el final de esa sura. Allí se detiene.
 - **Pausar**, **Reanudar**, **Anterior**, **Siguiente** y **Detener** controlan el reproductor del core. Cerrar la ventana mantiene la reproducción; salir de la app la detiene.
 - **Pulsar la sura/aleya de la barra** encuadra el pasaje sin guardar otro punto de lectura. La aleya de la sesión se resalta cuando está visible; no se cambia de página automáticamente.
+- **Seguimiento:** desde el 20/10/2026, la vista acompaña con un desplazamiento suave a la aleya que suena, dentro de la sura en pantalla. Desplazarse a mano, tocar otra aleya o navegar lo suspende. **Seguir la recitación** o cualquier acción de escucha lo retoma. Detalle en el [lector](lector-quran.md#lectura-y-navegación).
 - **Opciones → Retomar escucha** comienza desde el principio de la última aleya cargada para escuchar. No se reproduce automáticamente al iniciar la app.
 - **Opciones → Volumen → Editar** abre la edición con Guardar y Cancelar. El volumen es propio de la recitación y se combina con el volumen del sistema.
 - El tray permite **Detener recitación del Qur’an** con la ventana oculta.
@@ -59,7 +60,19 @@ Las [condiciones del proveedor](https://alquran.cloud/terms-and-conditions), con
 - Compilación de TypeScript/Vite y `cargo check` de escritorio Linux completados con soporte MP3.
 - Identificadores, URLs y formato de las cuatro muestras comprobados técnicamente; no equivale a una revisión auditiva o religiosa de su contenido.
 - Pendientes: escucha de las muestras y sus basmalas, transiciones, revisión funcional en la app nativa de Linux y Windows, cierre/reapertura, reinicio, descargas offline, cancelaciones y convivencia audible con Adhan y tonos.
-- Los instaladores de v0.1.9 incluyen recitación en escritorio; el APK mantiene solo el lector escrito. La migración de audio a Android requiere MediaPlayer/servicio nativo, coordinación con las alarmas y controles del sistema.
+- Los instaladores de v0.1.9 incluyen recitación en escritorio; el APK de v0.1.9 mantiene solo el lector escrito. La integración de Android se describe abajo.
+
+## Android
+
+Desarrollada el 20/10/2026, con las mismas pantallas y el mismo contrato (`quran_audio_status` y `quran_audio_control`). El core en Rust conserva lo común: descargas, límites, manifiestos con SHA-256 y el punto de escucha. No usa rodio en Android.
+
+- **Reproducción:** `QuranPlayer.kt` reproduce aleya por aleya con `MediaPlayer` hasta el final de la sura. Lo sostiene `QuranAudioService`, un servicio en primer plano de tipo `mediaPlayback`. Para cada aleya, Rust indica por JNI (`QuranNative.resolve`) el archivo descargado y verificado o, si no está descargada, la URL del proveedor, que se escucha sin guardarse. Al empezar cada aleya, `QuranNative.listened` guarda la última escuchada.
+- **Notificación obligatoria:** por decisión del usuario, escuchar requiere tener permitidas las notificaciones de la app. Sin ese permiso, el reproductor muestra el aviso y el botón **Permitir notificaciones**. La notificación, silenciosa y de canal propio, muestra la aleya y tiene **Pausar/Reanudar** y **Detener**.
+- **Segundo plano:** sigue con la pantalla apagada. Durante la carga y la reproducción mantiene la CPU y el Wi-Fi activos entre aleyas. Por decisión del usuario, quitar la app de recientes no la detiene; se detiene desde la notificación.
+- **Convivencia:** un Adhan o tono, incluida la prueba de sonido, pausa la recitación y la marca como pausada por aviso. No se reanuda sola. Mientras suena un aviso no se puede iniciar ni reanudar. Una llamada u otra app con audio la pausan; un sonido breve solo baja el volumen.
+- **Descargas:** **Descargar sura** usa `QuranFetch.kt`, con las mismas reglas que escritorio. Solo admite HTTPS al host del proveedor, sin redirecciones. Las conexiones tienen 10 s y 45 s de límite y cada archivo, 12 MiB. Rust comprueba que el resultado sea un MP3, calcula el SHA-256 y lo guarda con su manifiesto. En esta primera versión, por decisión del usuario, la descarga de una sura requiere tener la app abierta.
+
+Pendiente: compilación del APK, ya que esta máquina no tiene SDK de Android. El código Rust exclusivo de Android se comprobó con `cargo check` en un crate aislado. Después hay que hacer la prueba en el J7: escucha con y sin conexión, pantalla apagada, Adhan y tono durante la recitación, llamada entrante, controles de la notificación, quitar la app de recientes, y cancelar o eliminar descargas.
 
 El [RDD](rdd-recitacion-quran.md) mantiene las decisiones y los criterios de aceptación pendientes; la [investigación de proveedores](investigacion-audio-quran.md) conserva las alternativas.
 

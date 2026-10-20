@@ -34,6 +34,7 @@
         </activity>
 
         <service android:name=".PrayerAudioService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
+        <service android:name=".QuranAudioService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <receiver android:name=".PrayerAlarmReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

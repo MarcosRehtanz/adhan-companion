@@ -5,5 +5,5 @@ commands.allow = ["get_quran_reader", "update_quran_reader"]
 
 [[permission]]
 identifier = "quran-audio"
-description = "Controla la recitación de Parhizgar y sus descargas por sura en el core de escritorio."
+description = "Controla la recitación de Parhizgar y sus descargas por sura en el core (escritorio y Android)."
 commands.allow = ["quran_audio_status", "quran_audio_control"]
