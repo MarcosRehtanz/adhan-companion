@@ -180,7 +180,7 @@ async fn check_update() -> Result<Option<updater::Disponible>, String> {
     }
     #[cfg(mobile)]
     {
-        Err("Consultá las descargas de Android experimental; el actualizador de escritorio no está disponible.".into())
+        Err("Consultá las descargas de Android; el actualizador de escritorio no está disponible.".into())
     }
 }
 

@@ -61,6 +61,7 @@ fn maps_host(host: &str) -> bool {
             | "google.cl"
             | "google.com.uy"
             | "google.com.br"
+            | "google.com.co"
             | "google.co.uk"
     )
 }
@@ -133,12 +134,16 @@ fn inspect(input: &str) -> Result<Input, String> {
             pins.push(point?);
         }
     }
-    if let Some(place) = path
-        .strip_prefix("/maps/place/")
-        .and_then(|tail| tail.split('/').next())
-    {
-        if let Some(point) = coordinate_pair(place) {
-            pins.push(point?);
+    // Google puede redondear el par del nombre del lugar y conservar más
+    // precisión en !3d/!4d. La ruta es un fallback, no un segundo pin.
+    if pins.is_empty() {
+        if let Some(place) = path
+            .strip_prefix("/maps/place/")
+            .and_then(|tail| tail.split('/').next())
+        {
+            if let Some(point) = coordinate_pair(place) {
+                pins.push(point?);
+            }
         }
     }
     let point = pins
@@ -166,9 +171,23 @@ fn resolve_with(
     unreachable!()
 }
 
-#[cfg(mobile)]
+#[cfg(target_os = "android")]
 pub fn resolve(input: &str) -> Result<Coordinates, String> {
-    resolve_with(input, |_| Err("En Android experimental, abrí el enlace en Google Maps y pegá las coordenadas o un enlace completo del punto.".into()))
+    resolve_with(input, |url| {
+        let result = crate::android_alerts::call(
+            "mapsRedirect",
+            serde_json::json!({"url": url.as_str()}),
+        )?;
+        let location = result.get("location").and_then(|value| value.as_str())
+            .ok_or("Google Maps no devolvió un enlace del punto. Copiá sus coordenadas.")?;
+        // El siguiente destino vuelve a pasar por inspect antes de usar la red.
+        url.join(location).map_err(|_| "El enlace corto devolvió una dirección no válida.".into())
+    })
+}
+
+#[cfg(all(mobile, not(target_os = "android")))]
+pub fn resolve(input: &str) -> Result<Coordinates, String> {
+    resolve_with(input, |_| Err("Abrí el enlace en Google Maps y pegá las coordenadas o un enlace completo del punto.".into()))
 }
 
 #[cfg(desktop)]

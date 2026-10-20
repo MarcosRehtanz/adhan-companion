@@ -4,13 +4,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.9 para Linux, Windows y Android** — interfaz reorganizada, preferencias en modo lectura con edición explícita, tray con estados, scheduler 24/7, calendario de seguimiento, notificaciones + preaviso, cálculo local por FFI y biblioteca fija de muecines por rezo. Descargas: `.deb`, `.AppImage` e instalador de Windows x64 en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.9.md).
+✅ **v0.1.10 para Linux, Windows y Android** — interfaz reorganizada, preferencias en modo lectura con edición explícita, tray con estados, scheduler 24/7, calendario de seguimiento, notificaciones + preaviso, cálculo local por FFI y biblioteca fija de muecines por rezo. Descargas: `.deb`, `.AppImage` e instalador de Windows x64 en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.10.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.9_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.10_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -48,6 +48,12 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 
 El lector se [revisó en la app nativa de Linux](docs/revision-lector-quran.md). La [recitación de Parhizgar en escritorio](docs/recitacion-quran.md) incluye controles por aleya, descargas por sura y prioridad de avisos. Ver la [revisión funcional de estados](docs/revision-estados-escritorio.md), el [RDD](docs/rdd-recitacion-quran.md) y el [roadmap](docs/roadmap.md). La revisión visual y auditiva en Windows requiere un equipo Windows.
 
+## Novedades de v0.1.10
+
+- Google Maps: enlaces cortos también en Android, sin curl.
+- Ubicación: el pin preciso tiene prioridad sobre las coordenadas redondeadas en la ruta.
+- Presentación oficial Android sin rótulos «experimental»; identidad y firma conservadas.
+
 ## Novedades de v0.1.9
 
 - Recitación de Parhizgar para Linux y Windows y descarga de audio por sura.
@@ -57,7 +63,7 @@ El lector se [revisó en la app nativa de Linux](docs/revision-lector-quran.md).
 
 ### Android
 
-Descargá el APK **ARMv7** para dispositivos de 32 bits (incluido el J7 probado) o **ARM64** para dispositivos de 64 bits desde el [release oficial](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Requiere Android 7.0/API 24 o superior. Instalalo sobre la app existente, sin desinstalar ni borrar datos. Mantiene el identificador y la indicación experimental anteriores para preservar compatibilidad y describir su validación limitada.
+Descargá el APK **ARMv7** para dispositivos de 32 bits (incluido el J7 probado) o **ARM64** para dispositivos de 64 bits desde el [release oficial](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Requiere Android 7.0/API 24 o superior. Instalalo sobre la app existente, sin desinstalar ni borrar datos. El nombre visible es Adhan Companion; conserva el identificador técnico y la firma anteriores para preservar los datos y la compatibilidad de actualización.
 
 **Configuración → Actualizaciones** busca, descarga y verifica el APK antes de abrir el instalador de Android; la instalación necesita confirmación del usuario. La compilación 10018 recibe el release mediante una prerelease puente compatible con su actualizador anterior. **Adhan, tonos y preavisos** usan alarmas y audio nativos, con activación y permisos. El J7/Android 8.1 comprobó la compilación anterior con pantalla apagada y ahorro de batería; no generalizar ese resultado a todos los dispositivos ni a este nuevo APK sin probarlo. El lector escrito del Qur’an está incluido; su recitación en Android sigue pendiente. Ver [detalles Android](docs/android-experimental.md).
 

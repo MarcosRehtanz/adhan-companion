@@ -1,5 +1,5 @@
 {
-  "productName": "Adhan Companion Experimental",
+  "productName": "Adhan Companion",
   "identifier": "io.github.marcosrehtanz.adhancompanion.experimental",
   "bundle": {
     "resources": ["assets/licenses/*"],

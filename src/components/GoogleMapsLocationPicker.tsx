@@ -56,7 +56,7 @@ export function GoogleMapsLocationPicker({ current, onUse, disabled = false }: {
   return (
     <section className="maps-picker" aria-label="Ubicación desde Google Maps">
       <div className="maps-heading">
-        <div><h3><MapPin size={15} />Elegir un punto en el mapa</h3><p>Abrí Google Maps y hacé clic derecho sobre el lugar para copiar sus coordenadas.</p></div>
+        <div><h3><MapPin size={15} />Elegir un punto en el mapa</h3><p>En Google Maps, mantené pulsado el lugar en el celular, o hacé clic derecho en la computadora. Copiá sus coordenadas o el enlace de Compartir.</p></div>
         <button type="button" className="test" disabled={disabled} onClick={() => openMap()}><ExternalLink size={14} />Abrir Google Maps</button>
       </div>
       <div className="maps-import">

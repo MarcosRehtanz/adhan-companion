@@ -347,8 +347,8 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 @media (prefers-reduced-motion: reduce) {
   .mobile-navigation.open, .mobile-navigation.closing { animation: none; }
 }
-.experimental-notice { display: grid; gap: 5px; max-width: 780px; margin: 0 auto 16px; padding: 12px 16px; border: 1px solid var(--borde); border-left: 4px solid var(--acento); border-radius: 10px; background: var(--acento-claro); font-size: 12px; line-height: 1.5; }
-.experimental-notice span { color: var(--texto-suave); }
+.android-notice { display: grid; gap: 5px; max-width: 780px; margin: 0 auto 16px; padding: 12px 16px; border: 1px solid var(--borde); border-left: 4px solid var(--acento); border-radius: 10px; background: var(--acento-claro); font-size: 12px; line-height: 1.5; }
+.android-notice span { color: var(--texto-suave); }
 
 @media (max-width: 720px) {
   .sidebar { display: none; }

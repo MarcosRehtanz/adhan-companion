@@ -18,9 +18,23 @@ import org.json.JSONObject
 @InvokeArg class ConfigArgs { lateinit var config: String }
 @InvokeArg class ControlArgs { var action: String = "status" }
 @InvokeArg class PreviewArgs { lateinit var audio: String; lateinit var prayer: String }
+@InvokeArg class MapsLinkArgs { lateinit var url: String }
 
 @TauriPlugin
 class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
+    @Command fun mapsRedirect(invoke: Invoke) {
+        val url = invoke.parseArgs(MapsLinkArgs::class.java).url
+        GoogleMapsLinks.worker.execute {
+            try { invoke.resolve(JSObject().put("location", GoogleMapsLinks.redirect(url))) }
+            catch (e: Exception) {
+                invoke.reject(when (e) {
+                    is java.net.SocketTimeoutException -> "Google Maps tardó demasiado. Revisá la conexión y reintentá."
+                    is java.io.IOException -> "No se pudo consultar Google Maps. Revisá la conexión y reintentá."
+                    else -> e.message ?: "No se pudo leer el enlace de Google Maps."
+                })
+            }
+        }
+    }
     private fun background(invoke: Invoke, block: () -> Unit) {
         PrayerAlarms.worker.execute {
             try { block(); invoke.resolve(JSObject(PrayerAlarms.status(activity).toString())) }
