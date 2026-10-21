@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Check } from "lucide-react";
 import type { Schedule, MarkedDay, PrayerSlot } from "../types";
+import { prayerReached } from "../lib/prayers";
 const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -73,11 +74,13 @@ export function PrayerRegister({ schedule }: { schedule: Schedule | null }) {
     <div className="cal-dia"><div className="cal-dia-tit">{new Date(`${selected}T12:00:00`).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" })}</div>{selectedCount !== null && <p role="status">{selectedCount === 0 ? "Sin rezos registrados en esta fecha." : selectedCount === 5 ? "Día completo: 5 de 5 registrados." : `${selectedCount} de 5 registrados.`}</p>}
       <div className="seg-lista">{PRAYERS.map(name => {
         const isMarked = ready && marked(selected).has(name);
+        // Hoy, un rezo se marca desde su horario (la misma regla valida el core).
+        const early = !isMarked && !prayerReached(schedule, selected, name);
         const time = selected === schedule?.date ? schedule.prayers.find(s => s.name === name)?.hhmm : hours?.date === selected ? hours.values[name] : null;
-        return <button key={name} className={`seg-fila ${isMarked ? "on" : ""}`} disabled={!ready || !!pending || selected > today} aria-pressed={isMarked} aria-label={`${isMarked ? "Desmarcar" : "Marcar realizado"} ${name}`} onClick={() => void toggle(name)}><span className="seg-nombre">{name}</span><span className="seg-hora">{pending === name ? "Guardando…" : time ?? "—"}</span><span className={`seg-check ${isMarked ? "on" : ""}`}>{isMarked && <Check size={13} />}</span></button>;
+        return <button key={name} className={`seg-fila ${isMarked ? "on" : ""}`} disabled={!ready || !!pending || selected > today || early} aria-pressed={isMarked} aria-label={early ? `Todavía no es la hora de ${name}` : `${isMarked ? "Desmarcar" : "Marcar realizado"} ${name}`} onClick={() => void toggle(name)}><span className="seg-nombre">{name}</span><span className="seg-hora">{pending === name ? "Guardando…" : time ?? "—"}</span><span className={`seg-check ${isMarked ? "on" : ""}`}>{isMarked && <Check size={13} />}</span></button>;
       })}</div>
       {hoursError && <div role="alert"><p>No se pudieron consultar los horarios: {hoursError}</p><button className="link-button" onClick={() => setHoursRetry(n => n + 1)}>Reintentar horarios</button></div>}
       {saveError && <p role="alert">{saveError} El estado mostrado conserva la última lectura confirmada.</p>}
-    </div><p className="nota">No se pueden registrar fechas futuras. Las marcas cambian cuando el core confirma la escritura; podés corregir días anteriores.</p>
+    </div><p className="nota">No se pueden registrar fechas futuras; hoy, cada rezo se habilita desde su horario. Las marcas cambian cuando el core confirma la escritura; podés corregir días anteriores.</p>
   </>;
 }

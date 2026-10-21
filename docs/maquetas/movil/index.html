@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Maqueta móvil · Adhan Companion</title>
+  <link rel="stylesheet" href="movil.css">
+</head>
+<body>
+<div class="telefono" id="telefono">
+
+  <!-- Hoy -->
+  <section class="pantalla" id="hoy" data-titulo="Hoy">
+    <header class="barra-app barra-hoy">
+      <div>
+        <p class="fecha-civil">Miércoles 21 de octubre</p>
+        <p class="fecha-hijri">9 de Jumada al-awwal de 1448</p>
+      </div>
+      <span class="ciudad">Bahía Blanca</span>
+    </header>
+    <div class="contenido">
+      <div class="aviso-permisos" id="aviso-permisos" role="note" hidden>
+        <p><b>Los avisos están apagados.</b> Sin permiso de notificaciones no suena el Adhan.</p>
+        <button class="boton-texto" type="button">Revisar permisos</button>
+      </div>
+
+      <section class="proximo" aria-labelledby="proximo-nombre">
+        <p class="proximo-rotulo">Próximo rezo</p>
+        <div class="proximo-linea">
+          <h1 id="proximo-nombre">Asr <span lang="ar" dir="rtl">العصر</span></h1>
+          <p class="proximo-hora">16:40</p>
+        </div>
+        <p class="proximo-falta">Faltan <b id="cuenta">1 h 29 min</b></p>
+        <svg class="arco" id="arco" viewBox="0 0 342 100" role="img" aria-label="Recorrido del sol hoy. Fajr 05:04, antes de la salida del sol; Dhuhr 13:05, al mediodía; Asr 16:40; Maghrib 19:42, con la puesta; Isha 21:05, de noche. Ahora son las 15:10."></svg>
+        <div class="arco-extremos" aria-hidden="true"><span>Fajr 05:04</span><span>Isha 21:05</span></div>
+      </section>
+
+      <section class="rezos" aria-labelledby="rezos-titulo">
+        <div class="seccion-cabecera">
+          <h2 id="rezos-titulo">Rezos de hoy</h2>
+          <span id="progreso-texto">2 de 5</span>
+        </div>
+        <div class="progreso" aria-hidden="true"><span id="progreso-barra"></span></div>
+        <ul class="lista-rezos" id="lista-hoy"></ul>
+        <p class="nota-lista">Tocá un rezo para marcarlo. Los días anteriores se corrigen en Registro.</p>
+      </section>
+
+      <a class="fila-enlace" href="#mas/qibla" data-ir="qibla">
+        <svg class="icono-qibla" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 5l2.2 7H9.8z" fill="currentColor" transform="rotate(245.3 12 12)"/></svg>
+        <span class="fila-texto"><b>Qibla</b><span>245° desde el norte, hacia el suroeste</span></span>
+        <span class="chevron" aria-hidden="true">›</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Registro -->
+  <section class="pantalla" id="registro" data-titulo="Registro" hidden>
+    <header class="barra-app"><h1>Registro</h1></header>
+    <div class="contenido">
+      <div class="racha">
+        <p class="racha-numero"><b>4</b> días seguidos</p>
+        <p class="racha-detalle">Mejor racha: 12 días. En total, 37 días completos y 214 rezos marcados.</p>
+      </div>
+      <section class="mes" aria-labelledby="mes-titulo">
+        <div class="mes-cabecera">
+          <button class="boton-icono" type="button" aria-label="Mes anterior">‹</button>
+          <h2 id="mes-titulo">Octubre de 2026</h2>
+          <button class="boton-icono" type="button" aria-label="Mes siguiente" disabled>›</button>
+        </div>
+        <div class="semana" aria-hidden="true"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+        <div class="dias" id="dias" role="grid" aria-label="Días de octubre"></div>
+        <p class="leyenda"><span class="punto completo"></span>5 de 5 <span class="punto parcial"></span>Incompleto</p>
+      </section>
+      <section aria-labelledby="dia-titulo">
+        <div class="seccion-cabecera"><h2 id="dia-titulo">21 de octubre</h2><span id="dia-progreso">2 de 5</span></div>
+        <ul class="lista-rezos" id="lista-dia"></ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- Qur'an -->
+  <section class="pantalla pantalla-quran" id="quran" data-titulo="Qur’an" hidden>
+    <img src="capturas/actual-quran.png" alt="El lector del Qur’an actual: barra propia arriba, texto y reproductor abajo.">
+    <p class="nota-quran">El lector conserva su diseño actual: ya tiene barra propia, paneles como hoja inferior y reproductor abajo. Solo se suma la barra inferior de la app.</p>
+  </section>
+
+  <!-- Más -->
+  <section class="pantalla" id="mas" data-titulo="Más" hidden>
+    <header class="barra-app"><h1>Más</h1></header>
+    <div class="contenido contenido-lista">
+      <h2 class="grupo">Rezo</h2>
+      <ul class="lista-opciones">
+        <li><a href="#mas/calendario" data-ir="calendario"><span class="fila-texto"><b>Calendario islámico</b><span>9 de Jumada al-awwal de 1448</span></span><span class="chevron">›</span></a></li>
+        <li><a href="#mas/qibla" data-ir="qibla"><span class="fila-texto"><b>Qibla</b><span>245° desde el norte</span></span><span class="chevron">›</span></a></li>
+        <li><a href="#mas/ubicacion" data-ir="ubicacion"><span class="fila-texto"><b>Ubicación y cálculo</b><span>Bahía Blanca, método MWL, Asr Shafi</span></span><span class="chevron">›</span></a></li>
+        <li><a href="#mas/avisos" data-ir="avisos"><span class="fila-texto"><b>Adhan y avisos</b><span>Activos, preaviso de 10 min</span></span><span class="chevron">›</span></a></li>
+      </ul>
+      <h2 class="grupo">Aplicación</h2>
+      <ul class="lista-opciones">
+        <li><a href="#mas/apariencia" data-ir="apariencia"><span class="fila-texto"><b>Apariencia</b><span>Tema claro, acento verde</span></span><span class="chevron">›</span></a></li>
+        <li><a href="#mas/actualizaciones" data-ir="actualizaciones"><span class="fila-texto"><b>Actualizaciones</b><span>v0.1.12, al día</span></span><span class="chevron">›</span></a></li>
+        <li><a href="#mas/acerca" data-ir="acerca"><span class="fila-texto"><b>Acerca de</b><span>Fuentes, licencias y archivo de configuración</span></span><span class="chevron">›</span></a></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Más → Adhan y avisos -->
+  <section class="pantalla subpantalla" id="avisos" data-titulo="Adhan y avisos" hidden>
+    <header class="barra-app barra-sub">
+      <button class="boton-icono volver" type="button" aria-label="Volver a Más" data-volver>‹</button>
+      <h1>Adhan y avisos</h1>
+      <button class="boton-texto guardar" type="button" id="guardar" disabled>Guardar</button>
+    </header>
+    <div class="contenido contenido-lista">
+      <ul class="lista-opciones">
+        <li class="fila-interruptor"><span class="fila-texto"><b>Avisos en este teléfono</b><span>Próximo: Asr a las 16:40</span></span><input type="checkbox" class="interruptor" checked aria-label="Avisos en este teléfono"></li>
+      </ul>
+      <h2 class="grupo">Volumen</h2>
+      <div class="bloque"><input type="range" min="0" max="100" value="70" id="volumen" aria-label="Volumen de los avisos"><span id="volumen-valor">70 %</span></div>
+      <h2 class="grupo">Sonido por rezo</h2>
+      <ul class="lista-opciones" id="lista-sonidos"></ul>
+      <h2 class="grupo">Preaviso</h2>
+      <ul class="lista-opciones">
+        <li class="fila-paso"><span class="fila-texto"><b>Minutos antes del rezo</b><span>Notificación sin sonido</span></span>
+          <span class="paso"><button type="button" class="boton-icono" data-paso="-5" aria-label="Cinco minutos menos">−</button><b id="preaviso">10</b><button type="button" class="boton-icono" data-paso="5" aria-label="Cinco minutos más">+</button></span></li>
+      </ul>
+      <p class="nota-lista" id="nota-guardar">Los cambios se aplican al tocar Guardar. Si volvés sin guardar, se descartan.</p>
+    </div>
+  </section>
+
+  <!-- Hoja inferior: sonido de un rezo -->
+  <div class="velo" id="velo" hidden></div>
+  <section class="hoja" id="hoja" role="dialog" aria-modal="true" aria-labelledby="hoja-titulo" hidden>
+    <div class="hoja-asa" aria-hidden="true"></div>
+    <h2 id="hoja-titulo">Sonido de Dhuhr</h2>
+    <div class="segmentos" role="radiogroup" aria-label="Tipo de aviso" id="segmentos">
+      <label><input type="radio" name="modo" value="adhan">Adhan</label>
+      <label><input type="radio" name="modo" value="tono">Tono</label>
+      <label><input type="radio" name="modo" value="notificacion">Solo notificación</label>
+    </div>
+    <div class="hoja-acciones">
+      <button class="boton-secundario" type="button" id="probar">Probar</button>
+      <button class="boton-primario" type="button" id="hoja-listo">Listo</button>
+    </div>
+  </section>
+
+  <nav class="barra-inferior" aria-label="Secciones">
+    <a href="#hoy" data-tab="hoy"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg><span>Hoy</span></a>
+    <a href="#registro" data-tab="registro"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 2.8v3.4M16 2.8v3.4M8.5 14.5l2.3 2.3 4.7-4.7"/></svg><span>Registro</span></a>
+    <a href="#quran" data-tab="quran"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5c-2-1.6-4.8-2-8-1.5v13c3.2-.5 6 0 8 1.5 2-1.5 4.8-2 8-1.5V5c-3.2-.5-6-.1-8 1.5zM12 6.5v13"/></svg><span>Qur’an</span></a>
+    <a href="#mas" data-tab="mas"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/></svg><span>Más</span></a>
+  </nav>
+</div>
+<script src="movil.js"></script>
+</body>
+</html>

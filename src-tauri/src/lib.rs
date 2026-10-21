@@ -220,6 +220,7 @@ async fn mark_prayed(
     date: String,
     prayer: String,
     sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
+    state: tauri::State<'_, SharedConfig>,
 ) -> Result<String, String> {
     if !scheduler::PRAYERS.contains(&prayer.as_str()) {
         return Err(format!("rezo desconocido: {prayer}"));
@@ -232,12 +233,15 @@ async fn mark_prayed(
     }
     #[cfg(mobile)]
     {
-        mobile::mark_prayed(&date, &prayer)?;
+        let cfg = state.read().map_err(|e| format!("config: {e}"))?.clone();
+        mobile::mark_prayed(&date, &prayer, &cfg)?;
         let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
         return Ok(prayer);
     }
     #[cfg(desktop)]
     {
+        // El scheduler valida el horario con su propia copia de la configuración.
+        let _ = state;
         let sender = sched_tx.inner().clone();
         let name = prayer.clone();
         tauri::async_runtime::spawn_blocking(move || {

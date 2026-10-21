@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 export type Appearance = { theme: "light" | "dark" | "system"; accent: "teal" | "blue" | "violet" | "rose" | "amber" };
 export const DEFAULT_APPEARANCE: Appearance = { theme: "light", accent: "teal" };
-const themes = { light: "Claro", dark: "Oscuro", system: "Seguir al sistema" };
-const palettes = {
+export const themes = { light: "Claro", dark: "Oscuro", system: "Seguir al sistema" };
+export const palettes = {
   teal: { name: "Verde", solid: "#0e6f63", bright: "#6ed6bd", wash: "#e8f4f0", darkWash: "#203d36", sidebar: "#124f48" },
   blue: { name: "Azul", solid: "#245cac", bright: "#90bcff", wash: "#edf3fc", darkWash: "#21334e", sidebar: "#203c65" },
   violet: { name: "Violeta", solid: "#7043a5", bright: "#ccb0ff", wash: "#f3edfa", darkWash: "#362b48", sidebar: "#493263" },

@@ -25,16 +25,17 @@ El usuario confirmó después la instalación de la variante ARMv7 en su J7 con 
 
 ## Interfaz móvil
 
-- En Android siempre se usa un botón hamburguesa con los nombres completos de todas las secciones; el sidebar de escritorio no se renderiza. En escritorio, se conserva el sidebar y se sustituye por el menú hasta 720 píxeles de ancho.
-- El diálogo mantiene el foco en el menú y devuelve el foco al cerrarlo; permite cerrar con su botón o tocando el fondo.
-- El menú tiene desplazamiento vertical y altura de respaldo en `vh` para WebViews sin soporte de `dvh`.
+- Desde el 21/10/2026 (fase 1 de la [maqueta móvil](maquetas/movil/README.md)), Android usa una interfaz de celular. La **barra inferior** tiene Hoy, Registro, Qur’an y Más; el sidebar de escritorio no se renderiza. En escritorio se conserva el sidebar y la misma interfaz de celular aparece hasta 720 píxeles de ancho.
+- **Hoy:** arriba, la fecha civil y la hijri. Debajo, el próximo rezo con su nombre árabe, la hora y cuánto falta, y el recorrido del sol con el horizonte (salida y puesta del sol calculadas por PrayTimes). Después, los cinco rezos para marcar con un toque, cada uno desde su horario, y la qibla.
+- **Aviso de avisos:** el de Android solo aparece en Hoy, cuando los avisos están apagados, falta un permiso o hubo un error al programarlos.
+- **Más:** una lista con el valor actual de cada opción. Cada una abre una subpantalla con «‹». Esas subpantallas entran al historial: el botón atrás de Android vuelve a Más. En esta fase muestran los paneles de configuración existentes; pasarlos al patrón nativo, con Guardar arriba, es la fase 2.
 - El contenido usa todo el ancho disponible, adapta tarjetas y formularios y contempla las áreas seguras de la pantalla.
 - Los controles principales tienen al menos 44 píxeles de altura. Los calendarios conservan sus siete columnas.
 - El registro presenta los cinco rezos como filas para facilitar el marcado táctil.
 - La barra de guardar aparece cuando hay una edición, cambios pendientes o un mensaje de estado.
 - Las preferencias siguen mostrando primero un resumen y abren los campos mediante **Editar**, con **Guardar** y **Cancelar**.
 
-La adaptación también se aplica a ventanas pequeñas de escritorio. Las comprobaciones visuales en un teléfono real siguen pendientes.
+La adaptación también se aplica a ventanas pequeñas de escritorio. La fase 1 se probó en Firefox a 390 px con un sustituto del core; falta revisarla en un teléfono real.
 
 La compatibilidad de compilación se basa en las opciones [`build.target` y `build.cssTarget` de Vite](https://vite.dev/config/build-options.html). El cambio de sintaxis de media queries llegó en [Chromium 104](https://blog.chromium.org/2022/06/chrome-104-beta-new-media-query-syntax.html). El objetivo de compilación no añade polyfills para todas las API del navegador ni certifica compatibilidad completa con cualquier WebView antiguo.
 

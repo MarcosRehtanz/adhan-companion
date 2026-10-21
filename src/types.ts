@@ -23,6 +23,9 @@ export interface Schedule {
   countdown_secs: number | null;
   /** rezos ya marcados como rezados hoy */
   marked: string[];
+  /** Salida y puesta del sol en horas decimales locales; null en latitudes extremas. */
+  sunrise: number | null;
+  sunset: number | null;
 }
 
 export interface MarkedDay {

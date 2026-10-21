@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
-  Home, Clock3, Settings, Pencil, BookOpen, Menu, X,
+  Home, Clock3, Settings, Pencil, BookOpen, Sun, Ellipsis, ChevronLeft, ChevronRight,
   Check, LocateFixed, CheckCircle2, AlertCircle, ListChecks, Compass,
   Flame, Trophy, CalendarCheck, type LucideIcon,
 } from "lucide-react";
@@ -19,8 +19,10 @@ import type { Schedule, Stats } from "./types";
 import { GoogleMapsLocationPicker } from "./components/GoogleMapsLocationPicker";
 import { PrayerAlertsSettings, type AudioConfig } from "./components/PrayerAlertsSettings";
 import { IslamicCalendar, type CalendarConfig } from "./components/IslamicCalendar";
+import { MobileToday } from "./components/MobileToday";
 import { hijriLabel } from "./lib/hijri";
-import { AppearanceSettings, useAppearance, DEFAULT_APPEARANCE, type Appearance } from "./components/AppearanceSettings";
+import { cardinal } from "./lib/prayers";
+import { AppearanceSettings, useAppearance, DEFAULT_APPEARANCE, themes, palettes, type Appearance } from "./components/AppearanceSettings";
 import QuranReader from "./components/QuranReader";
 import logo from "./assets/logo.png";
 import "./App.css";
@@ -30,7 +32,9 @@ const MADHAB_OPTIONS = ["Shafi", "Hanafi"];
 const HIGH_LAT_OPTIONS = ["None", "MiddleOfNight", "AngleBased", "AqrabAlAyyam", "AqrabAlBilad", "OneSeventh", "FixedAngle"];
 const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
-type Page = "quran" | "calendario" | "hoy" | "horarios" | "registro" | "sistema";
+// Escritorio: hoy, horarios, calendario, quran, registro, sistema.
+// Celular: hoy, registro, quran y mas; desde «Más» se abren las subpantallas.
+type Page = "quran" | "calendario" | "hoy" | "horarios" | "registro" | "sistema" | "mas" | "qibla" | "avisos" | "apariencia" | "actualizaciones" | "acerca";
 type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | null;
 const PAGES: { id: Page; label: string; Icon: LucideIcon }[] = [
   { id: "hoy", label: "Hoy", Icon: Home },
@@ -40,6 +44,20 @@ const PAGES: { id: Page; label: string; Icon: LucideIcon }[] = [
   { id: "registro", label: "Registro", Icon: ListChecks },
 ];
 const SYSTEM_PAGE: { id: Page; label: string; Icon: LucideIcon } = { id: "sistema", label: "Configuración", Icon: Settings };
+const MOBILE_TABS: { id: Page; label: string; Icon: LucideIcon }[] = [
+  { id: "hoy", label: "Hoy", Icon: Sun },
+  { id: "registro", label: "Registro", Icon: ListChecks },
+  { id: "quran", label: "Qur’an", Icon: BookOpen },
+  { id: "mas", label: "Más", Icon: Ellipsis },
+];
+const SUBPAGE_TITLES: Partial<Record<Page, string>> = {
+  calendario: "Calendario islámico", qibla: "Qibla", horarios: "Ubicación y cálculo", avisos: "Adhan y avisos",
+  apariencia: "Apariencia", actualizaciones: "Actualizaciones", acerca: "Acerca de",
+};
+const isSubpage = (page: Page) => page in SUBPAGE_TITLES;
+/** Una página del celular en la ventana ancha de escritorio, y viceversa. */
+const desktopPage = (page: Page): Page => page === "mas" || page === "avisos" || page === "apariencia" || page === "actualizaciones" || page === "acerca" ? "sistema" : page === "qibla" ? "hoy" : page;
+const mobilePage = (page: Page): Page => page === "sistema" ? "mas" : page;
 
 interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean; quran_audio: boolean }
 
@@ -61,41 +79,32 @@ interface Config {
 }
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const NARROW = "(max-width: 720px)";
 
 /// Ventana principal: dashboard diario y preferencias en modo lectura por defecto.
 /// El estado vive en Rust (core) y se actualiza por IPC/eventos.
 export default function App() {
-  const menuDialog = useRef<HTMLDialogElement>(null);
-  const menuCloseTimer = useRef<number | undefined>(undefined);
-  const [menuPhase, setMenuPhase] = useState<"closed" | "open" | "closing">("closed");
   const [runtime, setRuntime] = useState<RuntimeInfo | null>(null);
   const isAndroid = runtime?.platform === "android";
-  const finishClosingMenu = useCallback(() => {
-    window.clearTimeout(menuCloseTimer.current);
-    menuDialog.current?.close();
-    setMenuPhase("closed");
-  }, []);
-  const closeMenu = useCallback(() => {
-    if (!menuDialog.current?.open) return;
-    window.clearTimeout(menuCloseTimer.current);
-    setMenuPhase("closing");
-    menuCloseTimer.current = window.setTimeout(finishClosingMenu,
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 200);
-  }, [finishClosingMenu]);
-  const openMenu = () => {
-    window.clearTimeout(menuCloseTimer.current);
-    if (!menuDialog.current?.open) menuDialog.current?.showModal();
-    setMenuPhase("open");
-  };
+  // En Android y en ventanas angostas, la interfaz de celular: barra inferior en lugar de barra lateral.
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   useEffect(() => {
-    // Al recuperar el sidebar de escritorio, liberar también el foco y el fondo.
-    const resize = () => { if (!isAndroid && window.innerWidth > 720) finishClosingMenu(); };
-    window.addEventListener("resize", resize);
-    resize();
-    return () => window.removeEventListener("resize", resize);
-  }, [isAndroid, finishClosingMenu]);
-  useEffect(() => () => window.clearTimeout(menuCloseTimer.current), []);
+    const query = window.matchMedia(NARROW);
+    const change = () => setNarrow(query.matches);
+    query.addListener(change); // addEventListener("change") no existe en el WebView del J7.
+    return () => query.removeListener(change);
+  }, []);
+  const mobile = isAndroid || narrow;
   const [page, setPage] = useState<Page>("hoy");
+  useEffect(() => { setPage(current => mobile ? mobilePage(current) : desktopPage(current)); }, [mobile]);
+  // Las subpantallas de «Más» entran al historial: el botón atrás de Android vuelve a «Más».
+  const mobileRef = useRef(mobile);
+  mobileRef.current = mobile;
+  useEffect(() => {
+    const onPop = () => setPage(current => mobileRef.current && isSubpage(current) ? "mas" : current);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [editando, setEditando] = useState<EditBlock>(null);
   const [snapshotEdicion, setSnapshotEdicion] = useState<Config | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -292,7 +301,15 @@ export default function App() {
     setSnapshotEdicion(null);
   };
 
-  const editingPage: Page | null = !editando ? null : editando === "ubicacion" || editando === "calculo" ? "horarios" : editando === "calendario" ? "calendario" : "sistema";
+  /** Navegación: en el celular, una subpantalla de «Más» se apila sobre el historial. */
+  const go = (next: Page) => {
+    if (mobile && isSubpage(next) && !isSubpage(page)) window.history.pushState({ sub: next }, "");
+    if (mobile && !isSubpage(next) && isSubpage(page) && window.history.state?.sub) window.history.back();
+    setPage(next);
+  };
+  const back = () => { if (window.history.state?.sub) window.history.back(); else setPage("mas"); };
+
+  const editingPage: Page | null = !editando ? null : editando === "ubicacion" || editando === "calculo" ? "horarios" : editando === "calendario" ? "calendario" : !mobile ? "sistema" : editando === "adhan" ? "avisos" : "apariencia";
   const calendar = cfg.calendar ?? { adjustment_days: 0 };
   const hoy = schedule?.date ?? "";
   const nextPrayer = scheduleError ? undefined : schedule?.next;
@@ -301,25 +318,129 @@ export default function App() {
     ? null
     : Math.max(0, nextPrayer.timestamp - Math.floor(Date.now() / 1000));
   const markedToday = new Set(schedule?.marked ?? []);
+  const appearance = cfg.appearance ?? DEFAULT_APPEARANCE;
 
-  const pageTitle = [...PAGES, SYSTEM_PAGE].find((item) => item.id === page)?.label ?? "Hoy";
+  const pageTitle = (mobile ? SUBPAGE_TITLES[page] ?? MOBILE_TABS.find(t => t.id === page)?.label : undefined) ?? [...PAGES, SYSTEM_PAGE].find((item) => item.id === page)?.label ?? "Hoy";
+
+  // Bloques compartidos por la ventana de escritorio y las subpantallas del celular.
+  const ubicacionYCalculo = <>
+    <section className="panel setting-panel">
+      <div className="panel-heading"><div><h2>Ubicación</h2><p>Ciudad y coordenadas usadas para calcular los horarios.</p></div>{editando !== "ubicacion" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("ubicacion")}><Pencil size={14} />Editar ubicación</button>}</div>
+      {editando === "ubicacion" ? <div className="editor">
+        <label>Ciudad<input disabled={detectando} value={cfg.city} onChange={(e) => upd({ city: e.target.value })} /></label>
+        <div className="fila"><label>Latitud<input disabled={detectando} type="number" min="-90" max="90" step="0.000001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} /></label><label>Longitud<input disabled={detectando} type="number" min="-180" max="180" step="0.000001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} /></label></div>
+        <GoogleMapsLocationPicker current={{ lat: cfg.lat, lon: cfg.lon }} disabled={detectando} onUse={(point) => upd(point)} />
+        <div className="read-grid"><div><span>Zona horaria de la ciudad</span><b>{cfg.tz}</b></div></div>
+        <button className="test" disabled={detectando} onClick={detectarPorIP}><LocateFixed size={14} />{detectando ? "Detectando…" : "Sugerir ubicación por IP"}</button>
+        <p className="nota">La detección es una sugerencia: revisá ciudad y coordenadas antes de guardar. Para este cálculo, la zona horaria del sistema debe coincidir con la ubicación.</p>
+        <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button></div>
+      </div> : <div className="read-grid"><div><span>Ciudad</span><b>{cfg.city || "Sin configurar"}</b></div><div><span>Coordenadas</span><b>{cfg.lat.toFixed(6)}, {cfg.lon.toFixed(6)}</b></div><div><span>Zona horaria guardada</span><b>{cfg.tz}</b></div><p className="nota read-note">El cálculo usa la zona horaria local del sistema. Asegurate de que coincida con esta ubicación.</p></div>}
+    </section>
+    <section className="panel setting-panel">
+      <div className="panel-heading"><div><h2>Método de cálculo</h2><p>Método, escuela de Asr y ajustes manuales.</p></div>{editando !== "calculo" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("calculo")}><Pencil size={14} />Editar método</button>}</div>
+      {editando === "calculo" ? <div className="editor">
+        <label>Método<select value={cfg.method} onChange={(e) => upd({ method: e.target.value })}>{METHOD_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
+        <label>Madhab para Asr<select value={cfg.madhab} onChange={(e) => upd({ madhab: e.target.value })}>{MADHAB_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
+        <label>Regla de latitud alta<select value={cfg.highLatRule} onChange={(e) => upd({ highLatRule: e.target.value })}>{HIGH_LAT_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
+        <div className="offsets"><div className="grupo"><div className="grupo-tit">Ajuste por rezo (minutos)</div><div className="fila-5">{PRAYERS.map((p) => { const key = p.toLowerCase() as keyof Config["offsets"]; return <div className="campo" key={p}><label>{p}</label><input type="number" step="1" value={cfg.offsets[key] ?? 0} onChange={(e) => upd({ offsets: { ...cfg.offsets, [key]: +e.target.value } })} /><span className="min">min</span></div>; })}</div></div></div>
+        <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button></div>
+      </div> : <div className="read-grid read-grid-four"><div><span>Método</span><b>{cfg.method}</b></div><div><span>Madhab para Asr</span><b>{cfg.madhab}</b></div><div><span>Latitud alta</span><b>{cfg.highLatRule}</b></div><div><span>Ajustes manuales</span><b>{PRAYERS.filter((p) => (cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0) !== 0).length ? PRAYERS.filter((p) => (cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0) !== 0).length + " rezos ajustados" : "Ninguno"}</b></div></div>}
+    </section>
+  </>;
+  const avisos = <>
+    {isAndroid && <AndroidAlerts />}
+    <section className="panel setting-panel">
+      <div className="panel-heading"><div><h2>Adhan y avisos</h2><p>{isAndroid ? "Elegí el sonido por rezo. Los avisos se programan en Android al guardar; activalos en este teléfono." : "Elegí cómo recibir cada rezo. Los avisos funcionan con la ventana cerrada."}</p></div>{editando !== "adhan" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
+      <PrayerAlertsSettings previewAvailable={runtime?.audio_preview ?? false} audio={cfg.audio} editing={editando === "adhan"} onChange={updAudio} />
+      {editando === "adhan" ? <div className="editor">
+        <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>
+        <p className="nota">El preaviso es una notificación independiente. Usá 0 para desactivarlo. Guardar aplica todos los cambios.</p>
+        <div className="editor-actions"><button className="secondary-button" onClick={() => { invoke("stop_alert").catch(() => {}); cancelarEdicion(); }}>Cancelar</button></div>
+      </div> : <p>Preaviso: {cfg.notice.minutes_before === 0 ? "desactivado" : `${cfg.notice.minutes_before} min antes`}</p>}
+    </section>
+  </>;
+  const apariencia = <AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={appearance} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} />;
+  const inicioSesion = !isAndroid && <section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section>;
+  const actualizaciones = isAndroid ? <AndroidUpdates /> : <DesktopUpdates />;
+  const archivo = <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>;
+  const calendario = scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>;
+  const quran = <QuranReader audioAvailable={runtime?.quran_audio ?? false} />;
+  const quranTopbar = <><h1 className="visually-hidden">{pageTitle}</h1><div id="quran-topbar-slot" className="quran-topbar-slot" /></>;
+
+  const footer = (pendiente || status || editando) && <footer>
+    {pendiente && <span className="estado pendiente">Cambios sin guardar</span>}
+    {status && (
+      <span className={`estado ${status.kind}`}>
+        {status.kind === "ok" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+        {status.text}
+      </span>
+    )}
+    {editingPage && editingPage !== page && <button className="secondary-button" disabled={saving} onClick={() => go(editingPage)}>Volver a la edición</button>}
+    {editando && <><span className="estado">{saving ? "Guardando cambios…" : pendiente ? "Edición con cambios pendientes" : "Edición sin cambios"}</span><button className="secondary-button" disabled={saving} onClick={cancelarEdicion}>Cancelar edición</button></>}
+    {pendiente && <button className="guardar" disabled={saving || detectando} onClick={save}>{saving ? "Guardando…" : "Guardar cambios"}</button>}
+    {status && !saving && <button className="secondary-button" aria-label="Cerrar mensaje" onClick={() => setStatus(null)}>Cerrar</button>}
+  </footer>;
+
+  if (mobile) {
+    const tab = isSubpage(page) ? "mas" : page;
+    const opciones: { id: Page; label: string; value: string }[][] = [[
+      { id: "calendario", label: "Calendario islámico", value: hoy ? hijriLabel(hoy, calendar.adjustment_days) : "Cargando fecha…" },
+      { id: "qibla", label: "Qibla", value: qibla == null ? "Calculando…" : `${Math.round(qibla)}° desde el norte` },
+      { id: "horarios", label: "Ubicación y cálculo", value: `${cfg.city || "Sin ubicación"}, método ${cfg.method}, Asr ${cfg.madhab}` },
+      { id: "avisos", label: "Adhan y avisos", value: cfg.notice.minutes_before === 0 ? "Sonido por rezo, sin preaviso" : `Sonido por rezo, preaviso de ${cfg.notice.minutes_before} min` },
+    ], [
+      { id: "apariencia", label: "Apariencia", value: `Tema ${themes[appearance.theme].toLowerCase()}, acento ${palettes[appearance.accent].name.toLowerCase()}` },
+      { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.12"}` },
+      { id: "acerca", label: "Acerca de", value: isAndroid ? "Archivo de configuración" : "Inicio de sesión y archivo de configuración" },
+    ]];
+    return (
+      <div className={"App-root mobile" + (isAndroid ? " platform-android" : "")}>
+        <div className="workspace">
+          <header className={page === "quran" ? "topbar topbar-quran" : "topbar barra-app" + (isSubpage(page) ? " barra-sub" : "") + (page === "hoy" ? " barra-hoy" : "")}>
+            {page === "quran" ? quranTopbar
+              : page === "hoy" ? <><div className="encabezado-hoy"><h1 className="fecha-civil">{hoy ? fechaLarga(hoy) : "Hoy"}</h1>{hoy && <p className="fecha-hijri">{hijriLabel(hoy, calendar.adjustment_days)}</p>}</div><span className="ciudad">{cfg.city}</span></>
+              : isSubpage(page) ? <><button className="boton-volver" aria-label="Volver a Más" disabled={saving} onClick={back}><ChevronLeft size={26} /></button><h1>{pageTitle}</h1></>
+              : <h1>{pageTitle}</h1>}
+          </header>
+          <main className={"page-content" + (page === "quran" ? " page-quran" : "") + (page === "mas" ? " page-lista" : "")} id="main-content"><fieldset className="page-fields" disabled={saving}>
+            {page === "quran" && quran}
+            {page === "hoy" && <MobileToday schedule={schedule} scheduleError={scheduleError} onRetry={loadSchedule} qibla={qibla} qiblaError={qiblaError} android={isAndroid} onOpen={go} onMarked={() => { void loadSchedule(); void loadStats(); }} />}
+            {page === "registro" && <div className="page-stack">
+              {statsError ? <ResourceError message={statsError} onRetry={loadStats} /> : !stats ? <p role="status">Consultando estadísticas…</p> : <div className="racha">
+                <p className="racha-numero"><b>{stats.racha_actual}</b> {stats.racha_actual === 1 ? "día seguido" : "días seguidos"}</p>
+                <p className="racha-detalle">Mejor racha: {stats.mejor_racha} {stats.mejor_racha === 1 ? "día" : "días"}. En total, {stats.dias_completos} días completos y {stats.rezos_marcados} rezos marcados.</p>
+              </div>}
+              <section className="panel"><PrayerRegister schedule={schedule} /></section>
+            </div>}
+            {page === "mas" && opciones.map((grupo, i) => <div key={i}>
+              <h2 className="grupo-opciones">{i === 0 ? "Rezo" : "Aplicación"}</h2>
+              <ul className="lista-opciones">{grupo.map(o => <li key={o.id}><button onClick={() => go(o.id)}><span className="fila-texto"><b>{o.label}</b><span>{o.value}</span></span><ChevronRight size={20} className="chevron" /></button></li>)}</ul>
+            </div>)}
+            {page === "calendario" && calendario}
+            {page === "qibla" && <section className="qibla-detalle">
+              {qiblaError ? <div role="alert"><p>No se pudo calcular la orientación: {qiblaError}</p><button className="secondary-button" onClick={() => void loadQibla()}>Reintentar</button></div>
+                : qibla == null ? <p role="status">Calculando…</p>
+                : <><svg className="qibla-rosa" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" /><text x="50" y="20" textAnchor="middle">N</text><path transform={`rotate(${qibla} 50 50)`} d="M50 16 L58 54 L50 47 L42 54 Z" /></svg><p className="qibla-grados">{Math.round(qibla)}°</p><p>Desde el norte geográfico, hacia el {cardinal(qibla)}.</p><p className="nota">Con una brújula, girá hasta ese rumbo. Desde {cfg.city || "tu ubicación"}.</p></>}
+            </section>}
+            {page === "horarios" && <div className="page-stack">{ubicacionYCalculo}</div>}
+            {page === "avisos" && <div className="page-stack">{avisos}</div>}
+            {page === "apariencia" && <div className="page-stack">{apariencia}</div>}
+            {page === "actualizaciones" && <div className="page-stack">{actualizaciones}</div>}
+            {page === "acerca" && <div className="page-stack">{inicioSesion}{archivo}<p className="nota">Adhan Companion {verActual || "0.1.12"}{isAndroid ? " para Android" : ""}. Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p></div>}
+          </fieldset></main>
+          <div id="quran-player-slot" />
+          {footer}
+          <nav className="barra-inferior" aria-label="Secciones">
+            {MOBILE_TABS.map(({ id, label, Icon }) => <button key={id} aria-current={tab === id ? "page" : undefined} disabled={saving} onClick={() => go(id)}><span className="icono-tab"><Icon size={22} strokeWidth={1.9} /></span><span>{label}</span></button>)}
+          </nav>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={"App-root" + (isAndroid ? " platform-android" : "")}>
-      <dialog ref={menuDialog} id="mobile-navigation" className={"mobile-navigation " + menuPhase} aria-labelledby="mobile-menu-title"
-        onCancel={event => { event.preventDefault(); closeMenu(); }}
-        onClose={() => { window.clearTimeout(menuCloseTimer.current); setMenuPhase("closed"); }}
-        onClick={event => { if (event.target === event.currentTarget) {
-          const bounds = event.currentTarget.getBoundingClientRect();
-          if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeMenu();
-        } }}>
-        <div className="mobile-menu-heading"><div className="mobile-menu-brand"><img src={logo} className="logo" alt="" /><h2 id="mobile-menu-title">Adhan<br />Companion</h2></div><button className="secondary-button mobile-menu-close" aria-label="Cerrar menú" autoFocus onClick={closeMenu}><X size={22} /></button></div>
-        <nav aria-label="Navegación móvil">
-          {[...PAGES, SYSTEM_PAGE].map(({ id, label, Icon }) => <button key={id} className={"mobile-menu-item " + (page === id ? "activa" : "")} aria-current={page === id ? "page" : undefined} disabled={saving || menuPhase === "closing"} onClick={() => { setPage(id); closeMenu(); }}><Icon size={21} /><span>{label}</span></button>)}
-        </nav>
-        <p className="mobile-menu-version">v{verActual || "0.1.12"}{isAndroid ? " · Android" : ""}</p>
-      </dialog>
-      {!isAndroid && <aside className="sidebar">
+    <div className="App-root">
+      <aside className="sidebar">
         <div className="brand"><img src={logo} className="logo" alt="" /><span>Adhan<br />Companion</span></div>
         <nav className="nav-main" aria-label="Navegación principal">
           {PAGES.map(({ id, label, Icon }) => (
@@ -334,13 +455,12 @@ export default function App() {
           </button>
           <span className="sidebar-version">v{verActual || "0.1.12"}</span>
         </div>
-      </aside>}
+      </aside>
 
       <div className="workspace">
         <header className={"topbar" + (page === "quran" ? " topbar-quran" : "")}>
-          <button className="secondary-button mobile-menu-toggle" aria-label="Abrir menú de navegación" aria-haspopup="dialog" aria-controls="mobile-navigation" aria-expanded={menuPhase !== "closed"} onClick={openMenu}><Menu size={24} /></button>
           {/* En el Qur’an, la barra del lector ocupa el lugar del título (portal desde QuranReader). */}
-          {page === "quran" ? <><h1 className="visually-hidden">{pageTitle}</h1><div id="quran-topbar-slot" className="quran-topbar-slot" /></> : <>
+          {page === "quran" ? quranTopbar : <>
             <div><span className="eyebrow">Adhan Companion</span><h1>{pageTitle}</h1></div>
             <div className="topbar-meta">
               {page === "hoy" && <span className="today-date">{hoy ? fmtBonito(hoy) : "Cargando horarios…"}</span>}
@@ -349,9 +469,8 @@ export default function App() {
         </header>
 
         <main className={"page-content" + (page === "quran" ? " page-quran" : "")} id="main-content"><fieldset className="page-fields" disabled={saving}>
-          {isAndroid && <aside className="android-notice" role="note"><strong>Avisos en Android</strong><span>Adhan y avisos nativos disponibles. Activá los avisos y revisá los permisos en “Configuración → Adhan y avisos”.</span></aside>}
-          {page === "quran" && <QuranReader audioAvailable={runtime?.quran_audio ?? false} />}
-          {page === "calendario" && (scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>)}
+          {page === "quran" && quran}
+          {page === "calendario" && calendario}
           {page === "hoy" && (
             <div className="page-stack">
               {scheduleError && <ResourceError message={scheduleError} onRetry={loadSchedule} />}
@@ -386,29 +505,7 @@ export default function App() {
           {page === "horarios" && (
             <div className="page-stack">
               <div className="page-intro"><h2>Ubicación y cálculo</h2><p>Estos valores determinan los horarios de rezo.</p></div>
-              <section className="panel setting-panel">
-                <div className="panel-heading"><div><h2>Ubicación</h2><p>Ciudad y coordenadas usadas para calcular los horarios.</p></div>{editando !== "ubicacion" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("ubicacion")}><Pencil size={14} />Editar ubicación</button>}</div>
-                {editando === "ubicacion" ? <div className="editor">
-                  <label>Ciudad<input disabled={detectando} value={cfg.city} onChange={(e) => upd({ city: e.target.value })} /></label>
-                  <div className="fila"><label>Latitud<input disabled={detectando} type="number" min="-90" max="90" step="0.000001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} /></label><label>Longitud<input disabled={detectando} type="number" min="-180" max="180" step="0.000001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} /></label></div>
-                  <GoogleMapsLocationPicker current={{ lat: cfg.lat, lon: cfg.lon }} disabled={detectando} onUse={(point) => upd(point)} />
-                  <div className="read-grid"><div><span>Zona horaria de la ciudad</span><b>{cfg.tz}</b></div></div>
-                  <button className="test" disabled={detectando} onClick={detectarPorIP}><LocateFixed size={14} />{detectando ? "Detectando…" : "Sugerir ubicación por IP"}</button>
-                  <p className="nota">La detección es una sugerencia: revisá ciudad y coordenadas antes de guardar. Para este cálculo, la zona horaria del sistema debe coincidir con la ubicación.</p>
-                  <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button></div>
-                </div> : <div className="read-grid"><div><span>Ciudad</span><b>{cfg.city || "Sin configurar"}</b></div><div><span>Coordenadas</span><b>{cfg.lat.toFixed(6)}, {cfg.lon.toFixed(6)}</b></div><div><span>Zona horaria guardada</span><b>{cfg.tz}</b></div><p className="nota read-note">El cálculo usa la zona horaria local del sistema. Asegurate de que coincida con esta ubicación.</p></div>}
-              </section>
-
-              <section className="panel setting-panel">
-                <div className="panel-heading"><div><h2>Método de cálculo</h2><p>Método, escuela de Asr y ajustes manuales.</p></div>{editando !== "calculo" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("calculo")}><Pencil size={14} />Editar método</button>}</div>
-                {editando === "calculo" ? <div className="editor">
-                  <label>Método<select value={cfg.method} onChange={(e) => upd({ method: e.target.value })}>{METHOD_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
-                  <label>Madhab para Asr<select value={cfg.madhab} onChange={(e) => upd({ madhab: e.target.value })}>{MADHAB_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
-                  <label>Regla de latitud alta<select value={cfg.highLatRule} onChange={(e) => upd({ highLatRule: e.target.value })}>{HIGH_LAT_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
-                  <div className="offsets"><div className="grupo"><div className="grupo-tit">Ajuste por rezo (minutos)</div><div className="fila-5">{PRAYERS.map((p) => { const key = p.toLowerCase() as keyof Config["offsets"]; return <div className="campo" key={p}><label>{p}</label><input type="number" step="1" value={cfg.offsets[key] ?? 0} onChange={(e) => upd({ offsets: { ...cfg.offsets, [key]: +e.target.value } })} /><span className="min">min</span></div>; })}</div></div></div>
-                  <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button></div>
-                </div> : <div className="read-grid read-grid-four"><div><span>Método</span><b>{cfg.method}</b></div><div><span>Madhab para Asr</span><b>{cfg.madhab}</b></div><div><span>Latitud alta</span><b>{cfg.highLatRule}</b></div><div><span>Ajustes manuales</span><b>{PRAYERS.filter((p) => (cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0) !== 0).length ? PRAYERS.filter((p) => (cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0) !== 0).length + " rezos ajustados" : "Ninguno"}</b></div></div>}
-              </section>
+              {ubicacionYCalculo}
             </div>
           )}
 
@@ -430,39 +527,17 @@ export default function App() {
 
           {page === "sistema" && (
             <div className="page-stack">
-              <div className="page-intro"><h2>Configuración</h2><p>{isAndroid ? "Sonidos, avisos, apariencia y mantenimiento de la aplicación." : "Sonidos, avisos, apariencia, inicio de sesión y mantenimiento de la aplicación."}</p></div>
-              {isAndroid && <AndroidAlerts />}
-              <section className="panel setting-panel">
-                <div className="panel-heading"><div><h2>Adhan y avisos</h2><p>{isAndroid ? "Elegí el sonido por rezo. Los avisos se programan en Android al guardar; activalos en este teléfono." : "Elegí cómo recibir cada rezo. Los avisos funcionan con la ventana cerrada."}</p></div>{editando !== "adhan" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
-                <PrayerAlertsSettings previewAvailable={runtime?.audio_preview ?? false} audio={cfg.audio} editing={editando === "adhan"} onChange={updAudio} />
-                {editando === "adhan" ? <div className="editor">
-                  <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>
-                  <p className="nota">El preaviso es una notificación independiente. Usá 0 para desactivarlo. Guardar aplica todos los cambios.</p>
-                  <div className="editor-actions"><button className="secondary-button" onClick={() => { invoke("stop_alert").catch(() => {}); cancelarEdicion(); }}>Cancelar</button></div>
-                </div> : <p>Preaviso: {cfg.notice.minutes_before === 0 ? "desactivado" : `${cfg.notice.minutes_before} min antes`}</p>}
-              </section>
-              <AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={cfg.appearance ?? DEFAULT_APPEARANCE} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} />
-              {!isAndroid && <section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section>}
-              {isAndroid ? <AndroidUpdates /> : <DesktopUpdates />}
-              <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
+              <div className="page-intro"><h2>Configuración</h2><p>Sonidos, avisos, apariencia, inicio de sesión y mantenimiento de la aplicación.</p></div>
+              {avisos}
+              {apariencia}
+              {inicioSesion}
+              {actualizaciones}
+              {archivo}
             </div>
           )}
         </fieldset></main>
         <div id="quran-player-slot" />
-
-      {(pendiente || status || editando) && <footer>
-        {pendiente && <span className="estado pendiente">Cambios sin guardar</span>}
-        {status && (
-          <span className={`estado ${status.kind}`}>
-            {status.kind === "ok" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-            {status.text}
-          </span>
-        )}
-        {editingPage && editingPage !== page && <button className="secondary-button" disabled={saving} onClick={() => setPage(editingPage)}>Volver a la edición</button>}
-        {editando && <><span className="estado">{saving ? "Guardando cambios…" : pendiente ? "Edición con cambios pendientes" : "Edición sin cambios"}</span><button className="secondary-button" disabled={saving} onClick={cancelarEdicion}>Cancelar edición</button></>}
-        {pendiente && <button className="guardar" disabled={saving || detectando} onClick={save}>{saving ? "Guardando…" : "Guardar cambios"}</button>}
-        {status && !saving && <button className="secondary-button" aria-label="Cerrar mensaje" onClick={() => setStatus(null)}>Cerrar</button>}
-      </footer>}
+        {footer}
       </div>
     </div>
   );
@@ -472,6 +547,12 @@ export default function App() {
 function fmtBonito(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   return `${d} ${MESES[m - 1]} ${y}`;
+}
+
+/// "YYYY-MM-DD" → "Miércoles 21 de octubre" para el encabezado del celular
+function fechaLarga(iso: string): string {
+  const texto = new Date(`${iso}T12:00:00`).toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 function formatoCuenta(segundos: number): string {
