@@ -35,7 +35,7 @@ La consulta de actualizaciones de la app usa la última release pública de GitH
 - **`.deb`:** descarga el paquete, lo verifica contra `SHA256SUMS` y lo instala con `pkexec apt-get install`. Ubuntu pide la contraseña. Después reabre la app.
 - **Windows:** descarga el instalador, lo verifica contra `SHA256SUMS` y lo ejecuta con `/P /UPDATE /R`: sin páginas, sin desinstalar la versión anterior, conservando los accesos directos y el inicio automático. Después reabre la app.
 
-Por eso cada release debe publicar `SHA256SUMS` con los nombres exactos de los assets. Las versiones anteriores a este actualizador requieren instalar a mano. En Windows, el instalador propone por defecto «Desinstalar antes de instalar»: para actualizar hay que elegir **No desinstalar**, o ejecutar `setup.exe /P /UPDATE /R`. Los datos de `%APPDATA%\Adhan Companion` no se borran en ningún caso.
+Por eso cada release debe publicar `SHA256SUMS` con los nombres exactos de los assets. El 21/10/2026, antes de publicar v0.1.12, se probó el flujo completo con una compilación de prueba de este código con la versión forzada a 0.1.10: «Actualizar ahora» la llevó a la v0.1.11 oficial en Linux con el `.deb` (contraseña con pkexec y reapertura) y en Windows con el instalador (`/P /UPDATE /R`, sin pasar por la página de desinstalar). Las versiones anteriores a este actualizador requieren instalar a mano. En Windows, el instalador propone por defecto «Desinstalar antes de instalar»: para actualizar hay que elegir **No desinstalar**, o ejecutar `setup.exe /P /UPDATE /R`. Los datos de `%APPDATA%\Adhan Companion` no se borran en ningún caso.
 
 ## Android en el release oficial
 
