@@ -1,13 +1,16 @@
 //! Self-updater (leve, sin plugins externos): consulta la API de Releases de
-//! GitHub con `curl` del sistema y, si hay versión nueva, informa en la UI
-//! (y sobre AppImage: descarga, sustituye y relanza).
+//! GitHub con `curl` del sistema y, si hay versión nueva, informa en la UI.
+//! Sobre AppImage descarga, sustituye y relanza. Con el paquete .deb y en
+//! Windows descarga el paquete, lo verifica contra `SHA256SUMS` y lo instala:
+//! `pkexec apt-get install` (pide la contraseña del sistema) o el instalador
+//! NSIS en modo actualización (`/P /UPDATE /R`: sin páginas, sin desinstalar).
 //!
 //! Trade-off documentado: sin verificación minisign (el updater oficial de
 //! tauri está atascado: todo el árbol zip 4.x está yanked y sus versiones lo
-//! requieren). La integridad queda dada por HTTPS + GitHub y la comparación
-//! de versión semántica.
+//! requieren). La integridad queda dada por HTTPS + GitHub, la comparación
+//! de versión semántica y, en Windows, el SHA-256 publicado en la release.
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::log;
 use serde::Deserialize;
 use std::sync::Mutex;
@@ -26,6 +29,10 @@ pub struct Disponible {
     pub appimage: Option<String>,
     /// instalador NSIS de Windows si el release lo ofrece
     pub windows_installer: Option<String>,
+    /// paquete .deb de Linux si el release lo ofrece
+    pub deb: Option<String>,
+    /// `SHA256SUMS` de la release: verifica el paquete antes de instalarlo
+    pub checksums: Option<String>,
     /// artistas: notas del release (primera línea)
     pub notas: String,
 }
@@ -72,9 +79,21 @@ struct Asset {
     url: String,
 }
 
+/// `curl` del sistema sin abrir una consola en Windows (la app es de subsistema GUI).
+fn curl() -> std::process::Command {
+    #[allow(unused_mut)]
+    let mut command = std::process::Command::new("curl");
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    command
+}
+
 /// Consulta el último release (API de GitHub con curl del sistema)
 fn fetch_latest() -> Result<Release, String> {
-    let out = std::process::Command::new("curl")
+    let out = curl()
         .args([
             "-fsSL",
             "--connect-timeout", "5",
@@ -144,6 +163,16 @@ fn verificar_inner() -> Result<Option<Disponible>, String> {
             .find(|a| a.name.to_lowercase().ends_with("-setup.exe"))
             .or_else(|| release.assets.iter().find(|a| a.name.to_lowercase().ends_with(".msi")))
             .map(|a| a.url.clone()),
+        deb: release
+            .assets
+            .iter()
+            .find(|a| a.name.to_lowercase().ends_with("_amd64.deb"))
+            .map(|a| a.url.clone()),
+        checksums: release
+            .assets
+            .iter()
+            .find(|a| a.name == "SHA256SUMS")
+            .map(|a| a.url.clone()),
         notas: release.body.unwrap_or_default().lines().next().unwrap_or("").to_string(),
     };
     *estado().lock().unwrap() = Some(info.clone());
@@ -162,6 +191,23 @@ pub fn es_windows() -> bool {
     cfg!(target_os = "windows")
 }
 
+/// ¿Instalación del paquete .deb? (el binario de /usr/bin registrado por dpkg)
+pub fn es_deb() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        !es_appimage()
+            && std::env::current_exe().is_ok_and(|p| p == std::path::Path::new("/usr/bin/adhan-companion"))
+            && std::process::Command::new("dpkg-query")
+                .args(["-W", "-f=${Status}", "adhan-companion"])
+                .output()
+                .is_ok_and(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).ends_with(" installed"))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        false
+    }
+}
+
 /// Instalación self-update sobre AppImage: baja junto al archivo actual, chmod +x,
 /// reemplaza el actual y relanza. En una instalación .deb NO aplica —
 /// error manejable en la UI con el instructivo manual.
@@ -175,10 +221,13 @@ pub fn instalar() -> Result<(), String> {
 }
 #[cfg(target_os = "linux")]
 fn instalar_inner() -> Result<(), String> {
+    if es_deb() {
+        return instalar_deb();
+    }
     if !es_appimage() {
         return Err(
-            "instalación automática solo sobre AppImage — para el .deb descargá el release de \
-             GitHub e instalás con dpkg -i"
+            "instalación automática solo con AppImage o el paquete .deb — para otras instalaciones \
+             descargá el release de GitHub"
                 .into(),
         );
     }
@@ -197,7 +246,7 @@ fn instalar_inner() -> Result<(), String> {
         .map_err(|e| format!("no pude resolver la ruta de la AppImage: {e}"))?;
     let tmp = appimage.with_file_name(format!(".adhan-update-{}.AppImage", std::process::id()));
     let _ = std::fs::remove_file(&tmp);
-    descargar(&appimage_url, &tmp)?;
+    descargar(&appimage_url, &tmp, MAX_DESCARGA)?;
 
     std::fs::set_permissions(&tmp, {
         #[cfg(unix)]
@@ -229,21 +278,179 @@ fn instalar_inner() -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
+/// Windows: descarga el instalador NSIS, lo verifica contra `SHA256SUMS` y lo
+/// ejecuta en modo actualización. El instalador por defecto ofrece «Desinstalar
+/// antes de instalar»; `/UPDATE` instala encima, conserva accesos directos y el
+/// inicio automático, `/P` evita las páginas y cierra esta instancia, y `/R`
+/// reabre la app al terminar. Los datos viven en `%APPDATA%\Adhan Companion` y
+/// no se tocan.
+#[cfg(target_os = "windows")]
 pub fn instalar() -> Result<(), String> {
-    Err("la actualización automática solo está disponible para AppImage en Linux".into())
+    let _lock = OPERATION_LOCK.try_lock().map_err(|_| "Ya hay una operación del actualizador en curso.")?;
+    progress("installing", String::new());
+    let result = instalar_windows();
+    if let Err(error) = &result { progress("error", error.clone()); }
+    result
+}
+#[cfg(target_os = "windows")]
+fn instalar_windows() -> Result<(), String> {
+    let info = estado()
+        .lock()
+        .map_err(|_| "No se pudo consultar la versión disponible.")?
+        .clone()
+        .ok_or("no hay actualización pendiente de instalar")?;
+    let url = info
+        .windows_installer
+        .filter(|u| u.to_lowercase().ends_with("-setup.exe"))
+        .ok_or("el release no trae el instalador de Windows")?;
+    let sumas = info
+        .checksums
+        .ok_or("el release no publica SHA256SUMS para verificar el instalador")?;
+    let instalador = descargar_verificado(&url, &sumas)?;
+    log!("updater: v{} verificada — ejecutando el instalador", info.version);
+    std::process::Command::new(&instalador)
+        .args(["/P", "/UPDATE", "/R"])
+        .spawn()
+        .map_err(|e| format!("no se pudo iniciar el instalador: {e}"))?;
+    // El instalador reemplaza el ejecutable: esta instancia termina antes.
+    std::process::exit(0);
 }
 
+/// Paquete .deb: lo verifica y lo instala con `pkexec apt-get install`, que
+/// muestra la ventana de contraseña del escritorio y resuelve dependencias.
+/// Después reabre la app desde el binario nuevo, cuando esta instancia ya
+/// cerró (la app es de instancia única).
 #[cfg(target_os = "linux")]
-fn descargar(url: &str, destino: &std::path::Path) -> Result<(), String> {
-    let out = std::process::Command::new("curl")
-        .args(["-fL", "--connect-timeout", "5", "--max-time", "300", "-o"])
+fn instalar_deb() -> Result<(), String> {
+    use std::process::{Command, Stdio};
+    let info = estado()
+        .lock()
+        .map_err(|_| "No se pudo consultar la versión disponible.")?
+        .clone()
+        .ok_or("no hay actualización pendiente de instalar")?;
+    let url = info.deb.ok_or("el release no trae el paquete .deb")?;
+    let sumas = info
+        .checksums
+        .ok_or("el release no publica SHA256SUMS para verificar el paquete")?;
+    let paquete = descargar_verificado(&url, &sumas)?;
+    let salida = Command::new("pkexec")
+        .args(["/usr/bin/apt-get", "install", "-y"])
+        .arg(&paquete)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| format!("pkexec no disponible: {e}"));
+    if let Some(carpeta) = paquete.parent() {
+        let _ = std::fs::remove_dir_all(carpeta);
+    }
+    let salida = salida?;
+    match salida.status.code() {
+        Some(0) => {}
+        Some(126) => return Err("Se canceló la autorización; la versión instalada no cambió.".into()),
+        Some(127) => {
+            return Err("No se pudo autorizar la instalación (contraseña incorrecta o sin ventana de autenticación del escritorio). \
+                        Podés instalar el .deb desde GitHub Releases."
+                .into())
+        }
+        _ => {
+            let detalle = String::from_utf8_lossy(&salida.stderr);
+            let linea = detalle
+                .lines()
+                .rev()
+                .find(|l| l.starts_with("E:"))
+                .or_else(|| detalle.lines().rev().find(|l| !l.trim().is_empty()))
+                .unwrap_or("error desconocido");
+            return Err(format!("apt no pudo instalar el paquete: {linea}"));
+        }
+    }
+    log!("updater: v{} instalada con apt — reabriendo", info.version);
+    Command::new("sh")
+        .args(["-c", "sleep 2; exec /usr/bin/adhan-companion"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("instalada, pero no se pudo reabrir la app: {e}"))?;
+    std::process::exit(0);
+}
+
+/// Descarga `url` y la verifica contra la línea de `SHA256SUMS` con su nombre.
+/// Devuelve la ruta del archivo verificado, en una carpeta propia que se vacía
+/// en cada intento.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn descargar_verificado(url: &str, sumas: &str) -> Result<std::path::PathBuf, String> {
+    use sha2::{Digest, Sha256};
+    let nombre = url
+        .rsplit('/')
+        .next()
+        .filter(|n| !n.is_empty())
+        .ok_or("URL de descarga inválida")?
+        .to_string();
+    let carpeta = carpeta_descarga();
+    let _ = std::fs::remove_dir_all(&carpeta);
+    let mut crear = std::fs::DirBuilder::new();
+    crear.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        crear.mode(0o700);
+    }
+    crear.create(&carpeta).map_err(|e| format!("carpeta de descarga: {e}"))?;
+    let lista = carpeta.join("SHA256SUMS");
+    descargar(sumas, &lista, 64 * 1024)?;
+    let esperado = std::fs::read_to_string(&lista)
+        .map_err(|e| format!("SHA256SUMS ilegible: {e}"))?
+        .lines()
+        .find_map(|linea| {
+            let mut partes = linea.split_whitespace();
+            let hash = partes.next()?;
+            (partes.next()?.trim_start_matches('*') == nombre).then(|| hash.to_lowercase())
+        })
+        .ok_or("SHA256SUMS no incluye el paquete de esta plataforma")?;
+    let archivo = carpeta.join(&nombre);
+    descargar(url, &archivo, MAX_DESCARGA)?;
+    let bytes = std::fs::read(&archivo).map_err(|e| format!("paquete descargado: {e}"))?;
+    if format!("{:x}", Sha256::digest(&bytes)) != esperado {
+        let _ = std::fs::remove_dir_all(&carpeta);
+        return Err("El paquete descargado no coincide con su SHA-256; no se instaló.".into());
+    }
+    Ok(archivo)
+}
+
+/// Carpeta de descargas del actualizador: caché del usuario en Linux (no la
+/// /tmp compartida) y %TEMP% del usuario en Windows.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn carpeta_descarga() -> std::path::PathBuf {
+    #[cfg(target_os = "linux")]
+    let base = std::env::var_os("XDG_CACHE_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".cache")))
+        .unwrap_or_else(std::env::temp_dir);
+    #[cfg(target_os = "windows")]
+    let base = std::env::temp_dir();
+    base.join("adhan-companion-update")
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
+pub fn instalar() -> Result<(), String> {
+    Err("la actualización automática solo está disponible para AppImage en Linux y en Windows".into())
+}
+
+/// Tope de un paquete descargado (AppImage o instalador de Windows).
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+const MAX_DESCARGA: u64 = 512 * 1024 * 1024;
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn descargar(url: &str, destino: &std::path::Path, max: u64) -> Result<(), String> {
+    let out = curl()
+        .args(["-fsSL", "--proto", "=https", "--connect-timeout", "5", "--max-time", "300", "--max-filesize"])
+        .arg(max.to_string())
+        .arg("-o")
         .arg(destino)
         .arg(url)
         .status()
         .map_err(|e| format!("curl no disponible: {e}"))?;
     if !out.success() {
-        return Err(format!("descarga del release: HTTP falla del curl"));
+        return Err("No se pudo descargar la actualización. Revisá la conexión y reintentá.".into());
     }
     Ok(())
 }

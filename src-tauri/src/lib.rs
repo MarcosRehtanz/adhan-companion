@@ -173,6 +173,11 @@ fn ejecutando_windows() -> bool {
 }
 
 #[tauri::command]
+fn ejecutando_deb() -> bool {
+    updater::es_deb()
+}
+
+#[tauri::command]
 async fn check_update() -> Result<Option<updater::Disponible>, String> {
     #[cfg(desktop)]
     {
@@ -444,6 +449,7 @@ pub fn run() {
         version_actual,
         ejecutando_appimage,
         ejecutando_windows,
+        ejecutando_deb,
         check_update,
         desktop_update_status,
         instalar_update

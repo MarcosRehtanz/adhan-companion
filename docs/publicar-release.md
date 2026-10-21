@@ -29,7 +29,13 @@ git push origin v0.1.9
 
 El workflow vuelve a ejecutar tests y builds, comprueba que el tag coincide con las versiones del proyecto y exige un paquete de cada tipo para esa versión. Luego publica los tres instaladores de escritorio, los APK ARMv7/ARM64 firmados, el índice de actualización Android, `SHA256SUMS` y las notas de `docs/releases/v0.1.9.md`.
 
-La consulta de actualizaciones de la app usa la última release pública de GitHub. AppImage permite actualizar desde Configuración; `.deb` y Windows requieren ejecutar el instalador descargado.
+La consulta de actualizaciones de la app usa la última release pública de GitHub. Desde Configuración → Actualizaciones, **Actualizar ahora** instala la versión nueva en los tres formatos de escritorio:
+
+- **AppImage:** descarga la nueva, reemplaza el archivo y relanza.
+- **`.deb`:** descarga el paquete, lo verifica contra `SHA256SUMS` y lo instala con `pkexec apt-get install`. Ubuntu pide la contraseña. Después reabre la app.
+- **Windows:** descarga el instalador, lo verifica contra `SHA256SUMS` y lo ejecuta con `/P /UPDATE /R`: sin páginas, sin desinstalar la versión anterior, conservando los accesos directos y el inicio automático. Después reabre la app.
+
+Por eso cada release debe publicar `SHA256SUMS` con los nombres exactos de los assets. El 21/10/2026, antes de publicar v0.1.12, se probó el flujo completo con una compilación de prueba de este código con la versión forzada a 0.1.10: «Actualizar ahora» la llevó a la v0.1.11 oficial en Linux con el `.deb` (contraseña con pkexec y reapertura) y en Windows con el instalador (`/P /UPDATE /R`, sin pasar por la página de desinstalar). Las versiones anteriores a este actualizador requieren instalar a mano. En Windows, el instalador propone por defecto «Desinstalar antes de instalar»: para actualizar hay que elegir **No desinstalar**, o ejecutar `setup.exe /P /UPDATE /R`. Los datos de `%APPDATA%\Adhan Companion` no se borran en ningún caso.
 
 ## Android en el release oficial
 

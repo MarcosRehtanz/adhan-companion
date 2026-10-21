@@ -317,7 +317,7 @@ export default function App() {
         <nav aria-label="Navegación móvil">
           {[...PAGES, SYSTEM_PAGE].map(({ id, label, Icon }) => <button key={id} className={"mobile-menu-item " + (page === id ? "activa" : "")} aria-current={page === id ? "page" : undefined} disabled={saving || menuPhase === "closing"} onClick={() => { setPage(id); closeMenu(); }}><Icon size={21} /><span>{label}</span></button>)}
         </nav>
-        <p className="mobile-menu-version">v{verActual || "0.1.11"}{isAndroid ? " · Android" : ""}</p>
+        <p className="mobile-menu-version">v{verActual || "0.1.12"}{isAndroid ? " · Android" : ""}</p>
       </dialog>
       {!isAndroid && <aside className="sidebar">
         <div className="brand"><img src={logo} className="logo" alt="" /><span>Adhan<br />Companion</span></div>
@@ -332,7 +332,7 @@ export default function App() {
           <button className={"nav-item " + (page === SYSTEM_PAGE.id ? "activa" : "")} aria-label={SYSTEM_PAGE.label} aria-current={page === SYSTEM_PAGE.id ? "page" : undefined} disabled={saving} onClick={() => setPage(SYSTEM_PAGE.id)}>
             <Settings size={17} strokeWidth={2} /><span>{SYSTEM_PAGE.label}</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.11"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.12"}</span>
         </div>
       </aside>}
 
