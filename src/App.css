@@ -58,42 +58,19 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--tarjeta); border-bottom: 1px solid var(--borde);
 }
-.eyebrow { display: block; margin-bottom: 2px; color: var(--texto-tenue); font-size: 10px; font-weight: 600; letter-spacing: .55px; text-transform: uppercase; }
 .topbar h1 { margin: 0; font-size: 20px; line-height: 1.15; font-weight: 650; }
-.today-date { color: var(--texto-suave); font-size: 12px; }
-.topbar-meta { display: flex; align-items: center; gap: 14px; }
 .page-content { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; }
 .page-stack { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
 .page-intro { margin: 0 1px 1px; }
 .page-intro h2 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
 .page-intro p { margin: 0; color: var(--texto-tenue); font-size: 12px; }
-.panel, .hero-card, .qibla-card {
+.panel {
   background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--r-card);
 }
 .panel { padding: 17px 19px; }
 .panel-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
 .panel-heading h2 { margin: 0; font-size: 15px; font-weight: 650; }
 .panel-heading p { margin: 4px 0 0; color: var(--texto-tenue); font-size: 11.5px; line-height: 1.4; }
-.hero-card { padding: 18px 22px 20px; color: #fff; border: 0; background: linear-gradient(120deg, var(--acento-solido), var(--sidebar)); }
-.hero-kicker { color: rgba(255,255,255,.77); font-size: 10px; font-weight: 700; letter-spacing: .8px; }
-.hero-main { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 8px; }
-.hero-main h2 { margin: 0; font-size: 27px; font-weight: 650; line-height: 1.15; }
-.hero-main p { margin: 5px 0 0; color: rgba(255,255,255,.83); font-size: 13px; }
-.countdown { color: #fff; font-size: clamp(24px, 4vw, 34px); font-variant-numeric: tabular-nums; font-weight: 550; letter-spacing: 1px; }
-.prayer-list { margin-top: 14px; border-top: 1px solid var(--borde); }
-.prayer-row { display: grid; grid-template-columns: 1fr 85px 100px; align-items: center; min-height: 37px; padding: 0 8px; border-bottom: 1px solid var(--borde); }
-.prayer-row.proximo { background: var(--acento-claro); }
-.prayer-name { font-weight: 550; }
-.prayer-time { color: var(--texto); font-variant-numeric: tabular-nums; font-weight: 600; }
-.prayer-state { color: var(--texto-tenue); font-size: 11px; text-align: right; }
-.prayer-state.hecho { color: var(--acento); }
-.day-progress { display: grid; grid-template-columns: auto minmax(60px, 1fr) auto; align-items: center; gap: 12px; padding-top: 13px; color: var(--texto-suave); font-size: 11.5px; }
-.progreso-bar { height: 7px; border-radius: 999px; background: var(--chip); overflow: hidden; }
-.progreso-fill { height: 100%; border-radius: 999px; background: var(--acento); transition: width .25s ease; }
-.qibla-card { min-height: 62px; padding: 12px 16px; display: flex; align-items: center; gap: 11px; color: var(--acento); }
-.qibla-card div { display: flex; flex-direction: column; gap: 2px; color: var(--texto); }
-.qibla-card div span { color: var(--texto-suave); font-size: 12px; }
-.qibla-card small { margin-left: auto; color: var(--texto-tenue); font-size: 10.5px; text-align: right; }
 .link-button { padding: 4px 0; border: 0; background: transparent; color: var(--acento); font-size: 11.5px; font-weight: 650; white-space: nowrap; cursor: pointer; }
 .link-button:hover { text-decoration: underline; }
 .edit-button, .secondary-button {
@@ -176,10 +153,6 @@ button.test:disabled { opacity: .5; cursor: default; }
 .update-card p { margin: 5px 0 9px; color: var(--texto-suave); font-size: 12px; }
 .success-note { margin: 12px 0 0; color: var(--acento); font-size: 12px; }
 .nota code { overflow-wrap: anywhere; background: var(--chip); padding: 1px 4px; border-radius: 4px; font-size: 10.5px; }
-.stats { display: flex; gap: 8px; flex-wrap: wrap; }
-.stat-card { min-height: 43px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid var(--borde); border-radius: var(--r-control); background: var(--tarjeta); color: var(--texto-suave); font-size: 11px; }
-.stat-card svg { color: var(--acento); flex-shrink: 0; }
-.stat-card b { color: var(--texto); font-size: 15px; font-variant-numeric: tabular-nums; }
 .cal-nav { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
 .cal-nav .test { min-width: 34px; padding: 5px 9px; }
 .cal-tit { min-width: 120px; color: var(--texto); font-size: 13px; font-weight: 700; text-align: center; text-transform: capitalize; }
@@ -224,22 +197,15 @@ button.guardar:disabled { opacity: .42; cursor: default; filter: none; }
   .topbar { padding: 10px 15px; }
   .page-content { padding: 14px; }
   .read-grid, .read-grid-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .day-progress { grid-template-columns: 1fr auto; }
-  .day-progress .progreso-bar { grid-column: 1 / -1; grid-row: 2; }
 }
 @media (max-width: 480px) {
   .sidebar { width: 52px; flex-basis: 52px; }
   .logo { width: 30px; height: 30px; }
-  .today-date { font-size: 10px; }
-  .hero-main h2 { font-size: 22px; }
-  .countdown { font-size: 22px; }
   .read-grid, .read-grid-four { grid-template-columns: 1fr 1fr; }
   .fila { flex-direction: column; }
   .offsets .fila-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .seg-lista { gap: 4px; }
   .seg-fila { padding: 9px 2px; }
-  .qibla-card { flex-wrap: wrap; }
-  .qibla-card small { width: 100%; margin-left: 30px; text-align: left; }
   .panel { padding: 14px; }
   .panel-heading { align-items: flex-start; }
   .edit-button { font-size: 10px; padding: 6px; }
@@ -254,9 +220,6 @@ button.guardar:disabled { opacity: .42; cursor: default; filter: none; }
 .alert-fields label { min-width: 0; }
 .prayer-alerts > .secondary-button { justify-self: start; }
 
-.hijri-today { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border: 1px solid var(--borde); border-radius: var(--r-card); background: var(--tarjeta); }
-.hijri-today > div { display: grid; gap: 4px; }
-.hijri-today span { font-size: 11px; color: var(--texto-suave); }
 .hijri-navigation, .hijri-year-navigation { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; }
 .hijri-navigation h3 { margin: 0; text-align: center; }
 .hijri-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
@@ -306,8 +269,6 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
   --lectura-sombra: rgba(0, 0, 0, .45);
 }
 .page-content.page-quran { padding: 0; background: var(--lectura-bg); color: var(--lectura-es); scrollbar-color: var(--lectura-borde) transparent; }
-/* El aviso general de Android sigue en las demás páginas; en el lector no interrumpe el texto. */
-.page-quran .android-notice { display: none; }
 .topbar-quran { min-height: 60px; padding: 8px 12px 8px 16px; background: var(--lectura-superficie); border-bottom-color: var(--lectura-borde); }
 .quran-topbar-slot { flex: 1; min-width: 0; }
 .quran-bar-placeholder { font-size: 15px; }
@@ -447,54 +408,17 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .page-quran + #quran-player-slot .quran-player { background: var(--lectura-superficie); border-top-color: var(--lectura-borde); }
 
 /* Modo enfoque: solo el texto. */
-.quran-enfoque .sidebar, .quran-enfoque .topbar, .quran-enfoque #quran-player-slot, .quran-enfoque .android-notice, .quran-enfoque .quran-contexto { display: none; }
+.quran-enfoque .sidebar, .quran-enfoque .topbar, .quran-enfoque #quran-player-slot, .quran-enfoque .barra-inferior, .quran-enfoque .quran-contexto { display: none; }
 .quran-enfoque .quran-reader { padding-top: 24px; }
 .quran-salir-enfoque { position: fixed; top: 12px; right: 12px; z-index: 5; padding: 8px 12px; border: 1px solid var(--lectura-borde); border-radius: 999px; background: var(--lectura-superficie); color: var(--lectura-tenue); font-size: 12px; cursor: pointer; opacity: .5; }
 .quran-salir-enfoque:hover, .quran-salir-enfoque:focus-visible { opacity: 1; }
 .quran-salir-enfoque kbd { margin-left: 6px; padding: 1px 5px; border: 1px solid var(--lectura-borde); border-radius: 4px; font: inherit; font-size: 10px; }
 
-/* Panel móvil desde la izquierda; el dialog mantiene el foco dentro del menú. */
+/* Altura completa con áreas seguras del teléfono. */
 .App-root { height: 100dvh; padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); }
-.mobile-menu-toggle { display: none; }
-.platform-android .mobile-menu-toggle { display: inline-flex; flex-shrink: 0; }
-.mobile-navigation {
-  position: fixed; top: 0; left: 0; right: auto; bottom: auto; margin: 0;
-  width: 320px; max-width: calc(100vw - 48px);
-  height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh;
-  overflow-y: auto; overscroll-behavior-y: contain;
-  padding: 20px 16px;
-  padding-top: calc(20px + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  padding-left: calc(16px + env(safe-area-inset-left, 0px));
-  border: 0; border-radius: 0; background: var(--sidebar); color: #fff;
-  box-shadow: 8px 0 32px rgba(0, 0, 0, .22);
-}
-.mobile-navigation[open] { display: flex; flex-direction: column; }
-.mobile-navigation.open { animation: navigation-enter 200ms ease-out both; }
-.mobile-navigation.closing { animation: navigation-leave 200ms ease-in both; pointer-events: none; }
-.mobile-navigation::backdrop { background: rgba(0, 0, 0, .5); }
-.mobile-menu-heading { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
-.mobile-menu-brand { display: flex; align-items: center; gap: 10px; }
-.mobile-menu-heading h2 { margin: 0; font-size: 17px; line-height: 1.15; }
-.mobile-menu-close { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 8px; color: #fff; background: transparent; border-color: rgba(255,255,255,.25); }
-.mobile-navigation nav { display: grid; flex-shrink: 0; gap: 6px; margin-bottom: 24px; }
-.mobile-menu-item { display: flex; align-items: center; gap: 14px; min-height: 48px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: rgba(255,255,255,.85); text-align: left; cursor: pointer; }
-.mobile-menu-item:hover { background: rgba(255,255,255,.08); }
-.mobile-menu-item.activa { background: var(--tarjeta); color: var(--acento); font-weight: 650; }
-.mobile-menu-item svg { flex-shrink: 0; }
-.mobile-menu-version { margin: auto 0 0; padding: 12px; color: rgba(255,255,255,.65); font-size: 12px; }
-.mobile-navigation button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; box-shadow: none; }
-@keyframes navigation-enter { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-@keyframes navigation-leave { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-@media (prefers-reduced-motion: reduce) {
-  .mobile-navigation.open, .mobile-navigation.closing { animation: none; }
-}
-.android-notice { display: grid; gap: 5px; max-width: 780px; margin: 0 auto 16px; padding: 12px 16px; border: 1px solid var(--borde); border-left: 4px solid var(--acento); border-radius: 10px; background: var(--acento-claro); font-size: 12px; line-height: 1.5; }
-.android-notice span { color: var(--texto-suave); }
 
 @media (max-width: 720px) {
   .sidebar { display: none; }
-  .mobile-menu-toggle { display: inline-flex; flex-shrink: 0; }
   .topbar { gap: 12px; min-height: 72px; }
   .topbar > div:first-of-type { flex: 1; min-width: 0; }
   .topbar h1 { font-size: 19px; overflow-wrap: anywhere; }
@@ -509,9 +433,6 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
   .edit-button { font-size: 12px; padding: 8px 12px; }
   .link-button, .secondary-button { white-space: normal; }
   .read-grid > div span, .nota { font-size: 12px; }
-  .hero-main { flex-wrap: wrap; }
-  .countdown { font-size: 32px; }
-  .prayer-row { grid-template-columns: minmax(0, 1fr) 65px 80px; min-height: 46px; }
   .cal-nav { flex-wrap: wrap; gap: 6px; }
   .cal-tit { flex: 1; }
   .cal-cell { aspect-ratio: auto; min-height: 44px; padding: 3px; }
@@ -519,13 +440,10 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
   .hijri-cell { min-width: 0; min-height: 56px; padding: 7px 1px; }
   .hijri-cell b { font-size: 16px; }
   .hijri-cell span { font-size: 10px; }
-  .hijri-today { flex-wrap: wrap; }
   .seg-lista { grid-template-columns: 1fr; }
   .seg-fila { flex-direction: row; justify-content: space-between; padding: 12px; }
   .seg-nombre, .seg-hora { font-size: 14px; }
   .seg-nombre { flex: 1; text-align: left; }
-  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .stat-card { flex-wrap: wrap; }
   /* Lector: barra en dos filas (sura y acciones; progreso y Retomar) y paneles como hoja inferior. */
   .topbar-quran { min-height: 0; align-items: flex-start; gap: 4px; padding: 6px 8px; }
   .quran-bar { flex-wrap: wrap; gap: 0; }
@@ -553,7 +471,6 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 }
 
 @media (max-width: 380px) {
-  .topbar-meta { display: none; }
   .page-content { padding: 10px; }
   .panel { padding: 12px; }
   .read-grid, .read-grid-four { grid-template-columns: 1fr; }
@@ -627,3 +544,112 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 
 .page-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
 .page-fields:disabled { opacity: .78; }
+
+/* Interfaz de celular (Android y ventanas de hasta 720 px): barra compacta, listas nativas y
+   barra inferior con Hoy, Registro, Qur’an y Más. Sin media queries de rango ni color-mix (WebView del J7). */
+.App-root { --sol: #e0a52b; }
+.App-root.mobile { font-size: 15px; }
+.App-root.mobile .topbar.barra-app { min-height: 56px; padding: 8px 16px; gap: 8px; border-bottom: 0; background: var(--bg); }
+.App-root.mobile .barra-app h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.2px; overflow-wrap: anywhere; }
+.App-root.mobile .topbar.barra-hoy { align-items: flex-start; padding-top: 14px; }
+.App-root.mobile .barra-hoy .fecha-civil { font-size: 17px; font-weight: 600; letter-spacing: 0; }
+.App-root.mobile .topbar.barra-sub { padding-left: 4px; gap: 2px; justify-content: flex-start; background: var(--tarjeta); border-bottom: 1px solid var(--borde); }
+.App-root.mobile .barra-sub h1 { flex: 1; font-size: 19px; }
+.encabezado-hoy { flex: 1; min-width: 0; }
+.fecha-hijri { margin: 1px 0 0; color: var(--texto-suave); font-size: 14px; }
+.ciudad { margin-top: 3px; color: var(--texto-tenue); font-size: 13px; text-align: right; }
+/* Subpantallas: «‹» y el título a la izquierda, en el celular y en escritorio. */
+.topbar.barra-sub { justify-content: flex-start; gap: 4px; padding-left: 10px; }
+.topbar.barra-hoy .fecha-civil { margin: 0; }
+/* Escritorio: Hoy y Configuración en una columna centrada; la lista con bordes redondeados. */
+.hoy, .opciones, .App-root:not(.mobile) .registro { max-width: 680px; margin: 0 auto; }
+.App-root:not(.mobile) .grupo-opciones { margin: 18px 4px 6px; }
+.App-root:not(.mobile) .lista-opciones { border: 1px solid var(--borde); border-radius: var(--r-card); overflow: hidden; }
+.App-root:not(.mobile) .lista-opciones button:hover { background: var(--chip); }
+.App-root:not(.mobile) .lista-rezos button:not(:disabled):hover .marca { border-color: var(--acento); }
+.boton-volver { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; padding: 0; border: 0; border-radius: 22px; background: transparent; color: var(--texto); cursor: pointer; }
+.App-root.mobile .page-content:not(.page-quran) { padding: 4px 16px 24px; }
+.App-root.mobile .page-content.page-lista { padding: 0 0 24px; }
+
+/* Hoy: el próximo rezo manda; el recorrido del sol ubica el día. */
+.aviso-permisos { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 4px 0 12px; padding: 12px 14px; border-radius: 12px; background: #fdf3e1; color: #5a3d07; font-size: 14px; }
+:root[data-theme="dark"] .aviso-permisos { background: #3a2f17; color: #f3dfb0; }
+.aviso-permisos p { margin: 0; }
+.aviso-permisos .link-button { color: inherit; text-decoration: underline; padding-left: 0; }
+.proximo { margin: 8px 0 20px; padding: 18px 18px 14px; border-radius: 20px; background: var(--tarjeta); }
+.proximo-rotulo { margin: 0; color: var(--texto-suave); font-size: 14px; }
+.proximo-linea { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.proximo h2 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 12px; margin: 0; font-size: 44px; font-weight: 600; line-height: 1.15; letter-spacing: -1px; color: var(--sidebar); }
+:root[data-theme="dark"] .proximo h2 { color: var(--texto); }
+.proximo h2 span { font-family: "Amiri Quran", serif; font-size: 26px; font-weight: 400; letter-spacing: 0; color: var(--lectura-ornamento); }
+.proximo-hora { margin: 0; font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.proximo-falta { margin: 2px 0 0; color: var(--texto-suave); }
+.proximo-falta b { color: var(--acento); font-weight: 600; font-variant-numeric: tabular-nums; }
+.arco-sol { display: block; width: 100%; height: auto; margin-top: 14px; overflow: visible; }
+.arco-noche { fill: var(--chip); }
+.arco-horizonte { stroke: var(--borde); stroke-width: 1; }
+.arco-pendiente { fill: none; stroke: var(--borde); stroke-width: 2; stroke-dasharray: 2 5; stroke-linecap: round; }
+.arco-recorrido { fill: none; stroke: var(--acento); stroke-width: 3; stroke-linecap: round; }
+.arco-rezo { fill: var(--tarjeta); stroke: var(--borde); stroke-width: 2; }
+.arco-rezo.pasado { fill: var(--acento); stroke: var(--acento); }
+.arco-rezo.siguiente { stroke: var(--acento); }
+.arco-etiqueta { fill: var(--acento); font-size: 12px; font-weight: 600; }
+.sol-halo { fill: var(--sol); opacity: .25; }
+.sol { fill: var(--sol); }
+.arco-extremos { display: flex; justify-content: space-between; margin-top: 2px; color: var(--texto-tenue); font-size: 12px; font-variant-numeric: tabular-nums; }
+.seccion-cabecera { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 8px; }
+.seccion-cabecera h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.seccion-cabecera span { color: var(--texto-suave); font-size: 14px; font-variant-numeric: tabular-nums; }
+.progreso { height: 4px; margin-bottom: 4px; border-radius: 2px; background: var(--chip); overflow: hidden; }
+.progreso span { display: block; height: 100%; background: var(--acento); transition: width .25s ease-out; }
+.lista-rezos { margin: 0; padding: 0; list-style: none; }
+.lista-rezos button { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 56px; padding: 8px 4px; border: 0; border-bottom: 1px solid var(--borde); border-radius: 0; background: transparent; color: var(--texto); text-align: left; cursor: pointer; }
+.lista-rezos li:last-child button { border-bottom: 0; }
+.lista-rezos button:disabled { cursor: default; opacity: 1; }
+.marca { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border: 2px solid var(--borde); border-radius: 50%; color: transparent; transition: background .15s, border-color .15s; }
+.lista-rezos [aria-pressed="true"] .marca { border-color: var(--acento); background: var(--acento); color: #fff; }
+:root[data-theme="dark"] .lista-rezos [aria-pressed="true"] .marca { color: var(--bg); }
+.rezo-nombre { flex: 1; display: flex; flex-direction: column; }
+.rezo-nombre b { font-size: 17px; font-weight: 500; }
+.rezo-nombre small { color: var(--texto-tenue); font-size: 13px; }
+.rezo-hora { font-size: 17px; font-variant-numeric: tabular-nums; color: var(--texto-suave); }
+.lista-rezos .siguiente .rezo-nombre b { color: var(--acento); font-weight: 600; }
+.lista-rezos .siguiente .rezo-hora { color: var(--texto); font-weight: 600; }
+.lista-rezos .futuro .marca { border-style: dashed; opacity: .6; }
+.nota-lista { margin: 10px 4px 0; color: var(--texto-tenue); font-size: 13px; }
+.link-button.en-linea { min-height: 0; padding: 0; font-size: inherit; vertical-align: baseline; }
+.fila-enlace { display: flex; align-items: center; gap: 14px; width: 100%; margin-top: 20px; padding: 14px 16px; border: 0; border-radius: 16px; background: var(--tarjeta); color: var(--texto); text-align: left; cursor: pointer; }
+.icono-fila { flex-shrink: 0; color: var(--acento); }
+.fila-texto { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.fila-texto b { font-size: 16px; font-weight: 500; }
+.fila-texto span { color: var(--texto-tenue); font-size: 13.5px; }
+.chevron { flex-shrink: 0; color: var(--texto-tenue); }
+
+/* Registro y Qibla. */
+.racha { margin: 4px 0 2px; }
+.racha p { margin: 0; }
+.racha-numero { color: var(--texto-suave); font-size: 17px; }
+.racha-numero b { margin-right: 4px; font-size: 40px; font-weight: 600; letter-spacing: -1px; color: var(--sidebar); }
+:root[data-theme="dark"] .racha-numero b { color: var(--texto); }
+.racha-detalle { color: var(--texto-tenue); font-size: 13.5px; }
+.qibla-detalle { padding: 32px 8px; text-align: center; color: var(--texto-suave); }
+.qibla-rosa { width: 120px; height: 120px; }
+.qibla-rosa circle { fill: var(--tarjeta); stroke: var(--borde); stroke-width: 2; }
+.qibla-rosa text { fill: var(--texto-tenue); font-size: 11px; font-weight: 600; }
+.qibla-rosa path { fill: var(--acento); }
+.qibla-grados { margin: 8px 0 0; color: var(--texto); font-size: 56px; font-weight: 600; letter-spacing: -1px; }
+
+/* Más: listas agrupadas con el valor actual a la vista. */
+.grupo-opciones { margin: 22px 20px 6px; color: var(--acento); font-size: 14px; font-weight: 600; }
+.lista-opciones { margin: 0; padding: 0; list-style: none; background: var(--tarjeta); border-top: 1px solid var(--borde); border-bottom: 1px solid var(--borde); }
+.lista-opciones li + li { border-top: 1px solid var(--borde); }
+.lista-opciones button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 16px 10px 20px; border: 0; border-radius: 0; background: transparent; color: var(--texto); text-align: left; cursor: pointer; }
+
+/* Barra inferior. */
+.barra-inferior { display: flex; flex-shrink: 0; background: var(--tarjeta); border-top: 1px solid var(--borde); }
+.barra-inferior button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 64px; padding: 8px 0 8px; border: 0; border-radius: 0; background: transparent; color: var(--texto-tenue); font-size: 12.5px; cursor: pointer; }
+.barra-inferior .icono-tab { display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; }
+.barra-inferior [aria-current="page"] { color: var(--acento); font-weight: 600; }
+.barra-inferior [aria-current="page"] .icono-tab { background: var(--acento-claro); }
+@media (prefers-reduced-motion: reduce) { .progreso span, .marca { transition: none; } }
+

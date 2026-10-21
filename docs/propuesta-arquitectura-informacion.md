@@ -3,6 +3,8 @@
 **Adhan Companion · revisión de la ventana de configuración**  
 Estado: arquitectura acordada e implementada en la interfaz; pendiente de revisión visual.
 
+> Actualización del 21/10/2026: la navegación pasó al esquema de la [maqueta móvil](maquetas/movil/README.md). Barra lateral con Hoy, Registro, Calendario islámico, Qur’an y Configuración; Configuración es una lista con subpantallas, y «Horarios» quedó como «Ubicación y cálculo» dentro de ella. Las secciones de abajo conservan el razonamiento original.
+
 ## Problema que resuelve
 
 La ventana actual presenta seis pestañas del mismo nivel: «Ubicación», «Cálculo», «Audio», «Seguimiento», «Agente» y «Avanzado». Esa estructura mezcla tareas cotidianas, preferencias del adhan, seguimiento y opciones técnicas. También oculta el preaviso en «Avanzado», aunque es parte de la experiencia de avisos, y muestra «Agente» como función disponible cuando MQTT todavía es un placeholder.

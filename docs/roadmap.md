@@ -35,7 +35,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 **Solicitud:** usar Google Maps para obtener una ubicación precisa.
 
-**Ubicación en la app:** Horarios → Ubicación → Editar ubicación.
+**Ubicación en la app:** Configuración (o Más, en el celular) → Ubicación y cálculo → Editar ubicación.
 
 **Propuesta inicial:**
 

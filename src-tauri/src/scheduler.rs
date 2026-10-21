@@ -57,6 +57,10 @@ pub struct Schedule {
     pub countdown_secs: Option<i64>,
     /// Rezos de hoy marcados como rezados (copia del registro.jsonl del día)
     pub marked: Vec<String>,
+    /// Salida y puesta del sol en horas decimales locales (recorrido del sol en Hoy).
+    /// `None` si no se pueden calcular (latitudes extremas).
+    pub sunrise: Option<f64>,
+    pub sunset: Option<f64>,
 }
 
 /// Estado compartido con el mundo IPC (`get_schedule` / `schedule_changed`)
@@ -185,13 +189,21 @@ pub enum Trigger {
 
 /// Rezos (los 5) calculados para una fecha concreta con el config dado.
 /// Reutilizado por el schedule del día (hoy) y por `get_schedule_for` (pasado).
-pub fn prayer_slots_for(y: i32, m: i32, d: i32, cfg: &crate::config::Config) -> Vec<PrayerSlot> {
+/// Los siete tiempos de PrayTimes C: Fajr, salida del sol, Dhuhr, Asr, puesta, Maghrib, Isha.
+fn day_times(y: i32, m: i32, d: i32, cfg: &crate::config::Config) -> [f64; 7] {
     let pcfg = crate::prayer::PrayerConfig::from(cfg);
-    let times7 = crate::prayer::calc_times(
+    crate::prayer::calc_times(
         y, m, d,
         cfg.lat, cfg.lon, crate::config::Config::tz_offset_hours_for_date(y, m, d),
         &pcfg,
-    );
+    )
+}
+
+pub fn prayer_slots_for(y: i32, m: i32, d: i32, cfg: &crate::config::Config) -> Vec<PrayerSlot> {
+    slots_from(&day_times(y, m, d, cfg))
+}
+
+fn slots_from(times7: &[f64; 7]) -> Vec<PrayerSlot> {
     PRAYERS
         .iter()
         .enumerate()
@@ -226,6 +238,27 @@ pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
     schedule
 }
 
+/// Un rezo de hoy se puede marcar desde su horario, no antes. Los días anteriores
+/// y desmarcar no se limitan. Si el horario no se puede calcular, o si Isha cae
+/// pasada la medianoche, no se bloquea.
+pub fn check_mark_time(date: &str, prayer: &str, cfg: &crate::config::Config) -> Result<(), String> {
+    let now = chrono::Local::now();
+    if date != now.date_naive().to_string() {
+        return Ok(());
+    }
+    let slots = prayer_slots_for(now.year(), now.month() as i32, now.day() as i32, cfg);
+    let Some(slot) = slots.iter().find(|s| s.name == prayer) else { return Ok(()) };
+    let dhuhr = slots.iter().find(|s| s.name == "Dhuhr").map_or(12.0, |s| s.dec);
+    if !slot.dec.is_finite() || (prayer != "Fajr" && slot.dec < dhuhr) {
+        return Ok(());
+    }
+    let now_h = now.hour() as f64 + now.minute() as f64 / 60.0 + now.second() as f64 / 3600.0;
+    if now_h < slot.dec {
+        return Err(format!("Todavía no es la hora de {prayer} ({}).", slot.hhmm));
+    }
+    Ok(())
+}
+
 /// Actualiza el próximo evento desde los horarios cacheados mientras la app
 /// móvil está abierta. Una realineación vuelve a calcular la fecha completa.
 #[cfg(mobile)]
@@ -235,13 +268,15 @@ pub fn refresh_mobile_schedule(schedule: &mut Schedule, cfg: &crate::config::Con
 
 /// Construye el día sin consultar ni modificar el registro (también para tests).
 fn schedule_at(cfg: &crate::config::Config, now: &DateTime<chrono::Local>) -> Schedule {
-    let prayers = prayer_slots_for(now.year(), now.month() as i32, now.day() as i32, cfg);
+    let times7 = day_times(now.year(), now.month() as i32, now.day() as i32, cfg);
     let mut schedule = Schedule {
         date: now.date_naive().to_string(),
-        prayers,
+        prayers: slots_from(&times7),
         next: None,
         countdown_secs: None,
         marked: Vec::new(),
+        sunrise: Some(times7[1]).filter(|h| h.is_finite()),
+        sunset: Some(times7[4]).filter(|h| h.is_finite()),
     };
     refresh_next(&mut schedule, cfg, now);
     schedule
@@ -495,6 +530,12 @@ pub fn run(s: SchedulerLoop) {
             if PRAYERS.contains(&name.as_str()) {
                 let date = if date_arg.is_empty() { schedule.date.clone() } else { date_arg };
                 let already = crate::registro::is_prayer_marked(&date, &name);
+                if !already {
+                    if let Err(error) = check_mark_time(&date, &name, &cfg) {
+                        if let Some(reply) = reply { let _ = reply.send(Err(error)); }
+                        continue;
+                    }
+                }
                 let status = if already { "desmarcado" } else { "rezado" };
                 let result = crate::registro::append(&date, &name, status);
                 crate::log!(
@@ -670,6 +711,8 @@ mod tests {
             next: None,
             countdown_secs: None,
             marked: vec!["Isha".into()],
+            sunrise: Some(6.5),
+            sunset: Some(18.0),
         }
     }
 

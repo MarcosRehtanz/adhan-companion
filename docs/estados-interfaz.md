@@ -45,11 +45,13 @@ Desde v0.1.10, el estado «Leyendo ubicación» espera la resolución nativa de 
 
 Vista con valor guardado → Editar → borrador → Guardar o Cancelar. Durante el guardado se bloquean envíos duplicados; el éxito vuelve al valor confirmado por el core. Si falla, se conserva el borrador y se ofrece recuperación. Cancelar descarta solo el borrador.
 
-«Adhan y avisos» se encuentra dentro de **Configuración**, junto con apariencia, inicio automático y actualizaciones. No aparece como sección independiente en el menú principal ni en el panel responsive. El acceso antes llamado «Sistema» se presenta como «Configuración». El bloque mantiene vista de valores guardados, Editar, Guardar y Cancelar; comparte el bloqueo de edición con apariencia. Si se navega con una edición de sonido pendiente, «Volver a la edición» regresa a Configuración. En Android, la activación y los permisos de avisos también se encuentran allí. Este cambio de organización no altera la configuración persistida ni la programación de rezos.
+«Adhan y avisos» se encuentra dentro de **Configuración**, junto con apariencia, inicio automático y actualizaciones. No aparece como sección independiente en el menú principal ni en el panel responsive. El acceso antes llamado «Sistema» se presenta como «Configuración». El bloque mantiene vista de valores guardados, Editar, Guardar y Cancelar; comparte el bloqueo de edición con apariencia. Si se navega con una edición de sonido pendiente, «Volver a la edición» regresa a la subpantalla Adhan y avisos (desde el 21/10/2026, Configuración es una lista con subpantallas). En Android, la activación y los permisos de avisos también se encuentran allí. Este cambio de organización no altera la configuración persistida ni la programación de rezos.
 
 ## Navegación responsive lateral
 
-El menú hamburguesa abre un panel anclado a la izquierda, de altura completa y con desplazamiento propio cuando no caben todas las secciones. Comparte los colores y la sección activa del sidebar de escritorio. El fondo queda atenuado y el foco permanece dentro del panel mediante `dialog.showModal()`; su presentación visual es lateral.
+> Reemplazada el 21/10/2026 por la interfaz de celular (barra inferior y subpantallas de «Más»; ver [la maqueta](maquetas/movil/README.md) y la sección siguiente). Se conserva como registro de la versión anterior.
+
+El menú hamburguesa abría un panel anclado a la izquierda, de altura completa y con desplazamiento propio cuando no caben todas las secciones. Comparte los colores y la sección activa del sidebar de escritorio. El fondo queda atenuado y el foco permanece dentro del panel mediante `dialog.showModal()`; su presentación visual es lateral.
 
 - **Cerrado:** solo se ofrece abrir y `aria-expanded` es falso.
 - **Abierto:** se puede elegir una sección, cerrar con X, Escape/solicitud de cancelación del WebView o tocar el fondo exterior. Pulsar el espacio interior no lo cierra. La apertura desplaza el panel desde la izquierda.
@@ -58,6 +60,18 @@ El menú hamburguesa abre un panel anclado a la izquierda, de altura completa y 
 - **Movimiento reducido:** se omiten las animaciones y el cierre se realiza sin espera de transición.
 
 Estado efímero de interfaz, sin persistencia: al abrir la app el panel comienza cerrado. Cerrar o cambiar de sección conserva los borradores de configuración según las reglas comunes de edición. Este cambio no requiere modificar datos ni comandos del core.
+
+## Navegación de celular
+
+En Android y en ventanas de hasta 720 px, la barra inferior lleva a Hoy, Registro, Qur’an y Más.
+
+- **Sección activa:** el ícono resaltado y `aria-current="page"`.
+- **Subpantallas de Más:** Calendario islámico, Qibla, Ubicación y cálculo, Adhan y avisos, Apariencia, Actualizaciones y Acerca de. Se abren con «‹» en la barra y entran al historial: el botón atrás de Android o «‹» vuelven a Más, y tocar otra pestaña sale de la subpantalla.
+- **Cambio de ancho:** las páginas son las mismas; solo cambia el marco. Al ensanchar la ventana, una subpantalla de Más queda como subpantalla de Configuración, y el Calendario islámico pasa a la barra lateral.
+- **Ediciones:** las reglas comunes se mantienen. «Volver a la edición» lleva a la subpantalla donde quedó el borrador.
+- **Guardado:** mientras se guarda, la barra inferior queda bloqueada.
+
+En la ventana ancha de escritorio, la barra lateral lleva a Hoy, Registro, Calendario islámico, Qur’an y Configuración. Configuración es la misma lista agrupada, con su valor actual, y suma Inicio de sesión. Cada opción abre una subpantalla con «‹ Volver a Configuración». La sección activa de la barra lateral sigue siendo Configuración mientras se está en una subpantalla.
 
 ## Revisión de los demás apartados — 19/10/2026
 
@@ -74,7 +88,7 @@ Esta revisión aplica a la implementación local de escritorio y a los component
 | Confirmación parcial de configuración | El archivo puede guardarse y fallar luego la sincronización nativa. | Reconsultar el core después del fallo; distinguir «no guardado» de «guardado con operación posterior fallida». No afirmar que la programación de avisos quedó confirmada. |
 | Apariencia predeterminada | Valores actuales o distintos de los predeterminados. | Restablecer solo cuando hay algo que restablecer. Vista previa no equivale a guardado. |
 | Calendario islámico | Mes/día consultado, hoy, límites de navegación, ajuste en edición. | Volver a hoy deshabilitado si ya está seleccionado; límites de mes/año conservados. El ajuste sigue el guardado común. |
-| Registro y calendario civil | Consultando mes, sin registros, parcial/completo, guardando marca, error de lectura/escritura. Fuente: registro persistido. | No marcar visualmente antes de confirmar escritura. Bloquear dobles toques y navegación durante esa operación; conservar último estado confirmado si falla y reconsultar el mes después del éxito. No pintar el mes anterior como si fuera el nuevo. |
+| Registro y calendario civil | Consultando mes, sin registros, parcial/completo, guardando marca, error de lectura/escritura. Fuente: registro persistido. | No marcar visualmente antes de confirmar escritura. Bloquear dobles toques y navegación durante esa operación; conservar último estado confirmado si falla y reconsultar el mes después del éxito. No pintar el mes anterior como si fuera el nuevo. Desde el 21/10/2026, un rezo de hoy se marca desde su horario: antes queda deshabilitado, y el core rechaza la marca con «Todavía no es la hora de …». Desmarcar y corregir días anteriores no se limitan. |
 | Horarios de un día histórico | Consulta por fecha, horarios disponibles o error. | Limpiar el resultado al cambiar de fecha, ignorar respuestas antiguas y ofrecer reintento. |
 | Estadísticas | Consulta, datos confirmados —incluidos ceros válidos—, error. | Distinguir ausencia real de registros de fallo/archivo ilegible; recuperar con reintento. |
 | Pruebas de Adhan/tonos | Estado consultado del core, reproducción activa/inactiva, operación de inicio/parada, error o estado desconocido. | Consultar reproducción real; mostrar Detener cuando hay audio o el estado es desconocido como acción de seguridad. No afirmar «detenido» solo por enviar la orden. No disponible en plataformas sin soporte. |

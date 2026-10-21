@@ -1,0 +1,169 @@
+/* Maqueta móvil de Adhan Companion. Tokens de src/App.css; CSS apto para el WebView del J7
+   (sin media queries de rango, color-mix, :is ni inset). */
+@font-face { font-family: "Amiri Quran"; src: url("../../../public/quran/fonts/AmiriQuran.ttf") format("truetype"); font-display: swap; }
+
+:root {
+  --bg: #f4f2ee; --superficie: #ffffff; --texto: #1c1b17; --texto-suave: #5c564c; --texto-tenue: #756e64;
+  --acento: #0e6f63; --acento-claro: #e8f4f0; --profundo: #124f48; --oro: #c79a2b; --oro-claro: #f4d06f;
+  --borde: #e3ded6; --separador: #ece8e1; --error: #b42318;
+  --arco-pendiente: #cfc8bd; --noche-arco: #f1eee8; --sombra-hoja: rgba(28, 27, 23, .22);
+}
+:root.noche {
+  --bg: #171b20; --superficie: #21272e; --texto: #f0f1f3; --texto-suave: #c2c7cf; --texto-tenue: #adb5c0;
+  --acento: #5fc4b3; --acento-claro: #1d3a37; --profundo: #0f2e2b; --oro: #e2bd5c;
+  --borde: #414b58; --separador: #2e353e; --arco-pendiente: #4a5462; --noche-arco: #1b2026; --sombra-hoja: rgba(0, 0, 0, .55);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: #d9d4cb; color: var(--texto); font: 15px/1.45 Roboto, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+:root.noche body { background: #0b0d10; }
+button, input { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+h1, h2, p { margin: 0; }
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Marco del teléfono: a 390 px ocupa toda la pantalla. */
+.telefono { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 430px; height: 100%; margin: 0 auto; overflow: hidden; background: var(--bg); }
+.pantalla { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.pantalla[hidden] { display: none; }
+.contenido { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 24px; }
+.contenido-lista { padding: 0 0 24px; }
+
+/* Barra superior compacta (56 px). */
+.barra-app { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 8px 16px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+.barra-app h1 { font-size: 22px; font-weight: 600; letter-spacing: -.2px; }
+.barra-hoy { justify-content: space-between; align-items: flex-start; padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
+.fecha-civil { font-size: 17px; font-weight: 600; }
+.fecha-hijri { margin-top: 1px; color: var(--texto-suave); font-size: 14px; }
+.ciudad { margin-top: 3px; color: var(--texto-tenue); font-size: 13px; }
+.barra-sub { gap: 4px; padding-left: 4px; background: var(--superficie); border-bottom: 1px solid var(--separador); }
+.barra-sub h1 { flex: 1; font-size: 19px; }
+
+/* Aviso solo cuando falta algo. */
+.aviso-permisos { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 12px; padding: 12px 14px; border-radius: 12px; background: #fdf3e1; color: #5a3d07; font-size: 14px; }
+:root.noche .aviso-permisos { background: #3a2f17; color: #f3dfb0; }
+.aviso-permisos[hidden] { display: none; }
+.aviso-permisos .boton-texto { align-self: flex-start; color: inherit; text-decoration: underline; }
+
+/* Próximo rezo: el nombre manda y el arco del sol ubica el día. */
+.proximo { margin: 8px 0 20px; padding: 18px 18px 14px; border-radius: 20px; background: var(--superficie); }
+.proximo-rotulo { color: var(--texto-suave); font-size: 14px; }
+.proximo-linea { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.proximo h1 { display: flex; align-items: baseline; gap: 12px; font-size: 44px; font-weight: 600; line-height: 1.15; letter-spacing: -1px; color: var(--profundo); }
+:root.noche .proximo h1 { color: var(--texto); }
+.proximo h1 span { font-family: "Amiri Quran", serif; font-size: 26px; font-weight: 400; letter-spacing: 0; color: var(--oro); }
+.proximo-hora { font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.proximo-falta { margin-top: 2px; color: var(--texto-suave); font-size: 15px; }
+.proximo-falta b { color: var(--acento); font-weight: 600; font-variant-numeric: tabular-nums; }
+.arco { display: block; width: 100%; height: auto; margin-top: 14px; overflow: visible; }
+.arco-extremos { display: flex; justify-content: space-between; margin-top: 2px; color: var(--texto-tenue); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* Secciones y listas nativas (filas, no tarjetas). */
+.seccion-cabecera { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 8px; }
+.seccion-cabecera h2 { font-size: 17px; font-weight: 600; }
+.seccion-cabecera span { color: var(--texto-suave); font-size: 14px; font-variant-numeric: tabular-nums; }
+.progreso { height: 4px; margin-bottom: 4px; border-radius: 2px; background: var(--separador); overflow: hidden; }
+.progreso span { display: block; height: 100%; background: var(--acento); transition: width .25s ease-out; }
+.lista-rezos { margin: 0; padding: 0; list-style: none; }
+.lista-rezos button { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 56px; padding: 8px 4px; border: 0; border-bottom: 1px solid var(--separador); background: transparent; text-align: left; cursor: pointer; }
+.lista-rezos li:last-child button { border-bottom: 0; }
+.rezo-nombre { flex: 1; display: flex; flex-direction: column; }
+.rezo-nombre b { font-size: 17px; font-weight: 500; }
+.rezo-nombre small { color: var(--texto-tenue); font-size: 13px; }
+.rezo-hora { font-size: 17px; font-variant-numeric: tabular-nums; color: var(--texto-suave); }
+.marca { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border: 2px solid var(--borde); border-radius: 50%; color: transparent; transition: background .15s, border-color .15s; }
+.marca svg { width: 16px; height: 16px; }
+[aria-pressed="true"] .marca { border-color: var(--acento); background: var(--acento); color: #fff; }
+:root.noche [aria-pressed="true"] .marca { color: #0f2e2b; }
+.siguiente .rezo-nombre b { color: var(--acento); font-weight: 600; }
+.siguiente .rezo-hora { color: var(--texto); font-weight: 600; }
+.futuro { cursor: default; }
+.futuro .marca { border-style: dashed; opacity: .6; }
+.nota-lista { margin: 10px 4px 0; color: var(--texto-tenue); font-size: 13px; }
+.contenido-lista .nota-lista { margin: 12px 16px 0; }
+.fila-enlace { display: flex; align-items: center; gap: 14px; margin-top: 20px; padding: 14px 16px; border-radius: 16px; background: var(--superficie); }
+.icono-qibla { width: 30px; height: 30px; color: var(--acento); flex-shrink: 0; }
+
+.fila-texto { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.fila-texto b { font-weight: 500; font-size: 16px; }
+.fila-texto span { color: var(--texto-tenue); font-size: 13.5px; }
+.chevron { color: var(--texto-tenue); font-size: 24px; line-height: 1; }
+
+/* Registro. */
+.racha { margin: 4px 0 18px; }
+.racha-numero { font-size: 17px; color: var(--texto-suave); }
+.racha-numero b { margin-right: 4px; font-size: 40px; font-weight: 600; letter-spacing: -1px; color: var(--profundo); }
+:root.noche .racha-numero b { color: var(--texto); }
+.racha-detalle { color: var(--texto-tenue); font-size: 13.5px; }
+.mes { margin-bottom: 22px; padding: 12px; border-radius: 20px; background: var(--superficie); }
+.mes-cabecera { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.mes-cabecera h2 { font-size: 16px; font-weight: 600; }
+.semana, .dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.semana span { color: var(--texto-tenue); font-size: 12px; padding: 4px 0; }
+.dia { position: relative; height: 40px; border: 0; border-radius: 10px; background: transparent; font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.dia::after { content: ""; position: absolute; left: 50%; bottom: 5px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; }
+.dia.completo::after { background: var(--acento); }
+.dia.parcial::after { background: var(--oro); }
+.dia.hoy { font-weight: 700; color: var(--acento); }
+.dia[aria-selected="true"] { background: var(--acento-claro); box-shadow: inset 0 0 0 2px var(--acento); }
+.dia:disabled { color: var(--texto-tenue); opacity: .45; cursor: default; }
+.leyenda { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--texto-tenue); font-size: 12.5px; }
+.punto { display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; }
+.punto:first-child { margin-left: 0; }
+.punto.completo { background: var(--acento); }
+.punto.parcial { background: var(--oro); }
+
+/* Más: listas agrupadas con valor actual a la vista. */
+.grupo { margin: 22px 20px 6px; color: var(--acento); font-size: 14px; font-weight: 600; }
+.lista-opciones { margin: 0; padding: 0; list-style: none; background: var(--superficie); border-top: 1px solid var(--separador); border-bottom: 1px solid var(--separador); }
+.lista-opciones li + li { border-top: 1px solid var(--separador); }
+.lista-opciones a, .lista-opciones li.fila-interruptor, .lista-opciones li.fila-paso, .lista-opciones button.fila-sonido { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 16px 10px 20px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.bloque { display: flex; align-items: center; gap: 14px; padding: 14px 20px; background: var(--superficie); border-top: 1px solid var(--separador); border-bottom: 1px solid var(--separador); }
+.bloque input[type="range"] { flex: 1; accent-color: var(--acento); }
+.bloque span { width: 44px; text-align: right; font-variant-numeric: tabular-nums; color: var(--texto-suave); }
+.interruptor { position: relative; width: 48px; height: 28px; flex-shrink: 0; margin: 0; border-radius: 14px; background: var(--arco-pendiente); -webkit-appearance: none; appearance: none; cursor: pointer; transition: background .15s; }
+.interruptor::before { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .15s; }
+.interruptor:checked { background: var(--acento); }
+.interruptor:checked::before { transform: translateX(20px); }
+.paso { display: flex; align-items: center; gap: 4px; }
+.paso b { min-width: 30px; text-align: center; font-size: 17px; font-variant-numeric: tabular-nums; }
+.probar-mini { color: var(--acento); font-size: 14px; font-weight: 600; }
+
+/* Botones. */
+.boton-icono { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border: 0; border-radius: 22px; background: transparent; font-size: 26px; line-height: 1; cursor: pointer; }
+.boton-icono:disabled { opacity: .35; cursor: default; }
+.boton-texto { min-height: 44px; padding: 0 12px; border: 0; background: transparent; color: var(--acento); font-weight: 600; cursor: pointer; }
+.boton-texto:disabled { color: var(--texto-tenue); opacity: .55; cursor: default; }
+.boton-primario, .boton-secundario { flex: 1; min-height: 48px; border-radius: 24px; font-weight: 600; cursor: pointer; }
+.boton-primario { border: 0; background: var(--acento); color: #fff; }
+:root.noche .boton-primario { color: #0f2e2b; }
+.boton-secundario { border: 1px solid var(--borde); background: transparent; color: var(--acento); }
+
+/* Hoja inferior para editar un rezo sin salir de la lista. */
+.velo { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 4; background: rgba(0, 0, 0, .35); }
+.hoja { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; padding: 8px 20px calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 0 0; background: var(--superficie); box-shadow: 0 -8px 30px var(--sombra-hoja); }
+.hoja[hidden], .velo[hidden] { display: none; }
+.hoja-asa { width: 36px; height: 4px; margin: 0 auto 14px; border-radius: 2px; background: var(--borde); }
+.hoja h2 { margin-bottom: 14px; font-size: 18px; font-weight: 600; }
+.segmentos { display: flex; flex-direction: column; gap: 8px; }
+.segmentos label { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 14px; border: 1px solid var(--borde); border-radius: 14px; cursor: pointer; }
+.segmentos input { accent-color: var(--acento); width: 20px; height: 20px; }
+.segmentos label.elegido { border-color: var(--acento); background: var(--acento-claro); }
+.hoja-acciones { display: flex; gap: 10px; margin-top: 18px; }
+
+/* Barra inferior. */
+.barra-inferior { display: flex; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--superficie); border-top: 1px solid var(--separador); }
+.barra-inferior a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 64px; padding: 10px 0 8px; color: var(--texto-tenue); font-size: 12.5px; }
+.barra-inferior svg { width: 26px; height: 26px; padding: 2px 0; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.barra-inferior a[aria-current="page"] { color: var(--acento); font-weight: 600; }
+.barra-inferior a[aria-current="page"] svg { width: 56px; border-radius: 13px; background: var(--acento-claro); }
+.barra-inferior a[data-tab="mas"] svg circle { fill: currentColor; stroke: none; }
+.barra-inferior a[data-tab="hoy"] svg circle { fill: none; }
+
+/* Qur'an: el lector actual, sin cambios. */
+.pantalla-quran { overflow-y: auto; background: var(--bg); }
+.pantalla-quran img { display: block; width: 100%; }
+.nota-quran { padding: 12px 16px 20px; color: var(--texto-suave); font-size: 13.5px; }
+
+@media (prefers-reduced-motion: reduce) { .progreso span, .marca, .interruptor, .interruptor::before { transition: none; } }
