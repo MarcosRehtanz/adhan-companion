@@ -4,7 +4,7 @@ Estado: incluido desde v0.1.8. La corrección v0.1.10 habilita enlaces cortos en
 
 ## Uso
 
-1. Abrir **Horarios → Editar ubicación**.
+1. Abrir **Configuración → Ubicación y cálculo → Editar ubicación** (en el celular, **Más → Ubicación y cálculo**).
 2. Elegir **Abrir Google Maps**. Se abre el navegador en Google Maps; no se envían automáticamente las coordenadas guardadas.
 3. Buscar el punto; en celulares, mantenerlo pulsado para colocar el pin y copiar coordenadas o Compartir. En escritorio, hacer clic derecho para copiar sus coordenadas. También se puede copiar un enlace del lugar o el enlace corto de **Compartir**.
 4. Pegar el texto y elegir **Revisar ubicación**.

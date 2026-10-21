@@ -45,7 +45,7 @@ Desde v0.1.10, el estado «Leyendo ubicación» espera la resolución nativa de 
 
 Vista con valor guardado → Editar → borrador → Guardar o Cancelar. Durante el guardado se bloquean envíos duplicados; el éxito vuelve al valor confirmado por el core. Si falla, se conserva el borrador y se ofrece recuperación. Cancelar descarta solo el borrador.
 
-«Adhan y avisos» se encuentra dentro de **Configuración**, junto con apariencia, inicio automático y actualizaciones. No aparece como sección independiente en el menú principal ni en el panel responsive. El acceso antes llamado «Sistema» se presenta como «Configuración». El bloque mantiene vista de valores guardados, Editar, Guardar y Cancelar; comparte el bloqueo de edición con apariencia. Si se navega con una edición de sonido pendiente, «Volver a la edición» regresa a Configuración. En Android, la activación y los permisos de avisos también se encuentran allí. Este cambio de organización no altera la configuración persistida ni la programación de rezos.
+«Adhan y avisos» se encuentra dentro de **Configuración**, junto con apariencia, inicio automático y actualizaciones. No aparece como sección independiente en el menú principal ni en el panel responsive. El acceso antes llamado «Sistema» se presenta como «Configuración». El bloque mantiene vista de valores guardados, Editar, Guardar y Cancelar; comparte el bloqueo de edición con apariencia. Si se navega con una edición de sonido pendiente, «Volver a la edición» regresa a la subpantalla Adhan y avisos (desde el 21/10/2026, Configuración es una lista con subpantallas). En Android, la activación y los permisos de avisos también se encuentran allí. Este cambio de organización no altera la configuración persistida ni la programación de rezos.
 
 ## Navegación responsive lateral
 
@@ -67,9 +67,11 @@ En Android y en ventanas de hasta 720 px, la barra inferior lleva a Hoy, Registr
 
 - **Sección activa:** el ícono resaltado y `aria-current="page"`.
 - **Subpantallas de Más:** Calendario islámico, Qibla, Ubicación y cálculo, Adhan y avisos, Apariencia, Actualizaciones y Acerca de. Se abren con «‹» en la barra y entran al historial: el botón atrás de Android o «‹» vuelven a Más, y tocar otra pestaña sale de la subpantalla.
-- **Cambio de ancho:** al pasar a una ventana ancha de escritorio, una subpantalla se convierte en su página de escritorio (Configuración, Horarios o Calendario).
+- **Cambio de ancho:** las páginas son las mismas; solo cambia el marco. Al ensanchar la ventana, una subpantalla de Más queda como subpantalla de Configuración, y el Calendario islámico pasa a la barra lateral.
 - **Ediciones:** las reglas comunes se mantienen. «Volver a la edición» lleva a la subpantalla donde quedó el borrador.
 - **Guardado:** mientras se guarda, la barra inferior queda bloqueada.
+
+En la ventana ancha de escritorio, la barra lateral lleva a Hoy, Registro, Calendario islámico, Qur’an y Configuración. Configuración es la misma lista agrupada, con su valor actual, y suma Inicio de sesión. Cada opción abre una subpantalla con «‹ Volver a Configuración». La sección activa de la barra lateral sigue siendo Configuración mientras se está en una subpantalla.
 
 ## Revisión de los demás apartados — 19/10/2026
 

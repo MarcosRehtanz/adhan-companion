@@ -6,8 +6,8 @@ import { ARABIC_NAMES, PRAYER_NAMES, cardinal, hoursOf, prayerReached, remaining
 
 type AlertStatus = { enabled: boolean; exact: boolean; notifications: boolean; error: string };
 
-/** Hoy en el celular: el próximo rezo, el recorrido del sol y los rezos del día para marcar. */
-export function MobileToday({ schedule, scheduleError, onRetry, qibla, qiblaError, android, onOpen, onMarked }: {
+/** Hoy, en el celular y en escritorio: el próximo rezo, el recorrido del sol y los rezos del día para marcar. */
+export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, android, onOpen, onMarked }: {
   schedule: Schedule | null; scheduleError: string; onRetry: () => Promise<void>;
   qibla: number | null; qiblaError: string; android: boolean;
   onOpen: (page: "avisos" | "qibla" | "registro") => void; onMarked: () => void;
@@ -42,7 +42,7 @@ export function MobileToday({ schedule, scheduleError, onRetry, qibla, qiblaErro
     finally { lock.current = false; if (mounted.current) setPending(null); }
   }
 
-  return <div className="hoy-movil">
+  return <div className="hoy">
     {notice && <div className="aviso-permisos" role="note"><p>{notice}</p><button className="link-button" onClick={() => onOpen("avisos")}>Revisar avisos</button></div>}
 
     <section className="proximo" aria-labelledby="proximo-nombre">
@@ -75,7 +75,7 @@ export function MobileToday({ schedule, scheduleError, onRetry, qibla, qiblaErro
         </button></li>;
       })}</ul>
       {error && <p role="alert" className="nota-lista">{error}</p>}
-      <p className="nota-lista">Tocá un rezo para marcarlo; se habilita desde su horario. Los días anteriores se corrigen en <button className="link-button en-linea" onClick={() => onOpen("registro")}>Registro</button>.</p>
+      <p className="nota-lista">Marcá cada rezo cuando lo hayas rezado; se habilita desde su horario. Los días anteriores se corrigen en <button className="link-button en-linea" onClick={() => onOpen("registro")}>Registro</button>.</p>
     </section>}
 
     <button className="fila-enlace" onClick={() => onOpen("qibla")}>

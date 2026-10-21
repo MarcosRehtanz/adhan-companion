@@ -48,6 +48,8 @@ El lector del Qur’an no cambia: ya tenía barra propia, paneles como hoja infe
 
 La regla del horario para marcar quedó confirmada por el usuario: un rezo se marca desde su propio horario, y el core la valida también en escritorio y en el tray.
 
+**Escritorio, el mismo día, a pedido del usuario:** la ventana ancha usa las mismas páginas con la barra lateral (Hoy, Registro, Calendario islámico, Qur’an y Configuración). Hoy, Registro con la racha y Configuración como lista con subpantallas quedan centrados en una columna de 680 px.
+
 **Fase 2:** pasar cada subpantalla al patrón nativo, con Guardar arriba y hojas inferiores.
 
 ## Pendientes para la implementación
