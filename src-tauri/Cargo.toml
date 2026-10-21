@@ -1,6 +1,6 @@
 [package]
 name = "adhan-companion"
-version = "0.1.12"
+version = "0.1.13"
 description = "App de escritorio tray-first para Linux y Windows: horarios de rezo, adhan y seguimiento — cálculo 100% local"
 authors = ["Marcos Rehtanz"]
 edition = "2024"

@@ -390,7 +390,7 @@ export default function App() {
       { id: "avisos", label: "Adhan y avisos", value: cfg.notice.minutes_before === 0 ? "Sonido por rezo, sin preaviso" : `Sonido por rezo, preaviso de ${cfg.notice.minutes_before} min` },
     ], [
       { id: "apariencia", label: "Apariencia", value: `Tema ${themes[appearance.theme].toLowerCase()}, acento ${palettes[appearance.accent].name.toLowerCase()}` },
-      { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.12"}` },
+      { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.13"}` },
       { id: "acerca", label: "Acerca de", value: isAndroid ? "Archivo de configuración" : "Inicio de sesión y archivo de configuración" },
     ]];
     return (
@@ -426,7 +426,7 @@ export default function App() {
             {page === "avisos" && <div className="page-stack">{avisos}</div>}
             {page === "apariencia" && <div className="page-stack">{apariencia}</div>}
             {page === "actualizaciones" && <div className="page-stack">{actualizaciones}</div>}
-            {page === "acerca" && <div className="page-stack">{inicioSesion}{archivo}<p className="nota">Adhan Companion {verActual || "0.1.12"}{isAndroid ? " para Android" : ""}. Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p></div>}
+            {page === "acerca" && <div className="page-stack">{inicioSesion}{archivo}<p className="nota">Adhan Companion {verActual || "0.1.13"}{isAndroid ? " para Android" : ""}. Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p></div>}
           </fieldset></main>
           <div id="quran-player-slot" />
           {footer}
@@ -453,7 +453,7 @@ export default function App() {
           <button className={"nav-item " + (page === SYSTEM_PAGE.id ? "activa" : "")} aria-label={SYSTEM_PAGE.label} aria-current={page === SYSTEM_PAGE.id ? "page" : undefined} disabled={saving} onClick={() => setPage(SYSTEM_PAGE.id)}>
             <Settings size={17} strokeWidth={2} /><span>{SYSTEM_PAGE.label}</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.12"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.13"}</span>
         </div>
       </aside>
 
