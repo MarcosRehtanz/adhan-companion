@@ -37,6 +37,7 @@ Se conserva del prototipo: el texto en el centro, la cartela, la marca ۝, la ba
 - Revisada en Firefox de escritorio sin ventana, a 1440, 1280 y 390 px (con puntero táctil emulado). No se probó en el WebView del J7 ni en Windows.
 - Tema de lectura, ancho, interlineado y modo de corrido serían preferencias nuevas: requieren campos nuevos en `quran-reader.json`.
 - Las preferencias siguen la regla de la app (resumen → Editar → Guardar o Cancelar; cerrar el panel descarta el borrador). Los estados de guardado y error del core no se simulan.
+- **Reemplazado en v0.1.14:** el panel de preferencias y el botón «Aa» de esta maqueta dieron paso al panel «Lectura», que se edita directo, con el botón **عA**. Ver [la maqueta del panel](../panel-lectura/README.md).
 
 ## Capturas
 

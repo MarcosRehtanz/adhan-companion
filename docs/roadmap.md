@@ -7,7 +7,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 ## Reglas comunes
 
 - Mantener el cálculo de horarios local y el funcionamiento del tray sin depender de la ventana.
-- Mostrar las preferencias en modo lectura; revelar sus controles con **Editar** y ofrecer **Guardar** y **Cancelar**.
+- Mostrar las preferencias en modo lectura; revelar sus controles con **Editar** y ofrecer **Guardar** y **Cancelar**. Excepción: el panel «Lectura» del lector se edita directo (v0.1.14).
 - Preservar la configuración y el historial existentes al incorporar nuevas preferencias.
 - Validar cada función en Linux y Windows antes de publicarla.
 
@@ -110,7 +110,7 @@ Las seis mejoras están solicitadas. El alcance inicial y el orden que siguen so
 
 ## 6. Qur'an (Corán)
 
-**Estado:** lector implementado y [revisado en la app nativa de Linux](revision-lector-quran.md), incluida persistencia en dos reinicios reales. Incluido en v0.1.8; pendiente de revisión en Windows. [Uso, datos, contenido y condiciones](lector-quran.md).
+**Estado:** lector implementado y [revisado en la app nativa de Linux](revision-lector-quran.md), incluida persistencia en dos reinicios reales. Incluido en v0.1.8; pendiente de revisión en Windows. Rediseñado en v0.1.11; desde v0.1.14, el idioma y el tamaño se ajustan en el panel «Lectura», que se edita directo ([maqueta y decisión](maquetas/panel-lectura/README.md)). [Uso, datos, contenido y condiciones](lector-quran.md).
 
 **Investigación inicial completada (18 de octubre de 2026):** ver [fuentes, comparación y permisos](investigacion-fuentes-quran.md). Selección autorizada: árabe Tanzil Uthmani y versión digital de Bórnez publicada en Tanzil. La edición impresa de origen no está identificada; la app presenta la procedencia digital y conserva los términos no comerciales. Pendiente de revisión editorial. El usuario confirmó que la app es sin fines de lucro: se trabajará con el alcance no comercial de la traducción, manteniendo sus condiciones separadas de la licencia MIT del código.
 
