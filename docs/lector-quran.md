@@ -18,7 +18,15 @@ Navegar (‹ ›, índice, **Continuar con** la siguiente sura, **Retomar** o un
 
 **Marcar** agrega o quita una aleya. El panel **Marcadores** permite volver a ella o quitarla. No se registra ni se modifica ningún rezo al leer o guardar marcadores.
 
-**Aa** → **Editar lectura** habilita el modo (con traducción o solo árabe, de corrido), el tamaño del árabe (22–48 px) y el del español (12–24 px). La vista previa se aplica a los textos; **Guardar preferencias** persiste y **Cancelar** o cerrar el panel descartan esa edición. Si el guardado falla, la edición se conserva. Estas preferencias pertenecen al lector y se guardan por separado de la configuración general. Al salir de la sección se descarta una edición de lectura no guardada.
+El botón **عA** abre el panel **Lectura**, con el idioma y el tamaño del texto. Desde el 21/10/2026 se edita directo, sin Editar ni Guardar: es la única excepción a la regla de borrador de la app, porque lo que importa es ver el efecto y cualquier cambio se deshace con otro toque.
+
+- **Idioma:** dos tarjetas con una muestra, **Árabe y español** y **Solo árabe** (de corrido). La muestra son dos aleyas cortas y completas (112:2 y 112:3), para no cortar el texto.
+- **Tamaño:** deslizadores para el árabe (22–48 px) y el español (12–24 px). En «Solo árabe», el del español queda desactivado con una nota: la traducción del pie tiene tamaño propio.
+- **Guardado:** el idioma se guarda al tocarlo; los deslizadores, al dejar de moverlos (400 ms) o al cerrar el panel. Lo pendiente también se guarda al salir del lector. Al confirmar, la cabecera muestra «Guardado». Si falla, la vista vuelve a lo que confirmó el core y se muestra el error.
+- **Restablecer** vuelve a árabe y español, 30 y 16 px, los valores predeterminados del core.
+- **Presentación:** en escritorio es un globo junto al botón y en el celular, una hoja inferior. No oscurece el texto, así que el cambio se ve mientras se ajusta. Se cierra con ✕, Esc, tocando afuera o con el mismo botón; con ✕ y Esc el foco vuelve al botón. Abrir otro panel o el modo enfoque lo cierra.
+
+Estas preferencias pertenecen al lector y se guardan por separado de la configuración general.
 
 ## Presentación
 

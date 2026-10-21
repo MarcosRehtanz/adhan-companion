@@ -1,4 +1,4 @@
-import { Fragment, memo, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { Bookmark, ChevronDown, ChevronLeft, ChevronRight, MapPin, Maximize, Play, Volume2, X } from "lucide-react";
@@ -6,11 +6,15 @@ import { arabicDigits, loadQuran, positionLabel, SURAS, type Corpus, type Positi
 import { QuranAudio, useQuranAudio } from "./QuranAudio";
 
 type Preferences = Pick<ReaderState, "arabic_size" | "translation_size" | "show_translation">;
-type Panel = "indice" | "marcadores" | "preferencias" | "fuentes";
+type Panel = "indice" | "marcadores" | "fuentes";
 type Listening = "playing" | "paused" | null;
+type Status = { text: string; error?: boolean };
 const MAX_BOOKMARKS = 1000;
 const END_OF_AYA = "۝";
-const PANEL_TITLES: Record<Panel, string> = { indice: "Suras", marcadores: "Marcadores", preferencias: "Preferencias de lectura", fuentes: "Fuentes, versiones y condiciones de uso" };
+const PANEL_TITLES: Record<Panel, string> = { indice: "Suras", marcadores: "Marcadores", fuentes: "Fuentes, versiones y condiciones de uso" };
+// Los mismos valores que `ReaderState::default` del core.
+const DEFAULT_PREFERENCES: Preferences = { arabic_size: 30, translation_size: 16, show_translation: true };
+const samePreferences = (a: Preferences, b: Preferences) => a.arabic_size === b.arabic_size && a.translation_size === b.translation_size && a.show_translation === b.show_translation;
 // Acciones de escucha tras las que la vista vuelve a acompañar a la aleya que suena.
 const FOLLOW_ACTIONS = new Set(["play", "resume", "previous", "next", "retake", "retry"]);
 const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
@@ -52,6 +56,73 @@ const AyaInline = memo(function AyaInline({ verse, current, marked, point, liste
     onClick={() => onSelect(verse.aya)}>{verse.arabic}<EndOfAya n={verse.aya} /></span>;
 });
 
+// La muestra son dos aleyas cortas y completas (112:2 y 112:3), para no cortar el texto.
+interface ReadingPanelProps { value: Preferences; sample: Verse[]; anchor: HTMLElement | null; status: Status | null; onChange: (p: Preferences, now: boolean) => void; onClose: (restoreFocus: boolean) => void }
+/**
+ * Panel «Lectura»: idioma y tamaño del texto. Cada cambio se ve y se guarda al momento, sin borrador:
+ * lo que importa es ver el efecto y se deshace con otro toque. Globo junto al botón en escritorio,
+ * hoja inferior en el celular; no oscurece el texto.
+ */
+function ReadingPanel({ value, sample, anchor, status, onChange, onClose }: ReadingPanelProps) {
+  const root = useRef<HTMLElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  const [place, setPlace] = useState<CSSProperties>({});
+  useLayoutEffect(() => {
+    const locate = () => {
+      if (!anchor || anchor.closest(".mobile")) { setPlace({}); return; }
+      const r = anchor.getBoundingClientRect();
+      const right = Math.max(12, Math.round(window.innerWidth - r.right - 6));
+      setPlace({ top: Math.round(r.bottom + 8), right, "--flecha": `${Math.round(window.innerWidth - right - r.left - r.width / 2 - 6)}px` } as CSSProperties);
+    };
+    locate();
+    window.addEventListener("resize", locate);
+    return () => window.removeEventListener("resize", locate);
+  }, [anchor]);
+  // Se cierra con Esc o tocando afuera (el botón que lo abre lo alterna).
+  useEffect(() => {
+    root.current?.querySelector<HTMLInputElement>("input:checked")?.focus();
+    const onKey = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") { event.stopPropagation(); close.current(true); } };
+    const onPointer = (event: PointerEvent) => { const target = event.target as Node; if (!root.current?.contains(target) && !anchor?.contains(target)) close.current(false); };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => { window.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onPointer); };
+  }, [anchor]);
+
+  const arabicOnly = !value.show_translation;
+  return <section ref={root} className="quran-lectura" style={place} role="dialog" aria-labelledby="quran-lectura-titulo">
+    <header className="quran-lectura-cabecera">
+      <h2 id="quran-lectura-titulo">Lectura</h2>
+      <span className={"quran-lectura-estado" + (status?.error ? " error" : "")} role="status">{status?.text ?? ""}</span>
+      <button className="link-button" disabled={samePreferences(value, DEFAULT_PREFERENCES)} onClick={() => onChange(DEFAULT_PREFERENCES, true)}>Restablecer</button>
+      <button className="quran-icon" aria-label="Cerrar" onClick={() => onClose(true)}><X size={18} /></button>
+    </header>
+    <div className="quran-lectura-grupo">
+      <h3 id="quran-lectura-idioma">Idioma</h3>
+      <div className="quran-modos" role="radiogroup" aria-labelledby="quran-lectura-idioma">
+        <label className={"quran-modo" + (arabicOnly ? "" : " elegido")}>
+          <span className="quran-modo-muestra" aria-hidden="true"><span className="ar" lang="ar" dir="rtl">{sample[0].arabic}</span><span className="es">{sample[0].translation}</span></span>
+          <span className="quran-modo-nombre"><input type="radio" name="quran-lectura-modo" checked={value.show_translation} onChange={() => onChange({ ...value, show_translation: true }, true)} />Árabe y español</span>
+        </label>
+        <label className={"quran-modo" + (arabicOnly ? " elegido" : "")}>
+          <span className="quran-modo-muestra corrido" aria-hidden="true">{sample.map(v => <span key={v.aya} className="ar" lang="ar" dir="rtl">{v.arabic}<EndOfAya n={v.aya} /></span>)}</span>
+          <span className="quran-modo-nombre"><input type="radio" name="quran-lectura-modo" checked={arabicOnly} onChange={() => onChange({ ...value, show_translation: false }, true)} />Solo árabe</span>
+        </label>
+      </div>
+    </div>
+    <div className="quran-lectura-grupo">
+      <h3>Tamaño</h3>
+      <label className="quran-tam"><span>Árabe</span><span className="chica ar" aria-hidden="true">ع</span>
+        <input type="range" min="22" max="48" value={value.arabic_size} aria-label="Tamaño del árabe" onChange={e => onChange({ ...value, arabic_size: Number(e.target.value) }, false)} />
+        <span className="grande ar" aria-hidden="true">ع</span><output>{value.arabic_size}</output></label>
+      <label className={"quran-tam" + (arabicOnly ? " inactiva" : "")}><span>Español</span><span className="chica" aria-hidden="true">A</span>
+        <input type="range" min="12" max="24" value={value.translation_size} disabled={arabicOnly} aria-label="Tamaño del español" onChange={e => onChange({ ...value, translation_size: Number(e.target.value) }, false)} />
+        <span className="grande" aria-hidden="true">A</span><output>{value.translation_size}</output></label>
+      {arabicOnly && <p className="quran-lectura-nota">En «Solo árabe», la traducción aparece al pie al tocar una aleya.</p>}
+    </div>
+  </section>;
+}
+
 export default function QuranReader({ audioAvailable = false }: { audioAvailable?: boolean }) {
   const [corpus, setCorpus] = useState<Corpus | null>(null);
   const [state, setState] = useState<ReaderState | null>(null);
@@ -61,7 +132,13 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState<Preferences | null>(null);
+  // Preferencias que se están ajustando en el panel «Lectura» y todavía no confirmó el core.
+  const [live, setLive] = useState<Preferences | null>(null);
+  const [reading, setReading] = useState(false);
+  const [readingStatus, setReadingStatus] = useState<Status | null>(null);
+  const readingButton = useRef<HTMLButtonElement>(null);
+  const pendingPreferences = useRef<{ value: Preferences; timer: number } | null>(null);
+  const preferencesQueue = useRef(Promise.resolve());
   const [panel, setPanel] = useState<Panel | null>(null);
   const [filter, setFilter] = useState("");
   const [focusMode, setFocusMode] = useState(false);
@@ -95,7 +172,7 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
     return () => { active = false; };
   }, [attempt]);
 
-  const preferences = draft ?? state;
+  const preferences = live ?? state;
   // Aleya a la vista según el desplazamiento: solo informa, no guarda el punto de lectura.
   const measure = useCallback(() => {
     const area = scrollArea(), root = reader.current;
@@ -151,8 +228,8 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
   useEffect(() => {
     const area = scrollArea();
     if (!area) return;
-    // Leer la traducción larga de la barra del pie no desplaza el texto: no cuenta.
-    const manual = (event: Event) => { if (!(event.target as Element).closest("dialog, .quran-contexto")) setFollow(false); };
+    // Leer la traducción larga de la barra del pie o usar el panel «Lectura» no desplaza el texto: no cuenta.
+    const manual = (event: Event) => { if (!(event.target as Element).closest("dialog, .quran-contexto, .quran-lectura")) setFollow(false); };
     const onPointer = (event: PointerEvent) => { if (event.target === area) setFollow(false); };
     const onKey = (event: globalThis.KeyboardEvent) => {
       const target = event.target as Element;
@@ -194,8 +271,13 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
     const timer = window.setTimeout(() => setMessage(null), 4000);
     return () => window.clearTimeout(timer);
   }, [message]);
+  useEffect(() => {
+    if (!readingStatus || readingStatus.error) return;
+    const timer = window.setTimeout(() => setReadingStatus(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [readingStatus]);
 
-  // Paneles (índice, marcadores, preferencias, fuentes) en un único dialog modal.
+  // Paneles (índice, marcadores, fuentes) en un único dialog modal.
   useEffect(() => {
     const d = dialog.current;
     if (!d) return;
@@ -207,9 +289,8 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
       current?.scrollIntoView({ block: "center" });
     }
   }, [panel]);
-  function openPanel(next: Panel) { setFilter(""); setPanel(next); }
-  // Cerrar el panel descarta una edición de lectura no guardada.
-  function onPanelClosed() { setPanel(null); setDraft(null); }
+  function openPanel(next: Panel) { closeReading(); setFilter(""); setPanel(next); }
+  function onPanelClosed() { setPanel(null); }
 
   async function update(action: ReaderAction): Promise<boolean> {
     if (saving.current) return false;
@@ -217,11 +298,42 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
     try {
       const saved = await invoke<ReaderState>("update_quran_reader", { action });
       setState(saved);
-      setMessage({ text: action.kind === "bookmark" ? "Marcadores actualizados." : action.kind === "position" ? "Punto de lectura guardado." : "Preferencias guardadas." });
+      setMessage({ text: action.kind === "bookmark" ? "Marcadores actualizados." : "Punto de lectura guardado." });
       return true;
     } catch (e) { setMessage({ text: `No se pudo guardar: ${e}`, error: true }); return false; }
     finally { saving.current = false; setBusy(false); }
   }
+
+  /** Guarda las preferencias en orden. Si falla, la vista vuelve a lo que confirmó el core. */
+  function savePreferences(p: Preferences) {
+    preferencesQueue.current = preferencesQueue.current.then(async () => {
+      try {
+        setState(await invoke<ReaderState>("update_quran_reader", { action: { kind: "preferences", ...p } }));
+        // Si se siguió ajustando mientras tanto, la vista conserva el valor más nuevo.
+        setLive(current => current && samePreferences(current, p) ? null : current);
+        setReadingStatus({ text: "Guardado" });
+      } catch (e) { setLive(null); setReadingStatus({ text: `No se pudo guardar: ${e}`, error: true }); }
+    });
+  }
+  function flushPreferences() {
+    const pending = pendingPreferences.current;
+    if (!pending) return;
+    window.clearTimeout(pending.timer);
+    pendingPreferences.current = null;
+    savePreferences(pending.value);
+  }
+  /** Los cambios se ven al instante; los deslizadores se guardan al dejar de moverlos. */
+  function changePreferences(p: Preferences, now: boolean) {
+    setLive(p);
+    if (pendingPreferences.current) window.clearTimeout(pendingPreferences.current.timer);
+    pendingPreferences.current = null;
+    if (now) savePreferences(p);
+    else pendingPreferences.current = { value: p, timer: window.setTimeout(flushPreferences, 400) };
+  }
+  function openReading() { setReadingStatus(null); setReading(true); }
+  function closeReading(restoreFocus = false) { flushPreferences(); setReading(false); if (restoreFocus) readingButton.current?.focus(); }
+  // Lo que quede pendiente al salir del lector se guarda igual.
+  useEffect(() => () => flushPreferences(), []);
   /** Guarda el punto de lectura y lo muestra cuando el core lo confirma. */
   function go(p: Position, scroll = true) {
     if (saving.current) return;
@@ -287,8 +399,10 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
     {showResume && <button className="quran-chip" disabled={busy} title={`Volver al punto de lectura: ${positionLabel(state.last!)}`} onClick={() => go(state.last!)}>Retomar {state.last!.sura}:{state.last!.aya}</button>}
     <div className="quran-bar-acciones">
       <button className="quran-icon" aria-label={`Marcadores (${state.bookmarks.length})`} title="Marcadores" onClick={() => openPanel("marcadores")}><Bookmark size={18} /></button>
-      <button className="quran-icon quran-aa" aria-label="Preferencias de lectura" title="Preferencias de lectura" onClick={() => openPanel("preferencias")}>Aa</button>
-      <button ref={focusButton} className="quran-icon" aria-label="Modo enfoque" title="Modo enfoque" onClick={() => setFocusMode(true)}><Maximize size={17} /></button>
+      <button ref={readingButton} className="quran-icon quran-lectura-boton" aria-label="Lectura: idioma y tamaño del texto" title="Lectura: idioma y tamaño del texto" aria-haspopup="dialog" aria-expanded={reading} onClick={() => reading ? closeReading() : openReading()}>
+        <span className="quran-mono-ar" lang="ar">ع</span><span className="quran-mono-la">A</span>
+      </button>
+      <button ref={focusButton} className="quran-icon" aria-label="Modo enfoque" title="Modo enfoque" onClick={() => { closeReading(); setFocusMode(true); }}><Maximize size={17} /></button>
     </div>
   </div>;
 
@@ -298,7 +412,6 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
   const query = normalize(filter);
   const suraList = jump ? [] : SURAS.filter(s => !query || String(s.number) === filter.trim() || normalize(s.name).includes(query) || s.arabic_name.includes(filter.trim()));
   const sortedMarks = [...state.bookmarks].sort((a, b) => a.sura - b.sura || a.aya - b.aya);
-  const changed = !!draft && (draft.arabic_size !== state.arabic_size || draft.translation_size !== state.translation_size || draft.show_translation !== state.show_translation);
   function goAndClose(p: Position) { dialog.current?.close(); go(p); }
 
   const panelBody = panel === "indice" ? <>
@@ -315,23 +428,7 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
       <button className="link-button" disabled={busy} aria-label={`Quitar marcador de ${positionLabel(p)}`} onClick={() => void update({ kind: "bookmark", ...p })}>Quitar</button>
     </li>)}</ul>
     {full && <p className="quran-vacio">Alcanzaste el máximo de 1000 marcadores. Quitá alguno para agregar otro.</p>}
-  </>) : panel === "preferencias" ? <div className="quran-prefs">
-    {!draft ? <>
-      <div className="read-grid"><div><span>Modo</span><b>{state.show_translation ? "Con traducción" : "Solo árabe, de corrido"}</b></div><div><span>Árabe</span><b>{state.arabic_size} px</b></div><div><span>Español</span><b>{state.translation_size} px</b></div></div>
-      <p className="nota">Papel o Noche siguen el tema claro u oscuro de Configuración → Apariencia.</p>
-      <div className="editor-actions"><button className="edit-button" onClick={() => setDraft({ arabic_size: state.arabic_size, translation_size: state.translation_size, show_translation: state.show_translation })}>Editar lectura</button></div>
-    </> : <fieldset className="quran-prefs-editor" disabled={busy}>
-      <legend className="visually-hidden">Editar preferencias de lectura</legend>
-      <div className="quran-segmentos" role="radiogroup" aria-label="Modo de lectura">
-        <label><input type="radio" name="quran-modo" checked={draft.show_translation} onChange={() => setDraft({ ...draft, show_translation: true })} />Con traducción</label>
-        <label><input type="radio" name="quran-modo" checked={!draft.show_translation} onChange={() => setDraft({ ...draft, show_translation: false })} />Solo árabe, de corrido</label>
-      </div>
-      <label>Tamaño del árabe · {draft.arabic_size} px<input type="range" min="22" max="48" value={draft.arabic_size} onChange={e => setDraft({ ...draft, arabic_size: Number(e.target.value) })} /></label>
-      <label>Tamaño del español · {draft.translation_size} px<input type="range" min="12" max="24" value={draft.translation_size} onChange={e => setDraft({ ...draft, translation_size: Number(e.target.value) })} /></label>
-      <p className="nota">Vista previa en el texto. En «Solo árabe», al tocar una aleya se muestra su traducción al pie.</p>
-      <div className="editor-actions"><button type="button" className="secondary-button" onClick={() => setDraft(null)}>Cancelar</button><button type="button" className="secondary-button" disabled={!changed} onClick={async () => { if (await update({ kind: "preferences", ...draft })) setDraft(null); }}>Guardar preferencias</button></div>
-    </fieldset>}
-  </div> : panel === "fuentes" ? <div className="quran-fuentes">
+  </>) : panel === "fuentes" ? <div className="quran-fuentes">
     <p>Textos instalados con la app, disponibles sin conexión.</p>
     <p>Árabe: <a href="https://tanzil.net" target="_blank" rel="noreferrer">Tanzil Project</a>, Uthmani 1.1, transmisión Hafs. Se conserva el texto original y su numeración. Las aperturas de basmala vienen dentro de las líneas del archivo: no se añaden ni duplican. La marca ۝ con el número de cada aleya es parte de la presentación, no del texto.</p>
     <p>Traducción: Raúl González Bórnez · es.bornez · actualización indicada por Tanzil: 15/07/2014. La edición impresa de origen y sus notas completas no están identificadas; esta vista muestra el archivo digital publicado por Tanzil. Uso no comercial, separado de la licencia MIT del código. <a href="https://tanzil.net/trans/" target="_blank" rel="noreferrer">Fuente y condiciones</a>.</p>
@@ -342,7 +439,7 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
   </div> : null;
 
   const sizes = { "--quran-ar-size": `${preferences.arabic_size}px`, "--quran-es-size": `${preferences.translation_size}px` } as CSSProperties;
-  return <div className="quran-reader" ref={reader} style={sizes}>
+  return <div className={"quran-reader" + (preferences.show_translation ? "" : " solo-arabe")} ref={reader} style={sizes}>
     {topbarSlot ? createPortal(bar, topbarSlot) : bar}
     <div className="quran-flotante">
       <p role="status" aria-live="polite" className={"quran-status" + (message?.error ? " error" : "")}>{busy ? "Guardando en el lector…" : message?.text ?? ""}</p>
@@ -374,6 +471,8 @@ export default function QuranReader({ audioAvailable = false }: { audioAvailable
     </div>}
 
     {audioAvailable && <QuranAudio audio={{ ...audio, command: listen }} position={position} onLocate={locate} />}
+
+    {reading && <ReadingPanel value={preferences} sample={corpus.suras[111].slice(1, 3)} anchor={readingButton.current} status={readingStatus} onChange={changePreferences} onClose={closeReading} />}
 
     {focusMode && <button ref={exitFocusButton} className="quran-salir-enfoque" onClick={exitFocus}>Salir del enfoque <kbd>Esc</kbd></button>}
 

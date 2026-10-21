@@ -272,14 +272,19 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .topbar-quran { min-height: 60px; padding: 8px 12px 8px 16px; background: var(--lectura-superficie); border-bottom-color: var(--lectura-borde); }
 .quran-topbar-slot { flex: 1; min-width: 0; }
 .quran-bar-placeholder { font-size: 15px; }
-.quran-loading, .quran-error { max-width: 42rem; margin: 48px auto; text-align: center; color: var(--lectura-tenue); }
+.quran-loading, .quran-error { width: 100%; max-width: 42rem; margin: 48px auto; text-align: center; color: var(--lectura-tenue); }
 
 /* Barra del lector (dentro de la barra superior de la app). */
 .quran-bar { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .quran-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--lectura-tenue); cursor: pointer; }
 .quran-icon:hover:not(:disabled) { background: var(--lectura-actual); color: var(--acento); }
 .quran-icon:disabled { opacity: .35; cursor: default; }
-.quran-aa { font-size: 14px; font-weight: 650; }
+/* Botón «Lectura»: monograma árabe y latino con la fuente del lector. */
+.quran-lectura-boton { gap: 1px; }
+.quran-lectura-boton[aria-expanded="true"] { background: var(--lectura-actual); color: var(--acento); }
+.quran-mono-ar, .quran-mono-la { display: inline-block; line-height: 1; }
+.quran-mono-ar { font-family: "Amiri Quran", serif; font-size: 22px; font-weight: 400; transform: translateY(-9px); }
+.quran-mono-la { font-size: 14px; font-weight: 650; transform: translateY(-1px); }
 .quran-bar-sura { display: flex; align-items: center; min-width: 0; }
 .quran-bar-title { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--lectura-ar); cursor: pointer; }
 .quran-bar-title:hover { background: var(--lectura-actual); }
@@ -357,6 +362,14 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 /* Traducción completa; si es muy larga se desplaza dentro de la barra sin tapar el texto árabe. */
 .quran-contexto-texto { flex: 1; min-width: 0; max-height: 30vh; margin: 0; padding-top: 5px; overflow-y: auto; overscroll-behavior: contain; color: var(--lectura-es); font-size: 13px; line-height: 1.6; }
 .quran-contexto .quran-acciones { flex-shrink: 0; }
+/* La barra es lo último del lector y queda apoyada en el reproductor: sin margen debajo al llegar al final de la sura
+   y, en suras cortas que no llenan la pantalla, el lector ocupa todo el alto y la barra baja hasta el fondo. */
+.page-content.page-quran { display: flex; flex-direction: column; }
+.page-quran > .page-fields { flex: 1 0 auto; display: flex; flex-direction: column; }
+.quran-reader { flex: 0 0 auto; width: 100%; }
+.quran-reader.solo-arabe { flex-grow: 1; display: flex; flex-direction: column; padding-bottom: 0; }
+.quran-reader.solo-arabe .quran-fin-sura { padding-bottom: 32px; }
+.quran-reader.solo-arabe .quran-contexto { margin-top: auto; }
 
 /* Cierre de sura y créditos. */
 .quran-fin-sura { padding: 32px 0 8px; text-align: center; }
@@ -369,7 +382,7 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .quran-creditos { max-width: 34rem; margin: 28px auto 0; color: var(--lectura-tenue); font-size: 11px; line-height: 1.6; }
 .quran-creditos .link-button { padding: 0; font-size: 11px; }
 
-/* Paneles: índice, marcadores, preferencias y fuentes. */
+/* Paneles: índice, marcadores y fuentes. */
 .quran-panel { width: 440px; max-width: calc(100vw - 24px); max-height: calc(100vh - 48px); padding: 0; overflow: auto; border: 1px solid var(--lectura-borde); border-radius: 14px; background: var(--lectura-superficie); color: var(--lectura-es); box-shadow: 0 18px 50px var(--lectura-sombra); }
 .quran-panel::backdrop { background: rgba(10, 12, 16, .45); }
 .quran-panel-cabecera { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 10px 18px; border-bottom: 1px solid var(--lectura-borde); background: var(--lectura-superficie); }
@@ -392,17 +405,50 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .quran-marcadores li:last-child { border-bottom: 0; }
 .quran-marcador-ref { flex: 1; min-width: 0; color: var(--lectura-ar); font-weight: 600; }
 .quran-marcador-ref span { display: block; color: var(--lectura-tenue); font-size: 11px; font-weight: 400; }
-.quran-prefs { padding: 4px 18px 6px; }
-.quran-prefs .read-grid { margin-top: 12px; }
-.quran-prefs .nota { margin: 14px 0; }
-.quran-prefs-editor { display: flex; flex-direction: column; gap: 13px; margin: 14px 0 0; padding: 0; border: 0; }
-.quran-prefs-editor > label { display: flex; flex-direction: column; gap: 5px; color: var(--texto-suave); font-size: 12px; font-weight: 600; }
-.quran-segmentos { display: flex; flex-wrap: wrap; gap: 6px; }
-.quran-segmentos label { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid var(--lectura-borde); border-radius: 8px; color: var(--lectura-ar); cursor: pointer; }
-.quran-segmentos input { width: auto; height: auto; margin: 0; accent-color: var(--acento); }
 .quran-fuentes { padding: 4px 18px; line-height: 1.7; overflow-wrap: anywhere; }
 .quran-fuentes summary { cursor: pointer; color: var(--acento); font-weight: 600; padding: 6px 0; }
 .quran-fuentes pre { white-space: pre-wrap; font-size: 11px; background: var(--lectura-bg); padding: 12px; border-radius: var(--r-control); }
+
+/* Panel «Lectura»: globo junto al botón en escritorio y hoja inferior en el celular, sin oscurecer el texto. */
+.quran-lectura { position: fixed; z-index: 20; display: flex; flex-direction: column; width: 348px; max-width: calc(100vw - 24px); border: 1px solid var(--lectura-borde); border-radius: 14px; background: var(--lectura-superficie); color: var(--lectura-es); box-shadow: 0 18px 50px var(--lectura-sombra); }
+.quran-lectura::before { content: ""; position: absolute; top: -7px; right: var(--flecha, 20px); width: 12px; height: 12px; border-top: 1px solid var(--lectura-borde); border-left: 1px solid var(--lectura-borde); background: var(--lectura-superficie); transform: rotate(45deg); }
+.App-root.mobile .quran-lectura { left: 0; right: 0; bottom: 0; width: auto; max-width: none; max-height: 78vh; overflow: auto; border-bottom: 0; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -10px 40px var(--lectura-sombra); }
+.App-root.mobile .quran-lectura::before { display: none; }
+.quran-lectura-cabecera { display: flex; align-items: center; gap: 4px; padding: 8px 8px 0 18px; }
+.App-root.mobile .quran-lectura-cabecera { padding-top: 10px; }
+.quran-lectura-cabecera h2 { margin: 0; font-size: 16px; font-weight: 650; color: var(--lectura-ar); }
+.quran-lectura-estado { flex: 1; min-width: 0; padding-left: 8px; color: var(--acento); font-size: 12px; font-weight: 600; }
+.quran-lectura-estado.error { color: var(--error); font-weight: 500; }
+.quran-lectura-cabecera .link-button { min-height: 36px; padding: 0 8px; }
+.quran-lectura-cabecera .link-button:disabled { opacity: .4; cursor: default; }
+.quran-lectura-grupo { padding: 6px 18px 8px; }
+.quran-lectura-grupo:last-child { padding-bottom: 14px; }
+.quran-lectura-grupo h3 { margin: 6px 0 8px; font-size: 12.5px; font-weight: 600; color: var(--lectura-tenue); }
+.quran-modos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.quran-modo { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 7px 7px 9px; border: 1.5px solid var(--lectura-borde); border-radius: 12px; color: var(--lectura-ar); cursor: pointer; }
+.quran-modo:hover { border-color: var(--lectura-tenue); }
+.quran-modo.elegido { border-color: var(--acento); box-shadow: inset 0 0 0 1px var(--acento); }
+.quran-modo-muestra { display: flex; flex-direction: column; justify-content: center; gap: 1px; height: 66px; padding: 4px 10px; overflow: hidden; border-radius: 8px; background: var(--lectura-bg); }
+.App-root.mobile .quran-modo-muestra { height: 60px; }
+.quran-modo-muestra .ar { overflow: hidden; font-family: "Amiri Quran", serif; font-size: 17px; line-height: 1.75; color: var(--lectura-ar); text-align: right; white-space: nowrap; }
+.quran-modo-muestra.corrido .ar { line-height: 1.55; text-align: center; }
+.quran-modo-muestra .es { overflow: hidden; font-size: 10.5px; line-height: 1.4; color: var(--lectura-es); white-space: nowrap; text-overflow: ellipsis; }
+.quran-modo-nombre { display: flex; align-items: center; gap: 8px; padding-left: 2px; font-size: 13px; font-weight: 600; }
+.quran-modo-nombre input { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--acento); }
+.quran-tam { display: grid; grid-template-columns: 62px 16px minmax(0, 1fr) 24px 26px; align-items: center; gap: 8px; min-height: 46px; cursor: pointer; }
+.App-root.mobile .quran-tam { min-height: 48px; }
+.quran-tam > span:first-child { font-size: 13.5px; color: var(--lectura-ar); }
+.quran-tam input[type="range"] { width: 100%; min-height: 0; margin: 0; }
+.quran-tam .chica, .quran-tam .grande { color: var(--lectura-tenue); line-height: 1; text-align: center; }
+.quran-tam .chica { font-size: 12px; }
+.quran-tam .grande { font-size: 20px; }
+.quran-tam .ar { font-family: "Amiri Quran", serif; }
+.quran-tam .chica.ar { font-size: 16px; }
+.quran-tam .grande.ar { font-size: 27px; }
+.quran-tam output { color: var(--lectura-tenue); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+.quran-tam.inactiva { opacity: .42; cursor: default; }
+.quran-lectura-nota { margin: 0 0 4px; color: var(--lectura-tenue); font-size: 12px; line-height: 1.5; }
+.quran-enfoque .quran-lectura { display: none; }
 
 /* Reproductor con la superficie de lectura. */
 .page-quran + #quran-player-slot .quran-player { background: var(--lectura-superficie); border-top-color: var(--lectura-borde); }
