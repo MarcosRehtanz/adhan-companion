@@ -11,33 +11,40 @@
 //! sólo en memoria):
 //! - `sin_sesion` → "Conectar con Google" → `conectando`.
 //! - `conectando` (esperando callback del navegador, máx. 5 min): aceptar →
-//!   `activa`; rechazar/timeout → `sin_sesion` con mensaje. Cancelable.
+//!   `activa`; rechazar, vencer o «Cancelar» (`sync_cancelar`) → `sin_sesion`
+//!   con mensaje. Un segundo «Conectar» mientras tanto no abre otra espera.
 //! - `activa` → "Sincronizar ahora", "Cerrar sesión" y chequeo al arrancar.
 //! - `activa → sin_sesion` sólo por logout, revocación (`invalid_grant`) o
 //!   keyring suelto; siempre avisado, nunca silencioso.
 //!
 //! **Datos** (fuente de verdad: archivos locales + respaldo de Drive):
-//! - registro (append-only): **unión por evento** segura por diseño — se
-//!   agregan los eventos del respaldo que faltan; nunca se pierde un rezo.
-//! - config / estado del lector: **LWW con consulta**: si difieren los datos
-//!   locales del respaldo, el sync se detiene en `conflicto` hasta elección
-//!   del usuario (`local` / `remota`).
+//! - registro (append-only): por cada (fecha, rezo) gana la **última acción
+//!   del usuario** (`rezado` / `desmarcado`) según su hora (`ts`); si se
+//!   agrega algo, es ese evento al final del archivo, con su hora original.
+//!   Eventos sin hora (anteriores a v0.1.16): gana la marca. Los eventos
+//!   automáticos (`adhan`, `perdido`) son de cada máquina y no viajan.
+//! - config / estado del lector: **tres vías** contra la base del último sync
+//!   (`sync-estado.json`, local, no se sube): lo que cambió de un solo lado se
+//!   toma solo; si el mismo grupo cambió en las dos computadoras, el sync se
+//!   detiene en `conflicto` hasta que el usuario elija (`local` / `remota`).
+//!   Los marcadores se unen (altas y bajas de cada lado), sin consulta.
 //! - `restaurar_propuesta`: registro local vacío con historial remoto →
 //!   oferta explícita; nunca se aplica sola.
-//! - `error`: de red/cupo/keyring → mensaje + Reintentar. Un fallo del sync
-//!   **jamás** bloquea la app ni borra nada local (local-first).
+//! - `error`: de red/cupo/keyring/validación → mensaje + Reintentar. Un fallo
+//!   del sync **jamás** bloquea la app ni borra nada local (local-first).
 //!
-//! Persistencia (v0.1.16): conflicto/restauración viven en memoria y se
-//! reconstruyen del respaldo real; la fecha persistida de última sync llega
-//! en v0.1.17 con la subida diferida.
+//! Persistencia: la base vive en `sync-estado.json`; conflicto y restauración
+//! viven en memoria y se reconstruyen del respaldo real en el próximo sync.
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::io::Read as _;
 use std::io::Write as _;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
-use tauri::Manager as _;
+use tauri::{Emitter as _, Manager as _};
 
 use crate::config::{self, Config, SharedConfig};
 use crate::registro::{self, RegistroEntry};
@@ -56,6 +63,10 @@ const KEYRING_USER: &str = "oauth";
 const OAUTH_TIMEOUT_SECS: u64 = 300;
 const HTTP_TIMEOUT_SECS: u64 = 30;
 const CLIENT_ID_FALLBACK: &str = "credencial-no-configurada.apps.googleusercontent.com";
+/// Base del último sync (local, no se sube): ver `Base`.
+const SYNC_ESTADO: &str = "sync-estado.json";
+/// Evento para la ventana: el sync cambió config o lector y hay que releerlos.
+const EVENTO_APLICADO: &str = "sync_aplicado";
 
 /// `client_id` de la credencial tipo Desktop (público por diseño). En
 /// desarrollo lo exporta `build.rs` desde `.oauth.local` (fuera de Git);
@@ -87,15 +98,28 @@ pub struct InfoRespaldo {
     pub rezos: usize,
 }
 
-/// Conflicto pendiente de elección del usuario (config o lector).
+/// Conflicto pendiente de elección del usuario: lo que cambió en las dos
+/// computadoras desde el último sync y quedó distinto.
 #[derive(Debug, Clone, Serialize)]
 pub struct Conflicto {
     pub fecha: String,
     pub dispositivo: String,
     pub config_difiere: bool,
     pub lector_difiere: bool,
-    /// qué cambió de comportamiento (para elegir con información)
+    /// «qué: acá X, en Drive Y», para elegir con información
     pub config_detalles: Vec<String>,
+    pub lector_detalles: Vec<String>,
+}
+
+/// Las dos salidas posibles de un conflicto, ya mezcladas con lo que cambió
+/// de un solo lado; `sync_resolver` aplica una y sube.
+#[derive(Debug, Clone)]
+struct Pendiente {
+    remoto_id: String,
+    config_local: serde_json::Value,
+    config_remota: serde_json::Value,
+    lector_local: Option<serde_json::Value>,
+    lector_remota: Option<serde_json::Value>,
 }
 
 /// Oferta de restauración (primera vez en una máquina, registro local vacío).
@@ -111,10 +135,13 @@ struct Estado {
     conectando: bool,
     respaldo: Option<InfoRespaldo>,
     conflicto: Option<Conflicto>,
+    pendiente: Option<Pendiente>,
     restaurar: Option<RestaurarInfo>,
     restaurar_descartada: bool,
     url_autorizacion: Option<String>,
     ultimo_error: Option<String>,
+    /// qué se trajo del respaldo en el último sync (informativo)
+    aviso: Option<String>,
     /// ISO de la última operación completada en esta ejecución
     ultima_sync: Option<String>,
 }
@@ -138,7 +165,17 @@ pub struct EstadoIpc {
     pub restaurar: Option<RestaurarInfo>,
     pub url_autorizacion: Option<String>,
     pub ultimo_error: Option<String>,
+    pub aviso: Option<String>,
     pub ultima_sync: Option<String>,
+}
+
+/// Registra el error de una operación para el panel (que lo muestra con
+/// Reintentar) y lo devuelve igual a quien la invocó.
+fn con_registro<T>(r: Result<T, String>) -> Result<T, String> {
+    if let Err(e) = &r {
+        set_estado(|st| st.ultimo_error = Some(e.clone()));
+    }
+    r
 }
 
 // ---------------------------------------------------------------- keyring ---
@@ -300,19 +337,34 @@ struct Callback {
     error: Option<String>,
 }
 
-/// Servidor loopback efímero: escucha el callback del navegador. Los requests
-/// sin código (favicon, etc.) se responden 404 y se sigue escuchando. Runs
-/// bloqueante — se llama dentro de `spawn_blocking`.
+/// «Cancelar» del panel mientras se espera la autorización.
+static CANCELADO: AtomicBool = AtomicBool::new(false);
+
+/// Servidor loopback efímero: escucha el callback del navegador. No bloquea:
+/// revisa cada 150 ms el límite de 5 min y el pedido de cancelar. Responde 404
+/// y sigue escuchando ante pedidos que no son el callback (favicon, conexiones
+/// adelantadas del navegador). Se llama dentro de `spawn_blocking`.
 fn esperar_callback(listener: std::net::TcpListener, state_esperado: &str) -> Result<Callback, String> {
     let límite = std::time::Instant::now() + std::time::Duration::from_secs(OAUTH_TIMEOUT_SECS);
+    listener.set_nonblocking(true).map_err(|e| format!("puerto de retorno: {e}"))?;
     loop {
+        if CANCELADO.load(Ordering::SeqCst) {
+            return Err("conexión cancelada".into());
+        }
         if std::time::Instant::now() > límite {
             return Err("se pasó el tiempo esperando la autorización (5 min)".into());
         }
-        let (mut stream, _) = match listener.accept() {
-            Ok(c) => c,
+        let mut stream = match listener.accept() {
+            Ok((stream, _)) => stream,
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::sleep(std::time::Duration::from_millis(150));
+                continue;
+            }
             Err(e) => return Err(format!("puerto de retorno: {e}")),
         };
+        // una conexión que no manda nada no puede trabar la espera
+        let _ = stream.set_nonblocking(false);
+        let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(3)));
         let mut buf = [0u8; 8192];
         let n = match stream.read(&mut buf) {
             Ok(n) if n > 0 => n,
@@ -322,37 +374,32 @@ fn esperar_callback(listener: std::net::TcpListener, state_esperado: &str) -> Re
         let request = primera.split("\r\n").next().unwrap_or("");
         // GET /?code=...&state=... HTTP/1.1
         let Some(destino) = request.split_whitespace().nth(1) else { continue };
-        if !destino.starts_with('/') {
-            responder(&mut stream, "404 Not Found", "ruta desconocida");
-            continue;
-        }
         let query = destino.split_once('?').map(|(_, q)| q).unwrap_or("");
         let mut code = None;
         let mut error_param = None;
-        let mut state_ok = false;
+        let mut state = None;
         for par in query.split('&') {
             let (k, v) = par.split_once('=').unwrap_or((par, ""));
             match k {
                 "code" => code = Some(urldecode(v)),
                 "error" => error_param = Some(urldecode(v)),
-                "state" => state_ok = urldecode(v) == state_esperado,
+                "state" => state = Some(urldecode(v)),
                 _ => {}
             }
         }
-        let mensaje = if !state_ok && code.is_some() {
-            "state no coincide — posible CSRF; la autorización se descartó."
-        } else if error_param.is_some() {
-            "Autorización rechazada — puede cerrar esta pestaña y volver a la app."
-        } else {
-            "Autorización recibida — puede cerrar esta pestaña y volver a la app."
-        };
-        responder(&mut stream, "200 OK", mensaje);
-        if error_param.is_some() {
-            return Ok(Callback { code: None, error: error_param });
+        if code.is_none() && error_param.is_none() {
+            responder(&mut stream, "404 Not Found", "ruta desconocida");
+            continue;
         }
-        if !state_ok {
-            return Err("state no coincide (posible CSRF) — descartado".into());
+        if state.as_deref() != Some(state_esperado) {
+            responder(&mut stream, "400 Bad Request", "La autorización no corresponde a este pedido y se descartó. Volvé a la app y conectá de nuevo.");
+            return Err("la respuesta de Google no coincide con el pedido (state) y se descartó".into());
         }
+        if let Some(error) = error_param {
+            responder(&mut stream, "200 OK", "Autorización rechazada. Podés cerrar esta pestaña y volver a la app.");
+            return Ok(Callback { code: None, error: Some(error) });
+        }
+        responder(&mut stream, "200 OK", "Autorización recibida. Podés cerrar esta pestaña y volver a la app.");
         return Ok(Callback { code, error: None });
     }
 }
@@ -502,12 +549,13 @@ async fn drive_subir(token: &str, id: Option<&str>, contenido: &str) -> Result<S
         .map_err(|e| format!("respuesta de subida ilegible: {e}"))
 }
 
-/// Sube actualizando; si el archivo ya no existe (404/403 al hacer PATCH), crea.
+/// Sube actualizando; si el archivo ya no existe (404 al hacer PATCH), crea.
+/// Un 403 (permiso o cupo) es un error: crear otro archivo duplicaría el respaldo.
 async fn drive_subir_o_crear(token: &str, id: Option<&str>, contenido: &str) -> Result<String, String> {
     match id {
         Some(id) => match drive_subir(token, Some(id), contenido).await {
             Ok(nuevo_id) => Ok(nuevo_id),
-            Err(e) if e.contains("HTTP 404") || e.contains("HTTP 403") => drive_subir(token, None, contenido).await,
+            Err(e) if e.contains("HTTP 404") => drive_subir(token, None, contenido).await,
             Err(e) => Err(e),
         },
         None => drive_subir(token, None, contenido).await,
@@ -592,63 +640,27 @@ fn nombre_dispositivo() -> String {
     }
 }
 
-/// Equivale a config_diferencias en la dirección contraria: qué cambió de
-/// comportamiento entre el config local y el del respaldo. Vacío = compatible.
-fn config_diferencias(local: &Config, remota: &Config) -> Vec<String> {
-    let mut d = Vec::new();
-    if local.city != remota.city {
-        d.push(format!("ciudad: {} → {}", local.city, remota.city));
-    }
-    if (local.lat - remota.lat).abs() > 1e-9 || (local.lon - remota.lon).abs() > 1e-9 {
-        d.push(format!("coordenadas: ({:.4}, {:.4}) → ({:.4}, {:.4})", local.lat, local.lon, remota.lat, remota.lon));
-    }
-    if local.tz != remota.tz {
-        d.push(format!("zona horaria: {} → {}", local.tz, remota.tz));
-    }
-    if local.method != remota.method {
-        d.push(format!("método: {} → {}", enum_str(&local.method), enum_str(&remota.method)));
-    }
-    if local.madhab != remota.madhab {
-        d.push(format!("escuela Asr: {} → {}", enum_str(&local.madhab), enum_str(&remota.madhab)));
-    }
-    if local.highLatRule != remota.highLatRule {
-        d.push(format!("latitud alta: {} → {}", enum_str(&local.highLatRule), enum_str(&remota.highLatRule)));
-    }
-    if local.offsets != remota.offsets {
-        d.push("ajustes por rezo".into());
-    }
-    if local.notice.minutes_before != remota.notice.minutes_before {
-        d.push(format!("preaviso: {} → {} min", local.notice.minutes_before, remota.notice.minutes_before));
-    }
-    if local.audio != remota.audio {
-        d.push("sonido/volumen por rezo".into());
-    }
-    if local.calendar.adjustment_days != remota.calendar.adjustment_days {
-        d.push(format!("ajuste del calendario: {} → {} día(s)", local.calendar.adjustment_days, remota.calendar.adjustment_days));
-    }
-    d
+fn leer_json(path: &std::path::Path) -> Option<serde_json::Value> {
+    std::fs::read_to_string(path).ok().and_then(|t| serde_json::from_str(&t).ok())
 }
 
-fn respaldo_contenido() -> Result<String, String> {
+/// Lo que se sube: config y lector tal como están en disco, y el registro completo.
+fn respaldo_actual() -> Result<Respaldo, String> {
     let config_texto = std::fs::read_to_string(config::config_path())
         .map_err(|e| format!("leyendo config para el respaldo: {e}"))?;
     let config_json: serde_json::Value = serde_json::from_str(&config_texto)
         .map_err(|e| format!("config ilegible para el respaldo: {e}"))?;
-    let lector = std::fs::read_to_string(quran_reader_path())
-        .ok()
-        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok());
-    let resp = Respaldo {
+    Ok(Respaldo {
         schema: 1,
         actualizado: ahora_iso(),
         dispositivo: nombre_dispositivo(),
         version_app: env!("CARGO_PKG_VERSION").to_string(),
         datos: Datos {
             config: config_json,
-            lector,
+            lector: leer_json(&quran_reader_path()),
             registro: registro::load_all(),
         },
-    };
-    serde_json::to_string(&resp).map_err(|e| format!("serializando respaldo: {e}"))
+    })
 }
 
 fn parsear_respaldo(texto: &str) -> Result<Respaldo, String> {
@@ -669,52 +681,307 @@ fn info_de(r: &Respaldo, bytes: usize) -> InfoRespaldo {
     }
 }
 
-/// El string serde de un enum sin Display (como se representa en config/UI)
-fn enum_str<T: serde::Serialize>(v: &T) -> String {
-    serde_json::to_value(v)
-        .ok()
-        .and_then(|j| j.as_str().map(String::from))
-        .unwrap_or_default()
+// ------------------------------------------------------------------- base ---
+
+/// Config y lector tal como quedaron iguales acá y en Drive en el último sync.
+/// Es local (`sync-estado.json`) y no se sube: con ella el sync distingue
+/// «cambió acá» de «cambió en la otra computadora».
+#[derive(Debug, Serialize, Deserialize)]
+struct Base {
+    config: serde_json::Value,
+    #[serde(default)]
+    lector: Option<serde_json::Value>,
+    fecha: String,
+}
+
+fn base_path() -> std::path::PathBuf {
+    config::config_dir().join(SYNC_ESTADO)
+}
+
+fn leer_base() -> Option<Base> {
+    std::fs::read_to_string(base_path()).ok().and_then(|t| serde_json::from_str(&t).ok())
+}
+
+fn guardar_base(r: &Respaldo) -> Result<(), String> {
+    let base = Base { config: r.datos.config.clone(), lector: r.datos.lector.clone(), fecha: r.actualizado.clone() };
+    let path = base_path();
+    let tmp = path.with_extension("json.tmp");
+    let data = serde_json::to_vec_pretty(&base).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp, data).map_err(|e| format!("guardando la base del sync: {e}"))?;
+    std::fs::rename(&tmp, &path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("guardando la base del sync: {e}")
+    })
+}
+
+fn borrar_base() {
+    let _ = std::fs::remove_file(base_path());
 }
 
 // --------------------------------------------------- reglas de resolución ---
 
-/// Unión por evento: de `remota` devuelve lo que no está en `local` (por
-/// triple date|prayer|status). El archivo local conserva su historial y sólo
-/// recibe líneas nuevas — append-only intacto.
-pub fn eventos_a_agregar(local: &[RegistroEntry], remota: &[RegistroEntry]) -> Vec<RegistroEntry> {
-    let clave = |e: &RegistroEntry| format!("{}|{}|{}", e.date, e.prayer, e.status);
-    let presentes: std::collections::HashSet<String> = local.iter().map(&clave).collect();
-    remota.iter().filter(|e| !presentes.contains(&clave(e))).cloned().collect()
+/// Las acciones del usuario; `adhan` y `perdido` los registra cada máquina.
+fn del_usuario(e: &RegistroEntry) -> bool {
+    e.status == "rezado" || e.status == "desmarcado"
 }
 
-/// Orden conservador dentro del lote nuevo: por (fecha, rezo), los eventos
-/// "rezado" van al final (last-wins del log) — un rezo marcado en cualquier
-/// máquina nunca desaparece por la unión.
-pub fn ordenar_conservador(entries: &mut [RegistroEntry]) {
-    let prioridad = |e: &RegistroEntry| if e.status == "rezado" { 1 } else { 0 };
-    entries.sort_by(|a, b| {
-        a.date
-            .cmp(&b.date)
-            .then(a.prayer.as_str().cmp(b.prayer.as_str()))
-            .then(prioridad(a).cmp(&prioridad(b)))
-    });
+/// Última acción del usuario por (fecha, rezo), en orden de archivo (last-wins).
+fn ultimas_acciones(eventos: &[RegistroEntry]) -> HashMap<(&str, &str), &RegistroEntry> {
+    let mut m = HashMap::new();
+    for e in eventos.iter().filter(|e| del_usuario(e)) {
+        m.insert((e.date.as_str(), e.prayer.as_str()), e);
+    }
+    m
+}
+
+/// Entre dos acciones distintas sobre el mismo rezo gana la más reciente. Sin
+/// hora en alguna (eventos anteriores a v0.1.16), la que la tiene es posterior;
+/// sin hora en las dos o con la misma, gana la marca: un rezo marcado en
+/// cualquier computadora no se pierde.
+fn gana_remota(local: &RegistroEntry, remota: &RegistroEntry) -> bool {
+    if local.status == remota.status {
+        return false;
+    }
+    match (local.ts, remota.ts) {
+        (Some(l), Some(r)) if l != r => r > l,
+        (None, Some(_)) => true,
+        (Some(_), None) => false,
+        _ => remota.status == "rezado",
+    }
+}
+
+/// Eventos del respaldo que hay que agregar al registro local para que cada
+/// (fecha, rezo) quede con la acción que gana. El archivo local conserva su
+/// historial (append-only) y lo agregado lleva su hora original.
+pub fn eventos_a_agregar(local: &[RegistroEntry], remota: &[RegistroEntry]) -> Vec<RegistroEntry> {
+    let locales = ultimas_acciones(local);
+    let mut nuevos: Vec<RegistroEntry> = ultimas_acciones(remota)
+        .into_iter()
+        .filter(|(clave, r)| locales.get(clave).map_or(true, |l| gana_remota(l, r)))
+        .map(|(_, r)| r.clone())
+        .collect();
+    nuevos.sort_by(|a, b| a.date.cmp(&b.date).then(a.prayer.cmp(&b.prayer)));
+    nuevos
+}
+
+type Objeto = serde_json::Map<String, serde_json::Value>;
+
+/// Grupos del config que se resuelven juntos (la ubicación son cuatro campos).
+/// Las claves que no figuran acá forman un grupo cada una.
+const GRUPOS_CONFIG: &[&[&str]] = &[
+    &["city", "lat", "lon", "tz"],
+    &["method"],
+    &["madhab"],
+    &["highLatRule"],
+    &["offsets"],
+    &["audio"],
+    &["notice"],
+    &["calendar"],
+    &["appearance"],
+];
+/// En el lector, la posición y las preferencias; los marcadores se unen aparte.
+const GRUPOS_LECTOR: &[&[&str]] = &[&["last"], &["arabic_size", "translation_size", "show_translation"]];
+
+/// Resultado de mezclar en tres vías.
+struct Mezcla {
+    /// con lo que cambió de un solo lado; en los grupos en conflicto, lo local
+    local: Objeto,
+    /// lo mismo, pero con lo del respaldo en los grupos en conflicto
+    remota: Objeto,
+    /// grupos que cambiaron en las dos computadoras y quedaron distintos
+    conflictos: Vec<Vec<String>>,
+}
+
+fn grupos_de(objetos: [&Objeto; 2], fijos: &[&[&str]]) -> Vec<Vec<String>> {
+    let mut grupos: Vec<Vec<String>> = fijos.iter().map(|g| g.iter().map(|k| k.to_string()).collect()).collect();
+    for objeto in objetos {
+        for k in objeto.keys() {
+            if !grupos.iter().any(|g| g.contains(k)) {
+                grupos.push(vec![k.clone()]);
+            }
+        }
+    }
+    grupos
+}
+
+fn tomar(objeto: &Objeto, grupo: &[String]) -> Vec<Option<serde_json::Value>> {
+    grupo.iter().map(|k| objeto.get(k).cloned()).collect()
+}
+
+fn poner(objeto: &mut Objeto, grupo: &[String], valores: &[Option<serde_json::Value>]) {
+    for (k, v) in grupo.iter().zip(valores) {
+        match v {
+            Some(v) => {
+                objeto.insert(k.clone(), v.clone());
+            }
+            None => {
+                objeto.remove(k);
+            }
+        }
+    }
+}
+
+/// Tres vías por grupo: si cambió un solo lado desde la base, gana ese; si
+/// cambiaron los dos y quedaron distintos, es conflicto. Sin base (primer sync
+/// en esta máquina), cualquier diferencia es conflicto.
+fn mezclar(local: &Objeto, remota: &Objeto, base: Option<&Objeto>, grupos: &[Vec<String>]) -> Mezcla {
+    let mut m = Mezcla { local: local.clone(), remota: local.clone(), conflictos: Vec::new() };
+    for g in grupos {
+        let (l, r) = (tomar(local, g), tomar(remota, g));
+        if l == r {
+            continue;
+        }
+        match base.map(|b| tomar(b, g)) {
+            Some(b) if b == l => {
+                poner(&mut m.local, g, &r);
+                poner(&mut m.remota, g, &r);
+            }
+            Some(b) if b == r => {}
+            _ => {
+                poner(&mut m.remota, g, &r);
+                m.conflictos.push(g.clone());
+            }
+        }
+    }
+    m
+}
+
+/// Marcadores: se suman las altas y se aplican las bajas de cada lado. Sin
+/// base, se unen.
+fn unir_marcadores(local: &[serde_json::Value], remota: &[serde_json::Value], base: Option<&[serde_json::Value]>) -> Vec<serde_json::Value> {
+    let nuevo_desde_base = |v: &serde_json::Value| base.map_or(true, |b| !b.contains(v));
+    let mut unidos: Vec<serde_json::Value> = local
+        .iter()
+        .filter(|v| remota.contains(v) || nuevo_desde_base(v))
+        .cloned()
+        .collect();
+    for v in remota {
+        if !local.contains(v) && nuevo_desde_base(v) {
+            unidos.push(v.clone());
+        }
+    }
+    unidos
+}
+
+fn mezclar_lector(local: &Objeto, remota: &Objeto, base: Option<&Objeto>) -> Mezcla {
+    let mut grupos = grupos_de([local, remota], GRUPOS_LECTOR);
+    grupos.retain(|g| g.len() != 1 || g[0] != "bookmarks");
+    let mut m = mezclar(local, remota, base, &grupos);
+    let lista = |o: Option<&Objeto>| o.and_then(|o| o.get("bookmarks")).and_then(|v| v.as_array()).cloned();
+    let base_marcadores = lista(base);
+    let unidos = serde_json::Value::Array(unir_marcadores(
+        &lista(Some(local)).unwrap_or_default(),
+        &lista(Some(remota)).unwrap_or_default(),
+        base_marcadores.as_deref(),
+    ));
+    m.local.insert("bookmarks".into(), unidos.clone());
+    m.remota.insert("bookmarks".into(), unidos);
+    m
+}
+
+fn texto(v: &Option<serde_json::Value>) -> String {
+    match v {
+        Some(serde_json::Value::String(s)) => s.clone(),
+        Some(serde_json::Value::Null) | None => "—".into(),
+        Some(v) => v.to_string(),
+    }
+}
+
+fn campo(v: &Option<serde_json::Value>, clave: &str) -> String {
+    v.as_ref().and_then(|v| v.get(clave)).map(|x| x.to_string()).unwrap_or_else(|| "—".into())
+}
+
+fn coordenadas(lat: &Option<serde_json::Value>, lon: &Option<serde_json::Value>) -> String {
+    let n = |v: &Option<serde_json::Value>| v.as_ref().and_then(|v| v.as_f64()).map(|x| format!("{x:.4}")).unwrap_or_else(|| "—".into());
+    format!("{}, {}", n(lat), n(lon))
+}
+
+/// «qué: acá X, en Drive Y» para un grupo del config en conflicto.
+fn describir_config(grupo: &[String], local: &Objeto, remota: &Objeto) -> String {
+    let (l, r) = (tomar(local, grupo), tomar(remota, grupo));
+    match grupo[0].as_str() {
+        "city" if l[0] == r[0] => format!("ubicación: acá {}, en Drive {}", coordenadas(&l[1], &l[2]), coordenadas(&r[1], &r[2])),
+        "city" => format!("ubicación: acá {}, en Drive {}", texto(&l[0]), texto(&r[0])),
+        "method" => format!("método de cálculo: acá {}, en Drive {}", texto(&l[0]), texto(&r[0])),
+        "madhab" => format!("escuela para Asr: acá {}, en Drive {}", texto(&l[0]), texto(&r[0])),
+        "highLatRule" => format!("regla de latitud alta: acá {}, en Drive {}", texto(&l[0]), texto(&r[0])),
+        "notice" => format!("preaviso: acá {} min, en Drive {} min", campo(&l[0], "minutes_before"), campo(&r[0], "minutes_before")),
+        "calendar" => format!("ajuste del calendario islámico: acá {}, en Drive {} día(s)", campo(&l[0], "adjustment_days"), campo(&r[0], "adjustment_days")),
+        "offsets" => "ajustes manuales por rezo".into(),
+        "audio" => "sonido y volumen de los avisos".into(),
+        "appearance" => "apariencia (tema y acento)".into(),
+        otro => otro.to_string(),
+    }
+}
+
+/// «qué: acá X, en Drive Y» para un grupo del lector en conflicto.
+fn describir_lector(grupo: &[String], local: &Objeto, remota: &Objeto) -> String {
+    let posicion = |v: &Option<serde_json::Value>| {
+        v.as_ref()
+            .and_then(|v| Some(format!("{}:{}", v.get("sura")?, v.get("aya")?)))
+            .unwrap_or_else(|| "sin guardar".into())
+    };
+    let (l, r) = (tomar(local, grupo), tomar(remota, grupo));
+    match grupo[0].as_str() {
+        "last" => format!("punto de lectura: acá {}, en Drive {}", posicion(&l[0]), posicion(&r[0])),
+        "arabic_size" => "preferencias de lectura (idioma y tamaño)".into(),
+        otro => otro.to_string(),
+    }
 }
 
 // -------------------------------------------------------------- adopciones ---
 
-/// Adopta el config del respaldo con las MISMAS validaciones y efectos de
-/// set_config manual: guardar, actualizar estado compartido y avisar al
-/// scheduler para recalcular. Err mantiene el config local intacto.
-fn adoptar_config(
-    cfg: Config,
-    shared: &tauri::State<'_, SharedConfig>,
-    sched_tx: &tauri::State<'_, std::sync::mpsc::Sender<scheduler::Trigger>>,
-) -> Result<(), String> {
-    config::save(&cfg)?;
-    *shared.write().map_err(|e| format!("config envenenado: {e}"))? = cfg;
-    let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
+/// Deja config y lector como `config_nueva` / `lector_nuevo` si difieren de lo
+/// que hay en disco. El config pasa por las reglas de `set_config` (validación,
+/// estado compartido y scheduler); si no valida, no se toca nada. Avisa a la
+/// ventana para que relea. Devuelve qué cambió.
+fn aplicar(app: &tauri::AppHandle, config_nueva: &serde_json::Value, lector_nuevo: Option<&serde_json::Value>) -> Result<Vec<&'static str>, String> {
+    let cfg = if leer_json(&config::config_path()).as_ref() != Some(config_nueva) {
+        let cfg: Config = serde_json::from_value(config_nueva.clone()).map_err(|e| format!("config del respaldo ilegible: {e}"))?;
+        config::validar(&cfg).map_err(|e| format!("config del respaldo inválido: {e}"))?;
+        Some(cfg)
+    } else {
+        None
+    };
+    let mut cambios = Vec::new();
+    if let Some(lector) = lector_nuevo {
+        if leer_json(&quran_reader_path()).as_ref() != Some(lector) {
+            crate::quran::reemplazar_state(&serde_json::to_string(lector).map_err(|e| e.to_string())?)
+                .map_err(|e| format!("adoptando el lector: {e}"))?;
+            cambios.push("lectura");
+        }
+    }
+    if let Some(cfg) = cfg {
+        config::save(&cfg)?;
+        *app.state::<SharedConfig>().write().map_err(|e| format!("config envenenado: {e}"))? = cfg;
+        let _ = app.state::<std::sync::mpsc::Sender<scheduler::Trigger>>().send(scheduler::Trigger::ConfigChanged);
+        cambios.push("configuración");
+    }
+    if !cambios.is_empty() {
+        let _ = app.emit(EVENTO_APLICADO, ());
+    }
+    Ok(cambios)
+}
+
+/// Agrega al registro los eventos traídos del respaldo y avisa al scheduler
+/// (recalcula los marcados de hoy) y a la ventana.
+fn agregar_al_registro(app: &tauri::AppHandle, eventos: &[RegistroEntry]) -> Result<(), String> {
+    for ev in eventos {
+        registro::append_entry(ev).map_err(|e| format!("unir registro: {e}"))?;
+    }
+    if !eventos.is_empty() {
+        let _ = app.state::<std::sync::mpsc::Sender<scheduler::Trigger>>().send(scheduler::Trigger::ConfigChanged);
+        let _ = app.emit(EVENTO_APLICADO, ());
+    }
     Ok(())
+}
+
+fn resumen_traido(dispositivo: &str, cambios: &[&str], eventos: usize) -> Option<String> {
+    let mut partes: Vec<String> = cambios.iter().map(|c| c.to_string()).collect();
+    if eventos > 0 {
+        partes.push(format!("{eventos} cambio(s) del registro"));
+    }
+    (!partes.is_empty()).then(|| format!("Se trajo del respaldo de {dispositivo}: {}.", partes.join(", ")))
 }
 
 // --------------------------------------------------------------- flujos IPC ---
@@ -739,6 +1006,7 @@ async fn snapshot() -> EstadoIpc {
         restaurar: e.restaurar,
         url_autorizacion: e.url_autorizacion,
         ultimo_error: e.ultimo_error,
+        aviso: e.aviso,
         ultima_sync: e.ultima_sync,
     }
 }
@@ -764,8 +1032,8 @@ pub fn disponible() -> bool {
 #[tauri::command]
 #[cfg(desktop)]
 pub async fn sync_login() -> Result<EstadoIpc, String> {
-    if token_del_keyring().is_ok() {
-        return Ok(snapshot().await); // ya hay sesión — nada que hacer
+    if token_del_keyring().is_ok() || estado().lock().unwrap().conectando {
+        return Ok(snapshot().await); // ya hay sesión o una espera en curso
     }
     if sin_credencial() {
         set_estado(|e| {
@@ -773,18 +1041,32 @@ pub async fn sync_login() -> Result<EstadoIpc, String> {
         });
         return Ok(snapshot().await);
     }
+    CANCELADO.store(false, Ordering::SeqCst);
     set_estado(|e| {
         e.conectando = true;
         e.ultimo_error = None;
     });
     let resultado = crear_sesion().await;
+    let cancelado = CANCELADO.swap(false, Ordering::SeqCst);
     set_estado(|e| {
         e.conectando = false;
         e.url_autorizacion = None;
         if let Err(falla) = &resultado {
-            e.ultimo_error = Some(falla.clone());
+            if !cancelado {
+                e.ultimo_error = Some(falla.clone());
+            }
         }
     });
+    Ok(snapshot().await)
+}
+
+/// «Cancelar» mientras se espera la autorización en el navegador.
+#[tauri::command]
+#[cfg(desktop)]
+pub async fn sync_cancelar() -> Result<EstadoIpc, String> {
+    if estado().lock().unwrap().conectando {
+        CANCELADO.store(true, Ordering::SeqCst);
+    }
     Ok(snapshot().await)
 }
 
@@ -810,7 +1092,7 @@ async fn crear_sesion() -> Result<(), String> {
         log!("sync: el navegador no abrió; la UI muestra la URL de autorización");
     }
 
-    // callback (bloqueante, hasta 5 min) fuera del runtime async
+    // callback (hasta 5 min o «Cancelar») fuera del runtime async
     let cb = tauri::async_runtime::spawn_blocking(move || esperar_callback(listener, &state))
         .await
         .map_err(|_| "espera de autorización cancelada".to_string())?;
@@ -820,7 +1102,7 @@ async fn crear_sesion() -> Result<(), String> {
     }
     let code = cb.code.ok_or_else(|| "callback sin código de autorización".to_string())?;
 
-    // canje del código por tokens (client_secret opcional en Desktop)
+    // canje del código por tokens (Google pide el client_secret también en clientes Desktop)
     let mut pares: Vec<(&str, String)> = vec![
         ("client_id", client_id().to_string()),
         ("code", code),
@@ -851,229 +1133,205 @@ async fn crear_sesion() -> Result<(), String> {
     Ok(())
 }
 
-/// Cerrar sesión: revoca el token en Google (mejor esfuerzo) y borra el keyring.
+/// Cerrar sesión: revoca el token en Google (mejor esfuerzo), borra el keyring
+/// y la base del último sync (con otra cuenta no sirve).
 #[tauri::command]
 pub async fn sync_logout() -> Result<EstadoIpc, String> {
     if let Ok(refresh) = token_del_keyring() {
         let _revocar = cliente_http().post(REVOKE_URL).form(&[("token", refresh)]).send().await;
     }
     let _ = borrar_token();
+    borrar_base();
     set_estado(|e| *e = Estado::default());
-    log!("sync: sesión cerrada (revocación + keyring limpio)");
+    log!("sync: sesión cerrada (revocación + keyring y base limpios)");
     Ok(snapshot().await)
+}
+
+/// Token de acceso a partir del refresh del keyring. Si Google dice que venció
+/// o fue revocado, se cierra la sesión local: hay que conectar de nuevo.
+async fn acceso() -> Result<String, String> {
+    let refresh = match token_del_keyring() {
+        Ok(t) => t,
+        Err(None) => return Err("no hay sesión activa — conectá primero la cuenta de Google".into()),
+        Err(Some(e)) => return Err(e),
+    };
+    match refresh_access(&refresh).await {
+        Ok(access) => Ok(access.token),
+        Err(e) => {
+            if e.contains("venció") {
+                let _ = borrar_token();
+                set_estado(|st| {
+                    st.conflicto = None;
+                    st.pendiente = None;
+                    st.restaurar = None;
+                });
+            }
+            Err(e)
+        }
+    }
 }
 
 /// "Sincronizar ahora" (manual) y también el chequeo al arrancar: baja el
 /// respaldo, aplica las reglas y sube. Devuelve el estado para el UI.
 #[tauri::command]
 #[cfg(desktop)]
-pub async fn sync_ahora(
-    shared: tauri::State<'_, SharedConfig>,
-    sched_tx: tauri::State<'_, std::sync::mpsc::Sender<scheduler::Trigger>>,
-) -> Result<EstadoIpc, String> {
-    sync_core(&shared, &sched_tx).await
+pub async fn sync_ahora(app: tauri::AppHandle) -> Result<EstadoIpc, String> {
+    con_registro(sync_core(&app).await)
 }
 
-/// Chequeo al arrancar (deferrado; invocado por lib.rs). Mismo flujo que el
-/// botón: restauración/conflicto quedan detenido en el estado — la UI los consulta.
+/// Chequeo al arrancar (deferrado; invocado por desktop.rs). Mismo flujo que el
+/// botón: restauración/conflicto quedan detenidos en el estado — la UI los consulta.
 #[cfg(desktop)]
 pub async fn al_arrancar(app: tauri::AppHandle) {
     if !disponible() {
         return;
     }
-    let shared = app.state::<SharedConfig>();
-    let sched_tx = app.state::<std::sync::mpsc::Sender<scheduler::Trigger>>();
-    match sync_core(&shared, &sched_tx).await {
-        // el resultado ya está en el estado interno; no molesta con notificación
-        Ok(_) => {}
-        Err(e) => log!("sync al arrancar: {e}"),
+    if let Err(e) = con_registro(sync_core(&app).await) {
+        log!("sync al arrancar: {e}");
     }
 }
 
-async fn sync_core(
-    _shared: &tauri::State<'_, SharedConfig>,
-    _sched_tx: &tauri::State<'_, std::sync::mpsc::Sender<scheduler::Trigger>>,
-) -> Result<EstadoIpc, String> {
-    // 0) sesión real (keyring)
-    let refresh = match token_del_keyring() {
-        Ok(t) => t,
-        Err(None) => return Err("no hay sesión activa — conectá primero la cuenta de Google".into()),
-        Err(Some(e)) => return Err(e),
-    };
-    let access = refresh_access(&refresh).await.map_err(|e| {
-        if e.contains("venció") {
-            // refresh caducado/revocado: sesión limpia + estado implicado
-            let _ = borrar_token();
-            set_estado(|st| {
-                st.conflicto = None;
-                st.restaurar = None;
-            });
-        }
-        set_estado(|st| st.ultimo_error = Some(e.clone()));
-        e
-    })?;
+async fn sync_core(app: &tauri::AppHandle) -> Result<EstadoIpc, String> {
+    set_estado(|st| {
+        st.ultimo_error = None;
+        st.aviso = None;
+    });
+    let token = acceso().await?;
 
-    // 1) buscar el respaldo en Drive
-    let remoto_id = drive_buscar_respaldo(&access.token).await?;
-
-    if remoto_id.is_none() {
-        // sin respaldo: primera subida directa (nada que resolver)
-        let contenido = respaldo_contenido()?;
-        drive_subir(&access.token, None, &contenido).await?;
-        let nuevo = parsear_respaldo(&contenido)?;
-        set_estado(|e| {
-            e.respaldo = Some(info_de(&nuevo, contenido.len()));
-            e.ultimo_error = None;
-            e.ultima_sync = Some(nuevo.actualizado.clone());
-        });
+    // 1) buscar el respaldo; si no hay, el primero es lo local
+    let Some(remoto_id) = drive_buscar_respaldo(&token).await? else {
+        subir_respaldo_actual(&token, None).await?;
         log!("sync: primer respaldo creado en Drive");
         return Ok(snapshot().await);
-    }
+    };
 
     // 2) bajar y parsear
-    let texto = drive_bajar(&access.token, &remoto_id.as_ref().unwrap()).await?;
+    let texto = drive_bajar(&token, &remoto_id).await?;
     let remoto = parsear_respaldo(&texto)?;
-    set_estado(|e| {
-        e.respaldo = Some(info_de(&remoto, texto.len()));
-    });
+    set_estado(|e| e.respaldo = Some(info_de(&remoto, texto.len())));
 
     // 3) RESTAURACIÓN propuesta: registro local vacío con historial remoto
     let local_events = registro::load_all();
-    let remote_events = &remoto.datos.registro;
-    if local_events.is_empty() && !remote_events.is_empty() && !estado().lock().unwrap().restaurar_descartada {
+    if local_events.is_empty() && !remoto.datos.registro.is_empty() && !estado().lock().unwrap().restaurar_descartada {
         set_estado(|e| {
             e.restaurar = Some(RestaurarInfo {
                 fecha: remoto.actualizado.clone(),
                 dispositivo: remoto.dispositivo.clone(),
-                rezos: remote_events.iter().filter(|ev| ev.status == "rezado").count(),
+                rezos: remoto.datos.registro.iter().filter(|ev| ev.status == "rezado").count(),
             });
-            e.ultimo_error = None;
         });
         return Ok(snapshot().await);
     }
 
-    // 4) registro: unión por evento (append de lo que falta) — siempre seguro
-    let nuevos = eventos_a_agregar(&local_events, remote_events);
-    let mut agregados = 0usize;
-    for ev in &nuevos {
-        registro::append(&ev.date, &ev.prayer, &ev.status).map_err(|e| format!("unir registro: {e}"))?;
-        agregados += 1;
-    }
+    // 4) registro: por (fecha, rezo) gana la última acción del usuario
+    let nuevos = eventos_a_agregar(&local_events, &remoto.datos.registro);
+    agregar_al_registro(app, &nuevos)?;
 
-    // 5) config / lector: LWW con consulta — cualquier diferencia de estado
-    //    detiene el sync en `conflicto` hasta elección del usuario
-    let local_cfg = config::load_or_init();
-    let mut conflicto_config = false;
-    let mut conflicto_lector = false;
-    let mut detalles: Vec<String> = Vec::new();
-    if let Ok(cfg_remota) = serde_json::from_value::<Config>(remoto.datos.config.clone()) {
-        detalles = config_diferencias(&local_cfg, &cfg_remota);
-        conflicto_config = !detalles.is_empty();
-    }
-    if let Some(lector_remota) = &remoto.datos.lector {
-        let lector_local = std::fs::read_to_string(quran_reader_path())
-            .ok()
-            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok());
-        // el lector es un Value de ambos lados: si difiere en algo, se consulta
-        conflicto_lector = lector_local.as_ref() != Some(lector_remota);
-    }
-    if conflicto_config || conflicto_lector {
+    // 5) config y lector en tres vías contra la base del último sync
+    let base = leer_base();
+    let config_local = leer_json(&config::config_path())
+        .unwrap_or_else(|| serde_json::to_value(config::load_or_init()).unwrap_or_default());
+    let (Some(cfg_local), Some(cfg_remota)) = (config_local.as_object(), remoto.datos.config.as_object()) else {
+        return Err("el config local o el del respaldo no tienen el formato esperado".into());
+    };
+    let m_cfg = mezclar(cfg_local, cfg_remota, base.as_ref().and_then(|b| b.config.as_object()), &grupos_de([cfg_local, cfg_remota], GRUPOS_CONFIG));
+    let config_detalles: Vec<String> = m_cfg.conflictos.iter().map(|g| describir_config(g, cfg_local, cfg_remota)).collect();
+
+    let lector_local = leer_json(&quran_reader_path());
+    let base_lector = base.as_ref().and_then(|b| b.lector.as_ref()).and_then(|v| v.as_object());
+    let (m_lec, lector_detalles) = match (lector_local.as_ref().and_then(|v| v.as_object()), remoto.datos.lector.as_ref().and_then(|v| v.as_object())) {
+        (Some(l), Some(r)) => {
+            let m = mezclar_lector(l, r, base_lector);
+            let detalles = m.conflictos.iter().map(|g| describir_lector(g, l, r)).collect();
+            (Some(m), detalles)
+        }
+        // sin lector local todavía: se toma el del respaldo
+        (None, Some(r)) => (Some(Mezcla { local: r.clone(), remota: r.clone(), conflictos: Vec::new() }), Vec::new()),
+        _ => (None, Vec::new()),
+    };
+
+    if !config_detalles.is_empty() || !lector_detalles.is_empty() {
         set_estado(|e| {
             e.conflicto = Some(Conflicto {
                 fecha: remoto.actualizado.clone(),
                 dispositivo: remoto.dispositivo.clone(),
-                config_difiere: conflicto_config,
-                lector_difiere: conflicto_lector,
-                config_detalles: detalles,
+                config_difiere: !config_detalles.is_empty(),
+                lector_difiere: !lector_detalles.is_empty(),
+                config_detalles,
+                lector_detalles,
             });
-            e.ultimo_error = None;
+            e.pendiente = Some(Pendiente {
+                remoto_id: remoto_id.clone(),
+                config_local: serde_json::Value::Object(m_cfg.local),
+                config_remota: serde_json::Value::Object(m_cfg.remota),
+                lector_local: m_lec.as_ref().map(|m| serde_json::Value::Object(m.local.clone())),
+                lector_remota: m_lec.map(|m| serde_json::Value::Object(m.remota)),
+            });
+            e.aviso = resumen_traido(&remoto.dispositivo, &[], nuevos.len());
         });
-        log!("sync: detenido en conflicto (config={}, lector={})", conflicto_config, conflicto_lector);
+        log!("sync: detenido en conflicto ({} evento(s) del registro ya unidos)", nuevos.len());
         return Ok(snapshot().await);
     }
 
-    // 6) sin consultas pendientes → subir con `actualizado` nuevo
-    subir_respaldo_actual(&access.token, remoto_id.as_deref()).await?;
-    log!("sync: ok ({} evento(s) nuevos del registro)", agregados);
+    // 6) sin conflicto: lo que cambió solo en Drive se toma acá, y se sube
+    let lector_final = m_lec.map(|m| serde_json::Value::Object(m.local));
+    let cambios = aplicar(app, &serde_json::Value::Object(m_cfg.local), lector_final.as_ref())?;
+    subir_respaldo_actual(&token, Some(&remoto_id)).await?;
+    set_estado(|e| e.aviso = resumen_traido(&remoto.dispositivo, &cambios, nuevos.len()));
+    log!("sync: ok ({} evento(s) del registro, cambios: {:?})", nuevos.len(), cambios);
     Ok(snapshot().await)
 }
 
-/// Sube el estado local actual (registro ya unido), estampa `actualizado`
-/// nuevo y refresca el estado interno. Es el mismo mecanismo del paso normal
-/// y también lo usan las resoluciones/restauración — evita re-detectar
-/// diferencias ya decididas por el usuario.
+/// Sube el estado local actual, guarda la base del sync y refresca el estado
+/// interno. Lo usan el paso normal, las resoluciones y la restauración.
 async fn subir_respaldo_actual(token: &str, id_previo: Option<&str>) -> Result<(), String> {
-    let contenido = respaldo_contenido()?;
+    let respaldo = respaldo_actual()?;
+    let contenido = serde_json::to_string(&respaldo).map_err(|e| format!("serializando respaldo: {e}"))?;
     let id = drive_subir_o_crear(token, id_previo, &contenido).await?;
-    let nuevo = parsear_respaldo(&contenido)?;
+    guardar_base(&respaldo)?;
     set_estado(|e| {
-        e.respaldo = Some(info_de(&nuevo, contenido.len()));
+        e.respaldo = Some(info_de(&respaldo, contenido.len()));
         e.ultimo_error = None;
-        e.ultima_sync = Some(nuevo.actualizado.clone());
+        e.ultima_sync = Some(respaldo.actualizado.clone());
     });
     log!("sync: respaldo actualizado ({})", id.chars().take(10).collect::<String>());
     Ok(())
 }
 
-/// Resolución del conflicto: "local" sube lo local tal cual; "remota" adopta
-/// config + lector del respaldo con la semántica de set_config y luego sube.
-/// El registro ya quedó unido en ambos casos (nunca se pierde nada).
+/// Resolución del conflicto: "local" deja lo de esta computadora y "remota" lo
+/// del respaldo, solo en lo que cambió en las dos; lo demás ya quedó mezclado.
 #[tauri::command]
 #[cfg(desktop)]
-pub async fn sync_resolver(
-    eleccion: String,
-    shared: tauri::State<'_, SharedConfig>,
-    sched_tx: tauri::State<'_, std::sync::mpsc::Sender<scheduler::Trigger>>,
-) -> Result<EstadoIpc, String> {
-    if estado().lock().unwrap().conflicto.is_none() {
+pub async fn sync_resolver(eleccion: String, app: tauri::AppHandle) -> Result<EstadoIpc, String> {
+    con_registro(resolver(&eleccion, &app).await)
+}
+
+async fn resolver(eleccion: &str, app: &tauri::AppHandle) -> Result<EstadoIpc, String> {
+    let pendiente = estado().lock().unwrap().pendiente.clone();
+    let Some(p) = pendiente else {
         return Err("no hay conflicto pendiente de resolver".into());
-    }
-    match eleccion.as_str() {
-        "local" => {
-            // el registro ya quedó unido; se sube el estado local tal cual
-            set_estado(|e| e.conflicto = None);
-        }
-        "remota" => {
-            let refresh = token_del_keyring().map_err(|_| "sin sesión activa".to_string())?;
-            let access = refresh_access(&refresh).await?;
-            let remoto_id = drive_buscar_respaldo(&access.token).await?
-                .ok_or_else(|| "el respaldo dejó de existir en Drive".to_string())?;
-            let texto = drive_bajar(&access.token, &remoto_id).await?;
-            let remoto = parsear_respaldo(&texto)?;
-            // config remota validada con el contrato íntegro de set_config
-            let cfg_remota: Config = serde_json::from_value(remoto.datos.config.clone())
-                .map_err(|e| format!("config del respaldo ilegible: {e}"))?;
-            cfg_remota.audio.validate()?;
-            adoptar_config(cfg_remota, &shared, &sched_tx)?;
-            if let Some(lector) = &remoto.datos.lector {
-                crate::quran::reemplazar_state(
-                    &serde_json::to_string(lector).map_err(|e| e.to_string())?,
-                )?;
-            }
-            set_estado(|e| e.conflicto = None);
-            log!("sync: conflicto resuelto a favor del respaldo de Drive");
-            let _ = remoto_id;
-        }
+    };
+    let (config, lector) = match eleccion {
+        "local" => (p.config_local, p.lector_local),
+        "remota" => (p.config_remota, p.lector_remota),
         otro => return Err(format!("elección desconocida: {otro}")),
-    }
-    // con la decisión tomada, subir el estado resultante (sin re-consultar)
-    let refresh = token_del_keyring().map_err(|_| "sin sesión activa".to_string())?;
-    let access = refresh_access(&refresh).await?;
-    let remoto_id = drive_buscar_respaldo(&access.token).await?;
-    subir_respaldo_actual(&access.token, remoto_id.as_deref()).await?;
+    };
+    let token = acceso().await?;
+    let cambios = aplicar(app, &config, lector.as_ref())?;
+    subir_respaldo_actual(&token, Some(&p.remoto_id)).await?;
+    set_estado(|e| {
+        e.conflicto = None;
+        e.pendiente = None;
+    });
+    log!("sync: conflicto resuelto ({eleccion}; cambios: {cambios:?})");
     Ok(snapshot().await)
 }
 
-/// Restauración aceptada: trae config + lector + registro (unión) del
-/// respaldo y sube. "descartar" no sube nada y no reintenta hasta sincronizar
-/// manual (de este modo se evita la re-oferta en bucle).
+/// Restauración aceptada: trae config + lector + registro del respaldo y sube.
+/// "descartar" no sube nada y no vuelve a ofrecerla en esta ejecución.
 #[tauri::command]
 #[cfg(desktop)]
-pub async fn sync_restaurar(
-    acepta: bool,
-    shared: tauri::State<'_, SharedConfig>,
-    sched_tx: tauri::State<'_, std::sync::mpsc::Sender<scheduler::Trigger>>,
-) -> Result<EstadoIpc, String> {
+pub async fn sync_restaurar(acepta: bool, app: tauri::AppHandle) -> Result<EstadoIpc, String> {
     set_estado(|e| e.restaurar = None);
     if !acepta {
         set_estado(|e| {
@@ -1083,29 +1341,27 @@ pub async fn sync_restaurar(
         log!("sync: restauración descartada por el usuario (no se vuelve a ofertar en esta ejecución)");
         return Ok(snapshot().await);
     }
-    let refresh = token_del_keyring().map_err(|_| "sin sesión activa".to_string())?;
-    let access = refresh_access(&refresh).await?;
-    let remoto_id = drive_buscar_respaldo(&access.token).await?
+    con_registro(restaurar(&app).await)
+}
+
+async fn restaurar(app: &tauri::AppHandle) -> Result<EstadoIpc, String> {
+    let token = acceso().await?;
+    let remoto_id = drive_buscar_respaldo(&token)
+        .await?
         .ok_or_else(|| "el respaldo dejó de existir en Drive".to_string())?;
-    let texto = drive_bajar(&access.token, &remoto_id).await?;
+    let texto = drive_bajar(&token, &remoto_id).await?;
     let remoto = parsear_respaldo(&texto)?;
-    let cfg_remota: Config = serde_json::from_value(remoto.datos.config.clone())
-        .map_err(|e| format!("config del respaldo ilegible: {e}"))?;
-    cfg_remota.audio.validate()?;
-    adoptar_config(cfg_remota, &shared, &sched_tx)?;
-    if let Some(lector) = &remoto.datos.lector {
-        crate::quran::reemplazar_state(&serde_json::to_string(lector).map_err(|e| e.to_string())?)
-            .map_err(|e| format!("adoptando lector: {e}"))?;
-    }
+    let cambios = aplicar(app, &remoto.datos.config, remoto.datos.lector.as_ref())?;
+    // registro vacío: se copia tal cual (con sus horas); si entretanto se marcó algo, se mezcla
     let local = registro::load_all();
-    let mut nuevos = eventos_a_agregar(&local, &remoto.datos.registro);
-    ordenar_conservador(&mut nuevos);
-    for ev in &nuevos {
-        registro::append(&ev.date, &ev.prayer, &ev.status).map_err(|e| format!("restaurar registro: {e}"))?;
-    }
-    set_estado(|e| e.restaurar_descartada = false);
-    log!("sync: restauración aplicada ({} evento(s) tomados del respaldo)", nuevos.len());
-    subir_respaldo_actual(&access.token, Some(remoto_id.as_str())).await?;
+    let traer = if local.is_empty() { remoto.datos.registro.clone() } else { eventos_a_agregar(&local, &remoto.datos.registro) };
+    agregar_al_registro(app, &traer)?;
+    subir_respaldo_actual(&token, Some(&remoto_id)).await?;
+    set_estado(|e| {
+        e.restaurar_descartada = false;
+        e.aviso = resumen_traido(&remoto.dispositivo, &cambios, traer.len());
+    });
+    log!("sync: restauración aplicada ({} evento(s) del respaldo)", traer.len());
     Ok(snapshot().await)
 }
 
@@ -1115,41 +1371,45 @@ pub async fn sync_restaurar(
 mod tests {
     use super::*;
 
-    fn ev(date: &str, prayer: &str, status: &str) -> RegistroEntry {
-        RegistroEntry { date: date.into(), prayer: prayer.into(), status: status.into() }
+    fn ev(date: &str, prayer: &str, status: &str, ts: Option<i64>) -> RegistroEntry {
+        RegistroEntry { date: date.into(), prayer: prayer.into(), status: status.into(), ts }
     }
 
     #[test]
-    fn union_deduplica_y_conserva_rezados() {
-        let local = vec![ev("2026-10-20", "Fajr", "rezado"), ev("2026-10-21", "Dhuhr", "rezado")];
+    fn union_agrega_solo_lo_que_falta() {
+        let local = vec![ev("2026-10-20", "Fajr", "rezado", Some(1)), ev("2026-10-21", "Dhuhr", "rezado", Some(2))];
         let remota = vec![
-            ev("2026-10-20", "Fajr", "rezado"), // igual: no se agrega
-            ev("2026-10-22", "Maghrib", "rezado"), // nueva en remota
+            ev("2026-10-20", "Fajr", "rezado", Some(1)),   // igual: no se agrega
+            ev("2026-10-22", "Maghrib", "rezado", Some(3)), // nueva en remota
+            ev("2026-10-22", "Isha", "adhan", Some(4)),     // automático: no viaja
         ];
         let nuevos = eventos_a_agregar(&local, &remota);
         assert_eq!(nuevos.len(), 1);
         assert_eq!(nuevos[0].date, "2026-10-22");
+        assert_eq!(nuevos[0].ts, Some(3), "conserva la hora original");
     }
 
     #[test]
-    fn union_no_pierde_rezados_opuestos() {
-        // local desmarcó; remota marcó rezado: la unión conserva ambos eventos
-        let local = vec![ev("2026-10-20", "Asr", "rezado"), ev("2026-10-20", "Asr", "desmarcado")];
-        let remota = vec![ev("2026-10-20", "Asr", "rezado")];
+    fn gana_la_accion_mas_reciente() {
+        // la otra PC desmarcó y después volvió a marcar: el re-marcado llega
+        let local = vec![ev("2026-10-20", "Asr", "rezado", Some(10)), ev("2026-10-20", "Asr", "desmarcado", Some(20))];
+        let remota = vec![ev("2026-10-20", "Asr", "rezado", Some(10)), ev("2026-10-20", "Asr", "desmarcado", Some(20)), ev("2026-10-20", "Asr", "rezado", Some(30))];
         let nuevos = eventos_a_agregar(&local, &remota);
-        assert!(nuevos.is_empty(), "el remoto ya está representado en local");
+        assert_eq!(nuevos.len(), 1);
+        assert_eq!(nuevos[0].status, "rezado");
+        // una acción local más nueva no se pisa
+        let local = vec![ev("2026-10-20", "Asr", "desmarcado", Some(40))];
+        assert!(eventos_a_agregar(&local, &remota).is_empty());
     }
 
     #[test]
-    fn orden_conservador_deja_rezado_ultimo() {
-        let mut lote = vec![
-            ev("2026-10-20", "Isha", "rezado"),
-            ev("2026-10-20", "Isha", "desmarcado"),
-            ev("2026-10-19", "Fajr", "desmarcado"),
-        ];
-        ordenar_conservador(&mut lote);
-        assert_eq!(lote[0].date, "2026-10-19");
-        assert_eq!(lote[lote.len() - 1].status, "rezado", "rezado al final para last-wins del log");
+    fn sin_hora_gana_la_marca() {
+        // eventos anteriores a v0.1.16: un rezo marcado no se pierde
+        let local = vec![ev("2026-10-20", "Isha", "rezado", None), ev("2026-10-20", "Isha", "desmarcado", None)];
+        let remota = vec![ev("2026-10-20", "Isha", "rezado", None)];
+        let nuevos = eventos_a_agregar(&local, &remota);
+        assert_eq!(nuevos.len(), 1);
+        assert_eq!(nuevos[0].status, "rezado");
     }
 
     #[test]

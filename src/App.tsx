@@ -202,6 +202,12 @@ export default function App() {
     invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
     void loadSchedule(); void loadQibla(); void loadStats();
   }, [loadSchedule, loadQibla, loadStats]);
+  // El sync (también el del arranque) cambió config, lectura o registro: releer.
+  useEffect(() => {
+    if (!runtime?.google_sync) return;
+    const un = listen("sync_aplicado", () => recargadoDeSync());
+    return () => { void un.then((f) => f()).catch(() => {}); };
+  }, [runtime?.google_sync, recargadoDeSync]);
 
   // Sugerencia de ubicación por IP (única pieza de red del spec)
   // Cadena de proveedores: si uno falla o no trae ciudad, se prueba el próximo.
