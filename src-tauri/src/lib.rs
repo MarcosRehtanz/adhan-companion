@@ -323,6 +323,8 @@ struct RuntimeInfo {
     background_alerts: bool,
     audio_preview: bool,
     quran_audio: bool,
+    /// El respaldo con Google existe solo en escritorio y con la credencial OAuth en la build.
+    google_sync: bool,
 }
 
 #[tauri::command]
@@ -333,6 +335,10 @@ fn runtime_info() -> RuntimeInfo {
         background_alerts: cfg!(any(desktop, target_os = "android")),
         audio_preview: cfg!(any(desktop, target_os = "android")),
         quran_audio: cfg!(any(desktop, target_os = "android")),
+        #[cfg(desktop)]
+        google_sync: sync_google::disponible(),
+        #[cfg(not(desktop))]
+        google_sync: false,
     }
 }
 
