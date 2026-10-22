@@ -493,12 +493,21 @@ pub fn run(s: SchedulerLoop) {
     refresh_tray(&s, &schedule, None);
 
     loop {
-        std::thread::sleep(Duration::from_secs(1));
+        // Tick de 1 s, pero un trigger lo despierta al instante: marcar un rezo
+        // espera esta respuesta y no debe tardar hasta un segundo.
+        let first = match s.rx.recv_timeout(Duration::from_secs(1)) {
+            Ok(t) => Some(t),
+            Err(mpsc::RecvTimeoutError::Timeout) => None,
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                std::thread::sleep(Duration::from_secs(1));
+                None
+            }
+        };
 
         // Trigger: resume del sleep / cambio de config (IPC set_config) / marcar rezado
         let mut recal: Option<&str> = None;
         let mut prayers = Vec::new();
-        while let Ok(t) = s.rx.try_recv() {
+        for t in first.into_iter().chain(std::iter::from_fn(|| s.rx.try_recv().ok())) {
             match t {
                 Trigger::Resume => {
                     crate::log!("trigger: resume del sleep → recalcular + realinear timers");
