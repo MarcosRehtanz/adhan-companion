@@ -1,4 +1,6 @@
-//! registro.jsonl — append-only, {date, prayer, status} según el spec.
+//! registro.jsonl — append-only, {date, prayer, status} según el spec, más
+//! `ts` (desde v0.1.16): el momento del evento, para ordenar los de varias
+//! computadoras al sincronizar. Los eventos anteriores no lo tienen.
 //! Estados: adhan (disparó) | perdido (la app no estuvo activa al horario) |
 //! rezado (marcado por el usuario) | desmarcado (toggle que deshace un rezado) |
 //! silenciado (cuando exista mute).
@@ -21,19 +23,27 @@ pub struct RegistroEntry {
     pub date: String,
     pub prayer: String,
     pub status: String,
+    /// Milisegundos desde 1970 (UTC) en que se registró el evento.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ts: Option<i64>,
 }
 
 // append serializado (el scheduler y el IPC comparten el archivo)
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 pub fn append(date: &str, prayer: &str, status: &str) -> Result<(), String> {
-    let _g = WRITE_LOCK.lock().unwrap();
-    let entry = RegistroEntry {
+    append_entry(&RegistroEntry {
         date: date.to_string(),
         prayer: prayer.to_string(),
         status: status.to_string(),
-    };
-    let line = serde_json::to_string(&entry).map_err(|e| format!("serializar registro: {e}"))?;
+        ts: Some(chrono::Utc::now().timestamp_millis()),
+    })
+}
+
+/// Agrega un evento tal cual, con su hora original (eventos traídos del respaldo).
+pub fn append_entry(entry: &RegistroEntry) -> Result<(), String> {
+    let _g = WRITE_LOCK.lock().unwrap();
+    let line = serde_json::to_string(entry).map_err(|e| format!("serializar registro: {e}"))?;
     let mut f = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -294,6 +304,7 @@ mod tests {
             date: date.into(),
             prayer: prayer.into(),
             status: status.into(),
+            ts: None,
         }
     }
 
