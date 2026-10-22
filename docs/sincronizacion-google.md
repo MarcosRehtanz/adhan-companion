@@ -1,6 +1,6 @@
 # Sincronización de datos con Google
 
-**Estado: aprobado — en fase spike (probar el flujo OAuth con un `client_id` de desarrollo antes de implementar).** Fecha: 2026-10-21. Decisiones aprobadas por el usuario; alimenta la decisión de producto del spec del vault: *sincronizar datos con la cuenta de Google: sí; distribuir la app por Google: no*.
+**Estado: spike completo y aprobado (2026-10-22) — listo para implementar en v0.1.16.** Fecha: 2026-10-21. Decisiones aprobadas por el usuario; alimenta la decisión de producto del spec del vault: *sincronizar datos con la cuenta de Google: sí; distribuir la app por Google: no*.
 
 ## Objetivo
 
@@ -81,11 +81,25 @@ En conflicto real, la app muestra **qué cambió** y el usuario elige (local / D
 4. **Manual**: botón «Sincronizar ahora» en Configuración → Respaldo y sincronización (muestra cuenta, última sync y estado de error).
 5. Errores de red/cupo: reintento con backoff exponencial; el fallo del sync **jamás** bloquea la app ni el registro local.
 
-## Resultado parcial del spike (2026-10-22)
+## Resultado del spike (2026-10-22) — COMPLETO ✔
 
-- **Almacenamiento de tokens: validado en la máquina de desarrollo.** Round-trip completo `store → lookup → clear` con libsecret/GNOME Keyring desde `python3-gi` (el schema usado será `com.adhancompanion.oauth`). Queda descartado el riesgo de que el keyring no esté disponible en Ubuntu 24.04 GNOME.
-- **Harness del flujo completo listo** en `spikes/gdrive-sync/spike.mjs` (Node 24, sin dependencias): OAuth instalado con PKCE + callback loopback validando `state`, canje de código, renovación con refresh token, guardado en keyring y ciclo Drive `appDataFolder` (subir → listar → descargar + hash → sobrescribir → borrar). La credencial se lee de `.oauth.local`, que `*.local` del `.gitignore` mantiene fuera del repo.
-- **Pendiente para correr contra la cuenta real**: el `client_id` (el que termina en `.apps.googleusercontent.com`; el `GOCSPX-…` es el secret). Con eso, la corrida verde de punta a punta cierra el spike y habilita la fase v0.1.16.
+Corrida contra la cuenta real del usuario con `spikes/gdrive-sync/spike.mjs`:
+
+| Paso | Resultado |
+|---|---|
+| OAuth instalado: PKCE + callback loopback, `prompt=consent` | ✅ `code → tokens`, scope `drive.appdata` concedido solo |
+| Renovación con refresh token | ✅ nuevo access en 3599 s — el acceso offline funciona |
+| GNOME Keyring (libsecret vía `python3-gi`) | ✅ round-trip `store → lookup` verificado; la corrida `--resume` toma el token del keyring y renueva **sin abrir navegador** (la ruta diaria de la app) |
+| Drive `appDataFolder`: subir → listar → descargar → sobrescribir → borrar | ✅ archivo de 267 bytes, contenido verificado al descargar |
+
+Gotchas confirmados en la práctica:
+
+- **403 `access_denied` con app en modo Pruebas si la cuenta no está en "usuarios de prueba"** — el dueño del proyecto **no** está exento. Alta del test user y 1-2 min de propagación. (Para producción: no hace falta web propia todavía; alcanza una política de privacidad estática, ej. en el repo o Portfolio. Queda como tarea previa a publicar la app Google.)
+- **La sobrescritura del archivo es `PATCH` a `/upload/drive/v3/files/{id}?uploadType=multipart`** — `POST` a esa ruta da 404; `POST /upload/.../files` sólo sirve para crear.
+- Tras `server.close()` en Node, `server.address()` devuelve `null`: el puerto del loopback hay que capturarse antes de cerrar, porque el `redirect_uri` del canje debe coincidir exacto.
+- Con app en Pruebas el refresh token **caduca a los 7 días**: alcanza para el desarrollo, pero obliga a publicar la app antes de distribuir el sync.
+
+Con esto, el diseño de arriba queda validado de punta a punta; nada de esta doc cambió. Hilo de implementación v0.1.16 abierto.
 
 ## Cupos y límites de Drive API (2026)
 
