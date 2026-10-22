@@ -19,6 +19,7 @@ import { GoogleMapsLocationPicker } from "./components/GoogleMapsLocationPicker"
 import { PrayerAlertsSettings, type AudioConfig } from "./components/PrayerAlertsSettings";
 import { IslamicCalendar, type CalendarConfig } from "./components/IslamicCalendar";
 import { Today } from "./components/Today";
+import { GuiaRezo } from "./components/GuiaRezo";
 import { GoogleSync } from "./components/GoogleSync";
 import { hijriLabel } from "./lib/hijri";
 import { cardinal } from "./lib/prayers";
@@ -35,7 +36,7 @@ const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 // Las mismas páginas en el celular y en escritorio; cambia el marco de navegación.
 // Celular (Android y ventanas de hasta 720 px): barra inferior con Hoy, Registro, Qur’an y Más.
 // Escritorio: barra lateral con Hoy, Registro, Calendario islámico, Qur’an y Configuración.
-type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "respaldo" | "actualizaciones" | "acerca";
+type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "respaldo" | "actualizaciones" | "acerca" | "guia";
 type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | null;
 const TABS: { id: Page; label: string; Icon: LucideIcon }[] = [
   { id: "hoy", label: "Hoy", Icon: Sun },
@@ -51,7 +52,7 @@ const SIDEBAR: { id: Page; label: string; Icon: LucideIcon }[] = [
 ];
 const SUBPAGE_TITLES: Partial<Record<Page, string>> = {
   calendario: "Calendario islámico", qibla: "Qibla", horarios: "Ubicación y cálculo", avisos: "Adhan y avisos",
-  apariencia: "Apariencia", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", actualizaciones: "Actualizaciones", acerca: "Acerca de",
+  apariencia: "Apariencia", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", guia: "Guía del rezo", actualizaciones: "Actualizaciones", acerca: "Acerca de",
 };
 
 interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean; quran_audio: boolean; google_sync: boolean }
@@ -74,6 +75,8 @@ interface Config {
 }
 
 const NARROW = "(max-width: 720px)";
+// La guía del rezo se ve solo en desarrollo hasta que haya fórmulas transcritas y revisadas.
+const GUIA_REZO = import.meta.env.DEV;
 
 /// Ventana principal: dashboard diario y preferencias en modo lectura por defecto.
 /// El estado vive en Rust (core) y se actualiza por IPC/eventos.
@@ -356,6 +359,7 @@ export default function App() {
   </>;
   const calendario = scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>;
   const opciones: { id: Page; label: string; value: string }[][] = [[
+    ...(GUIA_REZO ? [{ id: "guia" as Page, label: "Guía del rezo", value: "Aprender y repasar cada rezo, paso a paso" }] : []),
     ...(mobile ? [{ id: "calendario" as Page, label: "Calendario islámico", value: hoy ? hijriLabel(hoy, calendar.adjustment_days) : "Cargando fecha…" }] : []),
     { id: "qibla", label: "Qibla", value: qibla == null ? "Calculando…" : `${Math.round(qibla)}° desde el norte` },
     { id: "horarios", label: "Ubicación y cálculo", value: `${cfg.city || "Sin ubicación"}, método ${cfg.method}, Asr ${cfg.madhab}` },
@@ -394,6 +398,7 @@ export default function App() {
     {page === "avisos" && <div className="page-stack">{avisos}</div>}
     {page === "apariencia" && <div className="page-stack"><AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={appearance} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} /></div>}
     {page === "inicio" && <div className="page-stack"><section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section></div>}
+    {page === "guia" && GUIA_REZO && <div className="page-stack"><GuiaRezo escuelaInicial={cfg?.method === "Jafari" || cfg?.method === "Tehran" ? "jafari" : cfg?.madhab === "Hanafi" ? "hanafi" : "shafii"} /></div>}
     {page === "respaldo" && runtime?.google_sync && <div className="page-stack"><GoogleSync recargado={recargadoDeSync} /></div>}
     {page === "actualizaciones" && <div className="page-stack">{isAndroid ? <AndroidUpdates /> : <DesktopUpdates />}</div>}
     {page === "acerca" && <div className="page-stack">

@@ -705,3 +705,51 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
   vertical-align: -2px;
   margin-right: 4px;
 }
+
+/* Guía del rezo: pasos por rakʿa, ritmo de posturas y fórmulas revisadas. */
+.guia { width: 100%; min-width: 0; max-width: 680px; margin: 0 auto; }
+.guia-selector { display: flex; gap: 6px; margin: 0 0 8px; overflow-x: auto; padding-bottom: 2px; }
+.guia-chip { flex-shrink: 0; min-height: 36px; padding: 0 14px; border: 1px solid var(--borde); border-radius: 18px; background: var(--tarjeta); color: var(--texto); font-size: 14px; cursor: pointer; }
+.guia-chip small { margin-left: 5px; color: var(--texto-tenue); font-size: 12px; }
+.guia-chip[aria-pressed="true"] { border-color: var(--acento); background: var(--acento-claro); color: var(--acento); font-weight: 600; }
+.guia-opciones { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 12px; font-size: 14px; }
+.guia-opciones label { display: flex; align-items: center; gap: 6px; }
+.guia-opciones input { width: 18px; height: 18px; margin: 0; accent-color: var(--acento); }
+.guia-aviso-preparacion { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--chip); color: var(--texto-suave); font-size: 13px; }
+.guia-aviso { margin: 0 0 10px; padding: 10px 12px; border-left: 3px solid var(--oro); border-radius: 12px; background: var(--tarjeta); font-size: 13.5px; }
+.guia-aviso b { display: block; margin-bottom: 2px; font-size: 14px; }
+.guia-aviso p { margin: 0; color: var(--texto-suave); }
+.guia-aviso p + p { margin-top: 6px; }
+.postura { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.postura circle { fill: currentColor; stroke: none; }
+.guia-ritmo { margin: 4px 0 16px; padding: 12px 12px 8px; border-radius: 16px; background: var(--tarjeta); }
+.guia-ritmo-fila { display: flex; align-items: center; gap: 6px; min-height: 30px; color: var(--texto-suave); }
+.guia-ritmo-fila .postura { width: 22px; height: 22px; }
+.guia-ritmo-num { width: 22px; flex-shrink: 0; color: var(--texto-tenue); font-size: 12px; font-variant-numeric: tabular-nums; }
+.guia-ritmo-leyenda { margin: 4px 0 0; color: var(--texto-tenue); font-size: 12px; }
+.guia-rakat { position: sticky; top: 0; z-index: 1; margin: 18px 0 4px; padding: 8px 0; background: var(--bg); font-size: 15px; font-weight: 600; }
+.guia-paso { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--borde); }
+.guia-paso > .postura { flex-shrink: 0; margin-top: 2px; color: var(--acento); }
+.guia-paso-cuerpo { flex: 1; min-width: 0; }
+.guia-paso-cabecera { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.guia-paso-cabecera b { font-size: 16px; font-weight: 600; }
+.guia-estatus { padding: 1px 7px; border-radius: 8px; font-size: 11.5px; font-weight: 600; }
+.guia-estatus.fuerte { background: var(--acento); color: #fff; }
+:root[data-theme="dark"] .guia-estatus.fuerte { color: #0f2e2b; }
+.guia-estatus.suave { border: 1px solid var(--borde); color: var(--texto-suave); font-weight: 500; }
+.guia-voz { color: var(--texto-tenue); font-size: 12px; }
+.guia-detalle { margin: 2px 0 0; color: var(--texto-suave); font-size: 14px; }
+.guia-formula { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--tarjeta); }
+.guia-formula.recomendada, .guia-formula.pendiente { border: 1px dashed var(--borde); background: transparent; }
+.guia-formula-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; color: var(--texto-tenue); font-size: 12px; }
+.guia-ar { margin: 0; font-family: "Amiri Quran", serif; font-size: 22px; line-height: 2; text-align: right; color: var(--texto); }
+.corpus .guia-ar { font-size: 20px; }
+.guia-tr { margin: 2px 0 0; color: var(--texto-suave); font-size: 14px; font-style: italic; }
+.guia-es { margin: 2px 0 0; font-size: 14px; }
+.corpus .guia-es { color: var(--texto-suave); }
+.guia-pendiente { margin: 0; color: var(--texto-tenue); font-size: 13px; }
+.guia-solo-completo { margin: 6px 0 0; color: var(--texto-tenue); font-size: 13px; font-style: italic; }
+.guia-difiere { margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--oro); color: var(--texto-suave); font-size: 13px; }
+.guia-mujer { border-left-color: var(--acento); }
+.guia-fuente { margin: 6px 0 0; color: var(--texto-tenue); font-size: 12px; }
+.guia-fuente a, .guia-mujer a { color: var(--acento); }
