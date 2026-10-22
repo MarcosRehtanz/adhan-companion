@@ -473,10 +473,10 @@ fn refresh_tray(s: &SchedulerLoop, schedule: &Schedule, playing: Option<&str>) {
     });
 }
 
-#[cfg(desktop)]
 /// Rezos de hoy que tocan recordar: pasaron `minutes` minutos de su horario, todavía no empezó
 /// el rezo siguiente y no se recordaron. No se avisa tarde: fuera de una ventana de 10 minutos
 /// (app dormida o cerrada) ese recordatorio se pierde, igual que el Adhan.
+#[cfg(desktop)]
 pub fn reminders_due(prayers: &[PrayerSlot], now_secs: i64, minutes: i32, reminded: &[bool]) -> Vec<usize> {
     const VENTANA: i64 = 600;
     (0..prayers.len())
@@ -489,6 +489,7 @@ pub fn reminders_due(prayers: &[PrayerSlot], now_secs: i64, minutes: i32, remind
         .collect()
 }
 
+#[cfg(desktop)]
 pub fn run(s: SchedulerLoop) {
     let mut cfg = snapshot(&s.config);
     let mut schedule = compute_schedule(&cfg);
