@@ -148,6 +148,17 @@ export function armarRezo(escuela: Escuela, rezo: Rezo, op: Opciones): RezoArmad
   return { rezo, total, rakats: Array.from({ length: total }, (_, i) => ({ rakat: i + 1, pasos: escuela === "jafari" ? pasosJafari(rezo, i + 1, total) : pasosSunni(escuela, rezo, i + 1, total) })) };
 }
 
+/** Cómo avanza el acompañamiento: un toque por paso o un toque por rakʿa. */
+export type Avance = "tocar" | "contador";
+export interface PasoEnCurso { rakat: number; paso: Paso; indice: number; delRakat: Paso[] }
+/** Los pasos visibles en el orden en que se rezan, para acompañarlos de a uno. */
+export function pasosEnOrden(r: RezoArmado, completo: boolean): PasoEnCurso[] {
+  return r.rakats.flatMap(k => {
+    const pasos = k.pasos.filter(p => visible(p.estatus, completo));
+    return pasos.map((paso, indice) => ({ rakat: k.rakat, paso, indice, delRakat: pasos }));
+  });
+}
+
 // ---------------------------------------------------- casos especiales (investigacion-mujer-viajero.md)
 
 export interface Caso { texto: string; fuente: Fuente }

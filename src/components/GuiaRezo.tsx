@@ -1,68 +1,15 @@
 // Guía del rezo: cada rezo obligatorio paso a paso, según la escuela. Muestra lo obligatorio y, en
 // el modo completo, lo recomendado. Las fórmulas aparecen a medida que se transcriben y revisan
 // (public/rezo/formulas.json); mientras tanto, cada una muestra su lugar y su referencia.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { loadQuran, type Corpus } from "../lib/quran";
 import {
-  armarRezo, cargarFormulas, COMBINAR, ESCUELAS, esObligatorio, ETIQUETAS, MENSTRUACION, MUJER, notaMujer, REZOS, VIAJE, visible,
-  type Caso, type Escuela, type Estatus, type Formula, type Paso, type Postura, type Rezo, type TextoFormula,
+  armarRezo, cargarFormulas, COMBINAR, ESCUELAS, MENSTRUACION, MUJER, notaMujer, REZOS, VIAJE, visible,
+  type Avance, type Escuela, type Paso, type Postura, type Rezo, type TextoFormula,
 } from "../lib/guia";
-
-const POSTURAS: Record<Postura, string> = {
-  pie: "M12 7.5v8.5M12 16l-2.2 5.5M12 16l2.2 5.5M12 9.5l-2 5M12 9.5l2 5",
-  inclinado: "M7.5 9.5h8M15.5 9.5v11.5M8.5 10l5 5.5",
-  postrado: "M7 17.5c2.5-5 6-7 8.5-5.5l2 8M7.5 19.5l3.5 1",
-  sentado: "M9 7.5V15l7 1.5-6.5 4M9 10l3 4",
-};
-const CABEZA: Record<Postura, [number, number]> = { pie: [12, 4.5], inclinado: [5, 8.5], postrado: [4.8, 18.5], sentado: [9, 4.5] };
-const NOMBRES_POSTURA: Record<Postura, string> = { pie: "de pie", inclinado: "inclinado", postrado: "postrado", sentado: "sentado" };
-/** Pictograma provisorio de la postura. */
-export function PosturaIcono({ postura, className = "" }: { postura: Postura; className?: string }) {
-  return <svg className={"postura " + className} viewBox="0 0 24 24" aria-hidden="true"><circle cx={CABEZA[postura][0]} cy={CABEZA[postura][1]} r="2" /><path d={POSTURAS[postura]} /></svg>;
-}
-
-const guardado = <T extends string>(clave: string, valores: readonly T[], porDefecto: T): T => {
-  const v = localStorage.getItem(clave) as T | null;
-  return v && valores.includes(v) ? v : porDefecto;
-};
-
-function Estado({ estatus }: { estatus: Estatus | null }) {
-  if (!estatus) return null;
-  return <span className={"guia-estatus " + (esObligatorio(estatus) ? "fuerte" : "suave")}>{ETIQUETAS[estatus]}</span>;
-}
-function Fuente({ caso, prefijo = "Según" }: { caso: { fuente: { etiqueta: string; url: string } }; prefijo?: string }) {
-  return <p className="guia-fuente">{prefijo} <a href={caso.fuente.url} target="_blank" rel="noreferrer">{caso.fuente.etiqueta}</a></p>;
-}
-function Aviso({ titulo, caso, children }: { titulo: string; caso?: Caso; children?: ReactNode }) {
-  return <div className="guia-aviso"><b>{titulo}</b>{caso && <p>{caso.texto}</p>}{children}{caso && <Fuente caso={caso} />}</div>;
-}
-
-function FormulaBloque({ f, textos }: { f: Formula; textos: Record<string, TextoFormula> }) {
-  const t = f.id ? textos[f.id] : undefined;
-  const meta = <div className="guia-formula-meta"><Estado estatus={f.estatus} />{f.veces && <span>{f.veces}</span>}{f.nota && <span>{f.nota}</span>}</div>;
-  if (!t) return <div className={"guia-formula pendiente" + (esObligatorio(f.estatus) ? "" : " recomendada")}>{meta}
-    <p className="guia-pendiente">{f.pendiente ?? "Fórmula pendiente de revisión: se muestra cuando esté transcrita y revisada."}</p>
-  </div>;
-  return <div className={"guia-formula" + (esObligatorio(f.estatus) ? "" : " recomendada")}>{meta}
-    <p className="guia-ar" lang="ar" dir="rtl">{t.ar}</p>
-    {t.tr && <p className="guia-tr">{t.tr}</p>}
-    {t.es && <p className="guia-es">{t.es}</p>}
-    <p className="guia-fuente">{t.fuente} · revisó {t.reviso}</p>
-  </div>;
-}
-
-function CorpusBloque({ id, corpus }: { id: "fatiha" | "ikhlas"; corpus: Corpus | null }) {
-  const sura = id === "fatiha" ? 1 : 112;
-  const versos = corpus?.suras[sura - 1];
-  return <div className="guia-formula corpus">
-    <div className="guia-formula-meta"><span>{id === "fatiha" ? "Al-Fatiha" : "Al-Ikhlas (u otra sura)"}</span></div>
-    {versos ? <>
-      <p className="guia-ar" lang="ar" dir="rtl">{versos.map(v => v.arabic).join(" ۝ ")}</p>
-      <p className="guia-es">{versos.map(v => v.translation).join(" ")}</p>
-      <p className="guia-fuente">Tanzil Uthmani 1.1 · traducción de Raúl González Bórnez (la del lector)</p>
-    </> : <p className="guia-pendiente">Abriendo el texto del lector…</p>}
-  </div>;
-}
+import type { Schedule } from "../types";
+import { AcompanarRezo, PrepararHoja, type Debajo } from "./AcompanarRezo";
+import { Aviso, CorpusBloque, Estado, FormulaBloque, Fuente, guardado, NOMBRES_POSTURA, PosturaIcono } from "./GuiaBloques";
 
 function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus }: { p: Paso; escuela: Escuela; rezo: Rezo; completo: boolean; mujer: boolean; textos: Record<string, TextoFormula>; corpus: Corpus | null }) {
   const antes = p.formulas.filter(f => f.antes && visible(f.estatus, completo));
@@ -87,7 +34,7 @@ function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus }: { p: 
   </article>;
 }
 
-export function GuiaRezo({ escuelaInicial }: { escuelaInicial: Escuela }) {
+export function GuiaRezo({ escuelaInicial, schedule, scheduleError, android, onMarked }: { escuelaInicial: Escuela; schedule: Schedule | null; scheduleError: string; android: boolean; onMarked: () => void }) {
   const [rezo, setRezo] = useState<Rezo>(() => guardado("guia.rezo", Object.keys(REZOS) as Rezo[], "dhuhr"));
   const [escuela, setEscuela] = useState<Escuela>(() => guardado("guia.escuela", Object.keys(ESCUELAS) as Escuela[], escuelaInicial));
   const [completo, setCompleto] = useState(() => localStorage.getItem("guia.completo") === "1");
@@ -95,8 +42,12 @@ export function GuiaRezo({ escuelaInicial }: { escuelaInicial: Escuela }) {
   const [mujer, setMujer] = useState(() => localStorage.getItem("guia.mujer") === "1");
   const [textos, setTextos] = useState<Record<string, TextoFormula>>({});
   const [corpus, setCorpus] = useState<Corpus | null>(null);
+  const [etapa, setEtapa] = useState<"guia" | "preparar" | "acompanar">("guia");
+  const [avance, setAvance] = useState<Avance>(() => guardado("guia.avance", ["tocar", "contador"], "tocar"));
+  const [debajo, setDebajo] = useState<Debajo>(() => ({ tr: localStorage.getItem("guia.tr") !== "0", es: localStorage.getItem("guia.es") !== "0" }));
   useEffect(() => { void cargarFormulas().then(setTextos); loadQuran().then(setCorpus).catch(() => {}); }, []);
   useEffect(() => { localStorage.setItem("guia.rezo", rezo); localStorage.setItem("guia.escuela", escuela); localStorage.setItem("guia.completo", completo ? "1" : "0"); localStorage.setItem("guia.mujer", mujer ? "1" : "0"); }, [rezo, escuela, completo, mujer]);
+  useEffect(() => { localStorage.setItem("guia.avance", avance); localStorage.setItem("guia.tr", debajo.tr ? "1" : "0"); localStorage.setItem("guia.es", debajo.es ? "1" : "0"); }, [avance, debajo]);
   const armado = useMemo(() => armarRezo(escuela, rezo, { completo, viajero, mujer }), [escuela, rezo, completo, viajero, mujer]);
   const revisadas = Object.keys(textos).length;
   const combinar = rezo === "dhuhr" || rezo === "maghrib";
@@ -137,5 +88,12 @@ export function GuiaRezo({ escuelaInicial }: { escuelaInicial: Escuela }) {
       <h2 className="guia-rakat" id={`rakat-${k.rakat}`}>Rakʿa {k.rakat} de {armado.total}</h2>
       {k.pasos.filter(p => visible(p.estatus, completo)).map((p, i) => <PasoBloque key={i} p={p} escuela={escuela} rezo={rezo} completo={completo} mujer={mujer} textos={textos} corpus={corpus} />)}
     </section>)}
+    <button className="guia-boton guia-empezar" onClick={() => setEtapa("preparar")}>Rezar {REZOS[rezo].nombre} con guía</button>
+
+    {etapa === "preparar" && <PrepararHoja armado={armado} escuela={escuela} completo={completo} android={android} avance={avance} debajo={debajo}
+      onAvance={setAvance} onDebajo={setDebajo} onCancelar={() => setEtapa("guia")} onEmpezar={() => setEtapa("acompanar")} />}
+    {etapa === "acompanar" && <AcompanarRezo armado={armado} escuela={escuela} completo={completo} viajero={viajero} avance={avance} debajo={debajo}
+      textos={textos} corpus={corpus} schedule={schedule} scheduleError={scheduleError} onMarked={onMarked} onSalir={() => setEtapa("guia")}
+      onCombinar={siguiente => { setRezo(siguiente); setEtapa("preparar"); }} />}
   </div>;
 }

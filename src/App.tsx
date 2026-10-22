@@ -398,7 +398,7 @@ export default function App() {
     {page === "avisos" && <div className="page-stack">{avisos}</div>}
     {page === "apariencia" && <div className="page-stack"><AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={appearance} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} /></div>}
     {page === "inicio" && <div className="page-stack"><section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section></div>}
-    {page === "guia" && GUIA_REZO && <div className="page-stack"><GuiaRezo escuelaInicial={cfg?.method === "Jafari" || cfg?.method === "Tehran" ? "jafari" : cfg?.madhab === "Hanafi" ? "hanafi" : "shafii"} /></div>}
+    {page === "guia" && GUIA_REZO && <div className="page-stack"><GuiaRezo escuelaInicial={cfg?.method === "Jafari" || cfg?.method === "Tehran" ? "jafari" : cfg?.madhab === "Hanafi" ? "hanafi" : "shafii"} schedule={schedule} scheduleError={scheduleError} android={isAndroid} onMarked={() => { void loadSchedule(); void loadStats(); }} /></div>}
     {page === "respaldo" && runtime?.google_sync && <div className="page-stack"><GoogleSync recargado={recargadoDeSync} /></div>}
     {page === "actualizaciones" && <div className="page-stack">{isAndroid ? <AndroidUpdates /> : <DesktopUpdates />}</div>}
     {page === "acerca" && <div className="page-stack">

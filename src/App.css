@@ -753,3 +753,67 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .guia-mujer { border-left-color: var(--acento); }
 .guia-fuente { margin: 6px 0 0; color: var(--texto-tenue); font-size: 12px; }
 .guia-fuente a, .guia-mujer a { color: var(--acento); }
+
+/* Acompañar el rezo: la hoja «Antes de empezar» y la pantalla completa del rezo, sobre la
+   superficie de lectura del Qur’an (Papel o Noche según el tema). Sin `inset` (WebView antiguo). */
+.guia-boton { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: 0 18px; border: 0; border-radius: 24px; background: var(--acento); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+:root[data-theme="dark"] .guia-boton { color: #0f2e2b; }
+.guia-boton:disabled { opacity: .6; cursor: default; }
+.guia-boton.secundario { border: 1px solid var(--borde); background: transparent; color: var(--acento); }
+.guia-boton.texto { background: transparent; color: var(--acento); }
+.guia-empezar { margin: 20px 0 8px; }
+.guia-hoja { width: 440px; max-width: calc(100vw - 24px); max-height: calc(100vh - 48px); padding: 18px 20px 20px; overflow: auto; border: 1px solid var(--borde); border-radius: 16px; background: var(--tarjeta); color: var(--texto); box-shadow: 0 18px 50px rgba(0, 0, 0, .25); }
+.guia-hoja::backdrop { background: rgba(10, 12, 16, .45); }
+.guia-hoja h2 { margin: 0 0 4px; font-size: 18px; }
+.guia-hoja-grupo { margin: 16px 0 6px; color: var(--texto-suave); font-size: 13px; font-weight: 600; }
+.guia-modos { display: flex; flex-direction: column; gap: 8px; }
+.guia-modo { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--borde); border-radius: 14px; color: var(--texto-suave); font-size: 13px; cursor: pointer; }
+.guia-modo input { flex-shrink: 0; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--acento); }
+.guia-modo b { display: block; color: var(--texto); font-size: 15px; font-weight: 600; }
+.guia-modo-tipo { margin-left: 8px; color: var(--texto-tenue); font-size: 12px; font-weight: 400; }
+.guia-modo.elegido { border-color: var(--acento); background: var(--acento-claro); }
+.guia-modo.no-disponible { opacity: .55; cursor: default; }
+.guia-hoja .guia-pendiente { margin-top: 10px; }
+.guia-hoja-acciones { display: flex; gap: 10px; margin-top: 20px; }
+.mobile .guia-hoja { width: 100vw; max-width: 100vw; max-height: 88vh; margin: auto 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 0 0; }
+
+.acompanar { width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: var(--lectura-bg); color: var(--lectura-es); cursor: pointer; }
+.acompanar[open] { display: flex; flex-direction: column; }
+.acompanar:focus { outline: none; }
+:root[data-theme="dark"] .acompanar { color-scheme: dark; }
+.acompanar::backdrop { background: var(--lectura-bg); }
+.acompanar-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 4px; color: var(--lectura-tenue); font-size: 14px; }
+.acompanar-barra b { color: var(--lectura-ar); font-weight: 600; }
+.acompanar-salir, .acompanar-atras { min-height: 36px; padding: 0 12px; border: 1px solid var(--lectura-borde); border-radius: 18px; background: transparent; color: var(--lectura-tenue); font-size: 13px; cursor: pointer; }
+.acompanar-atras:disabled { opacity: .45; cursor: default; }
+.acompanar-puntos { display: flex; justify-content: center; gap: 8px; margin: 6px 0; }
+.acompanar-puntos span { width: 8px; height: 8px; border-radius: 4px; background: var(--lectura-borde); }
+.acompanar-puntos .hecha { background: var(--lectura-ornamento); }
+.acompanar-puntos .actual { width: 22px; background: var(--acento); }
+.acompanar-ritmo { display: flex; justify-content: center; gap: 6px; margin: 4px 0 8px; }
+.acompanar-ritmo .postura { width: 26px; height: 26px; color: var(--lectura-borde); }
+.acompanar-ritmo .postura.hecha { color: var(--lectura-tenue); }
+.acompanar-ritmo .postura.actual { color: var(--acento); }
+.acompanar-centro { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px max(22px, calc((100% - 640px) / 2)) 16px; scrollbar-color: var(--lectura-borde) transparent; text-align: center; }
+.acompanar-centro.contador { display: flex; flex-direction: column; justify-content: center; }
+.acompanar-postura { display: block; width: 56px; height: 56px; margin: 4px auto 6px; color: var(--lectura-ornamento); }
+.acompanar-nombre { margin: 0; color: var(--lectura-ar); font-size: 26px; font-weight: 600; }
+.acompanar-detalle { max-width: 34ch; margin: 4px auto 0; color: var(--lectura-tenue); font-size: 14px; }
+.acompanar-numero { margin: 0; color: var(--lectura-ar); font-size: 120px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.acompanar-de { margin: 4px 0 8px; color: var(--lectura-tenue); font-size: 16px; }
+.acompanar .guia-formula { margin: 14px 0 0; padding: 0; border: 0; background: transparent; text-align: center; }
+.acompanar .guia-formula-meta { justify-content: center; color: var(--lectura-tenue); }
+.acompanar .guia-ar { color: var(--lectura-ar); font-size: 30px; line-height: 2.1; text-align: center; }
+.acompanar .corpus .guia-ar { font-size: 25px; }
+.acompanar .guia-tr { color: var(--lectura-tenue); font-size: 15px; }
+.acompanar .guia-es { color: var(--lectura-es); font-size: 15px; }
+.acompanar .guia-pendiente, .acompanar .guia-fuente { color: var(--lectura-tenue); }
+.acompanar-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--lectura-borde); color: var(--lectura-tenue); font-size: 13px; text-align: center; }
+.acompanar-pie span { flex: 1; }
+.acompanar.fin { cursor: default; }
+.acompanar-fin { display: flex; flex: 1; flex-direction: column; justify-content: center; width: 100%; max-width: 420px; margin: 0 auto; padding: 24px; text-align: center; }
+.acompanar-fin h2 { margin: 10px 0 4px; color: var(--lectura-ar); font-size: 28px; }
+.acompanar-fin > p { margin: 0; color: var(--lectura-tenue); }
+.acompanar-acciones { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+.acompanar-acciones .guia-boton.secundario { border-color: var(--lectura-borde); }
+.acompanar-estado { margin: 0; color: var(--lectura-es); font-size: 14px; }
