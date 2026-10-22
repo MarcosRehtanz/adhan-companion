@@ -81,6 +81,12 @@ En conflicto real, la app muestra **qué cambió** y el usuario elige (local / D
 4. **Manual**: botón «Sincronizar ahora» en Configuración → Respaldo y sincronización (muestra cuenta, última sync y estado de error).
 5. Errores de red/cupo: reintento con backoff exponencial; el fallo del sync **jamás** bloquea la app ni el registro local.
 
+## Resultado parcial del spike (2026-10-22)
+
+- **Almacenamiento de tokens: validado en la máquina de desarrollo.** Round-trip completo `store → lookup → clear` con libsecret/GNOME Keyring desde `python3-gi` (el schema usado será `com.adhancompanion.oauth`). Queda descartado el riesgo de que el keyring no esté disponible en Ubuntu 24.04 GNOME.
+- **Harness del flujo completo listo** en `spikes/gdrive-sync/spike.mjs` (Node 24, sin dependencias): OAuth instalado con PKCE + callback loopback validando `state`, canje de código, renovación con refresh token, guardado en keyring y ciclo Drive `appDataFolder` (subir → listar → descargar + hash → sobrescribir → borrar). La credencial se lee de `.oauth.local`, que `*.local` del `.gitignore` mantiene fuera del repo.
+- **Pendiente para correr contra la cuenta real**: el `client_id` (el que termina en `.apps.googleusercontent.com`; el `GOCSPX-…` es el secret). Con eso, la corrida verde de punta a punta cierra el spike y habilita la fase v0.1.16.
+
 ## Cupos y límites de Drive API (2026)
 
 Verificado contra la documentación oficial (`developers.google.com/workspace/drive/api/guides/limits`):
