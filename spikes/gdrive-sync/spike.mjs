@@ -153,8 +153,9 @@ if (RESUME) {
       })) authUrl.searchParams.set(k, v);
 
       console.log('\nAbriendo el navegador para autorizar (acepte la pantalla de Google)…');
+      console.log('Si no ve una pestaña nueva, copie y pegue esta URL:\n' + authUrl.toString() + '\n');
       const opened = spawnSync('xdg-open', [authUrl.toString()], { stdio: 'ignore' }).status === 0;
-      if (!opened) console.log('No se pudo abrir el navegador; copie y pegue:\n' + authUrl.toString());
+      if (!opened) console.log('xdg-open falló; use la URL de arriba manualmente.\n');
       const t = setTimeout(() => reject(new Error('timeout esperando el callback (5 min)')), 300_000);
       server.on('close', () => clearTimeout(t));
     });
