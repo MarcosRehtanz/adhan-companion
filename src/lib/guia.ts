@@ -10,15 +10,15 @@ export type Postura = "pie" | "inclinado" | "postrado" | "sentado";
 export type Estatus = "pilar" | "obligatorio" | "condicion" | "sunna" | "recomendado";
 export interface Fuente { etiqueta: string; url: string }
 export interface Formula {
-  /** Id en public/rezo/formulas.json; sin id, la fórmula todavía no tiene fuente. */
+  /** Id en public/rezo/formulas.json (y en la planilla de transcripción). */
   id?: string;
+  /** Qué se muestra mientras la fórmula no esté transcrita. */
   pendiente?: string;
   estatus: Estatus;
   /** Se dice antes de la recitación del paso (por ejemplo, el taʿawwudh). */
   antes?: boolean;
   veces?: string;
   nota?: string;
-  alternativa?: string;
 }
 export interface Paso {
   postura: Postura;
@@ -76,9 +76,9 @@ function pasosJafari(rezo: Rezo, r: number, total: number): Paso[] {
         formulas: [{ id: "j_tasbihat", estatus: "obligatorio", veces: "×1, mejor ×3" }, { id: "j_istighfar", estatus: "recomendado" }] };
   p.push(recitacion);
   if (segunda) p.push({ postura: "pie", nombre: "Qunūt", detalle: "Antes del rukūʿ, con las manos alzadas frente a la cara. Basta cualquier dhikr.", formulas: [{ id: "j_qunut", estatus: "recomendado" }], estatus: "recomendado", fuente: IL("1103–1105", "https://www.sistani.org/english/book/48/2243/") });
-  p.push({ postura: "inclinado", nombre: "Rukūʿ", detalle: "Inclinarse hasta que las manos lleguen a las rodillas y quedarse quieto.", formulas: [{ id: "j_ruku", estatus: "obligatorio", alternativa: "o «subḥāna llāh» tres veces" }], estatus: "pilar", fuente: IL("1008–1015", "https://www.sistani.org/english/book/48/2234/") });
+  p.push({ postura: "inclinado", nombre: "Rukūʿ", detalle: "Inclinarse hasta que las manos lleguen a las rodillas y quedarse quieto.", formulas: [{ id: "j_ruku", estatus: "obligatorio" }, { id: "j_subhanallah", estatus: "obligatorio", veces: "×3", nota: "en lugar de la anterior", pendiente: "«Subḥāna llāh»: fórmula pendiente de revisión." }], estatus: "pilar", fuente: IL("1008–1015", "https://www.sistani.org/english/book/48/2234/") });
   p.push({ postura: "pie", nombre: "Levantarse del rukūʿ", detalle: "Ponerse de pie y quedarse quieto.", formulas: [{ id: "j_samia", estatus: "recomendado" }], estatus: "obligatorio", fuente: IL("1026, 1029", "https://www.sistani.org/english/book/48/2234/") });
-  const sujud = (n: number): Paso => ({ postura: "postrado", nombre: `Sujūd ${n}`, detalle: "Siete apoyos: frente, palmas, rodillas y dedos gordos de los pies. La frente sobre tierra o lo que crece de ella (no comestible ni vestible); lo mejor, la turba.", formulas: [{ id: "j_suyud", estatus: "obligatorio", alternativa: "o «subḥāna llāh» tres veces" }, ...(n === 1 ? [{ id: "j_ya_khayr", estatus: "recomendado" } as Formula] : [])], estatus: "pilar", difiere: "La frente sobre tierra o turba es condición ja'fari; ninguna escuela sunni la exige.", fuente: IL("1031–1035, 1062, 1069", "https://www.sistani.org/english/book/48/2235/") });
+  const sujud = (n: number): Paso => ({ postura: "postrado", nombre: `Sujūd ${n}`, detalle: "Siete apoyos: frente, palmas, rodillas y dedos gordos de los pies. La frente sobre tierra o lo que crece de ella (no comestible ni vestible); lo mejor, la turba.", formulas: [{ id: "j_suyud", estatus: "obligatorio" }, { id: "j_subhanallah", estatus: "obligatorio", veces: "×3", nota: "en lugar de la anterior", pendiente: "«Subḥāna llāh»: fórmula pendiente de revisión." }, ...(n === 1 ? [{ id: "j_ya_khayr", estatus: "recomendado" } as Formula] : [])], estatus: "pilar", difiere: "La frente sobre tierra o turba es condición ja'fari; ninguna escuela sunni la exige.", fuente: IL("1031–1035, 1062, 1069", "https://www.sistani.org/english/book/48/2235/") });
   p.push(sujud(1));
   p.push({ postura: "sentado", nombre: "Entre las dos sajdas", detalle: "Sentarse y quedarse quieto.", formulas: [{ id: "j_istighfar", estatus: "recomendado" }], estatus: "obligatorio", fuente: IL("1042, 1077", "https://www.sistani.org/english/book/48/2237/") });
   p.push(sujud(2));
@@ -90,7 +90,7 @@ function pasosJafari(rezo: Rezo, r: number, total: number): Paso[] {
 
 /** La forma larga del taʿawwudh (Abu Dawud 775) es la hanbali; la corta todavía no tiene fuente verificada. */
 function taawwudh(esc: Escuela, antes = false): Formula {
-  return esc === "hanbali" ? { id: "s_taawwudh", estatus: "sunna", antes } : { pendiente: "Taʿawwudh (fórmula corta): falta una fuente verificada", estatus: "sunna", antes };
+  return esc === "hanbali" ? { id: "s_taawwudh", estatus: "sunna", antes } : { id: "s_taawwudh_corto", pendiente: "Taʿawwudh (fórmula corta): falta una fuente verificada", estatus: "sunna", antes };
 }
 
 function pasosSunni(esc: Escuela, rezo: Rezo, r: number, total: number): Paso[] {
@@ -115,7 +115,7 @@ function pasosSunni(esc: Escuela, rezo: Rezo, r: number, total: number): Paso[] 
     rec.formulasDespues = esc === "maliki" ? [] : [{ id: "s_amin", estatus: "sunna" }];
   }
   p.push(rec);
-  if (segunda && rezo === "fajr" && esc === "maliki") p.push({ postura: "pie", nombre: "Qunūt", detalle: "Recomendado en fajr, antes del rukūʿ.", formulas: [{ pendiente: "Qunūt maliki: falta una fuente verificada de la fórmula", estatus: "recomendado" }], estatus: "recomendado", fuente: JZ(304) });
+  if (segunda && rezo === "fajr" && esc === "maliki") p.push({ postura: "pie", nombre: "Qunūt", detalle: "Recomendado en fajr, antes del rukūʿ.", formulas: [{ id: "s_qunut_maliki", pendiente: "Qunūt maliki: falta una fuente verificada de la fórmula", estatus: "recomendado" }], estatus: "recomendado", fuente: JZ(304) });
   const dhikr: Estatus = esc === "hanbali" ? "obligatorio" : "sunna";
   p.push({ postura: "inclinado", nombre: "Rukūʿ", detalle: "Inclinarse con las manos en las rodillas y la espalda recta.", formulas: [{ id: "s_ruku", estatus: dhikr, veces: esc === "maliki" ? "sin número fijo" : "×3" }], estatus: "pilar", fuente: D(946) });
   p.push({ postura: "pie", nombre: "Levantarse del rukūʿ", detalle: "Erguirse y quedarse quieto.", formulas: [{ id: "s_samia", estatus: dhikr, nota: "quien reza solo dice las dos frases" }], estatus: null, fuente: D(954) });

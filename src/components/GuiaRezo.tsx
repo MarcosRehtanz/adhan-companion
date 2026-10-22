@@ -42,13 +42,11 @@ function FormulaBloque({ f, textos }: { f: Formula; textos: Record<string, Texto
   const meta = <div className="guia-formula-meta"><Estado estatus={f.estatus} />{f.veces && <span>{f.veces}</span>}{f.nota && <span>{f.nota}</span>}</div>;
   if (!t) return <div className={"guia-formula pendiente" + (esObligatorio(f.estatus) ? "" : " recomendada")}>{meta}
     <p className="guia-pendiente">{f.pendiente ?? "Fórmula pendiente de revisión: se muestra cuando esté transcrita y revisada."}</p>
-    {f.alternativa && <p className="guia-pendiente">{f.alternativa}</p>}
   </div>;
   return <div className={"guia-formula" + (esObligatorio(f.estatus) ? "" : " recomendada")}>{meta}
     <p className="guia-ar" lang="ar" dir="rtl">{t.ar}</p>
     {t.tr && <p className="guia-tr">{t.tr}</p>}
     {t.es && <p className="guia-es">{t.es}</p>}
-    {f.alternativa && <p className="guia-pendiente">{f.alternativa}</p>}
     <p className="guia-fuente">{t.fuente} · revisó {t.reviso}</p>
   </div>;
 }
