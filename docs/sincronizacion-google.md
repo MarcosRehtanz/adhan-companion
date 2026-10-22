@@ -1,6 +1,6 @@
 # Sincronización de datos con Google
 
-**Estado: propuesta/spike — pendiente de aprobación.** Fecha: 2026-10-21. Alimenta una decisión de producto registrada en el spec del vault: *sincronizar datos con la cuenta de Google: sí; distribuir la app por Google: no*.
+**Estado: aprobado — en fase spike (probar el flujo OAuth con un `client_id` de desarrollo antes de implementar).** Fecha: 2026-10-21. Decisiones aprobadas por el usuario; alimenta la decisión de producto del spec del vault: *sincronizar datos con la cuenta de Google: sí; distribuir la app por Google: no*.
 
 ## Objetivo
 
@@ -105,7 +105,8 @@ Verificado contra la documentación oficial (`developers.google.com/workspace/dr
 3. **v0.1.17**: subida diferida después de cambios y estado persistente de última sync.
 4. **Posterior**: Android (integración nativa con la misma carpeta) y, si algún día hay hardware del nodo, la misma estrategia de respaldo para la configuración del nodo.
 
-## Decisiones abiertas
+## Decisiones (aprobadas por el usuario, 2026-10-21)
 
-- ¿Ubicación geográfica: se sincroniza con `config.json` (una sola ubicación para todas las máquinas) o por dispositivo? El caso del usuario parece ser «una sola ubicación»; se asume eso.
-- ¿Nombre del dispositivo para mostrar en la UI de conflicto? Sugerencia: pedirlo opcional la primera vez, default por SO.
+- **Sincronizar datos con la cuenta de Google: sí. Distribuir la app por Google (Play Store): no.**
+- **Ubicación geográfica**: se sincroniza dentro de `config.json` — **una sola ubicación para todas las máquinas** (no por dispositivo).
+- **Nombre del dispositivo**: opcional; se pide una vez y por defecto usa el del sistema operativo. Se muestra en la UI de conflicto.
