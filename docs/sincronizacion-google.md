@@ -122,8 +122,12 @@ Tests nuevos: 6 de unidad (`sync_google`): unión/deduplica del registro, orden 
 
 Pendientes para liberar el sync (v0.1.16 en release):
 1. **Cliente de producción en Google Cloud** (ahora hay credencial dev en Testing: refresh caduca a 7 días): proyecto propio, Drive API, consentimiento "En producción" + Client ID Desktop incrustado.
-2. **Validación física del ciclo completo** en esta máquina: conectar → primera subida → editar en otra máquina → conflicto con elección → restauración.
-3. Políticas de UI: la cuenta conectada no muestra dirección de correo (el scope no lo pide — decisión aprobada).
+2. ~~Validación física del ciclo completo~~ — **parcialmente hecha (22/10, dev en esta máquina)**: autorización OAuth real (loopback + keyring), primera subida creada en Drive y sobrescritura exitosa por PATCH en el segundo sync. **Faltan**: el conflicto con elección y la restauración, que necesitan datos divergentes de una segunda máquina (o el truco de respaldar y vaciar `registro.jsonl` local).
+
+Gotchas verificados en la validación:
+- **`invoke_handler` pisa al anterior**: en Tauri 2 una segunda llamada reemplaza el handler completo (síntoma: `runtime_info not found` en todo el frontend). Hay un único handler por plataforma — desktop con los `sync_*`, mobile sin ellos — y las dos listas deben mantenerse sincronizadas a mano.
+- **Capabilities también para comandos propios**: los comandos `sync_*` necesitan el permiso `google-sync` (`src-tauri/permissions/sync.toml`) declarado en `capabilities/default.json`; sin eso la ventana rechaza la invocación con «sync_estado not allowed» aunque el comando esté registrado.
+- La build dev usa la **misma carpeta de datos** (`~/.config/adhan-companion`) que la instalada: probar en dev toca config y registro reales, y la instancia instalada del tray debe cerrarse antes (singleton).
 
 ## Cupos y límites de Drive API (2026)
 

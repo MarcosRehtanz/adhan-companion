@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "google-sync"
+description = "Permite a la ventana principal usar el respaldo y sincronización con Google Drive (solo escritorio)."
+commands.allow = ["sync_estado", "sync_login", "sync_logout", "sync_ahora", "sync_resolver", "sync_restaurar"]

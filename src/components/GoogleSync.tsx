@@ -46,13 +46,20 @@ const kb = (n: number) =>
 
 export function GoogleSync({ recargado }: { recargado: () => void }) {
   const [estado, setEstado] = useState<EstadoSync | null>(null);
+  const [errorEstado, setErrorEstado] = useState<string | null>(null);
   // operación en curso: "login" | "sync" | "logout" | "resolver" | "restaurar"
   const [enCurso, setEnCurso] = useState<string | null>(null);
   const [copiada, setCopiada] = useState(false);
 
   const traer = useCallback(async () => {
-    try { setEstado(await invoke<EstadoSync>("sync_estado")); }
-    catch { setEstado(null); }
+    try {
+      setEstado(await invoke<EstadoSync>("sync_estado"));
+      setErrorEstado(null);
+    } catch (e) {
+      setEstado(null);
+      setErrorEstado(String(e));
+      console.error("[sync] sync_estado falló:", e);
+    }
   }, []);
 
   useEffect(() => { void traer(); }, [traer]);
@@ -72,7 +79,14 @@ export function GoogleSync({ recargado }: { recargado: () => void }) {
     recargado(); // el registro/config pueden haber cambiado (stats, horarios)
   };
 
-  if (!estado) return <p role="status">Consultando el estado del respaldo…</p>;
+  if (!estado) return <section className="panel setting-panel">
+    {errorEstado
+      ? <p role="alert" style={{ color: "var(--error, #b3552d)" }}><AlertCircle size={14} className="icono-inline" /> No se pudo leer el estado del respaldo: {errorEstado}</p>
+      : <p role="status">Consultando el estado del respaldo…</p>}
+    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+      <button className="secondary-button" onClick={() => void traer()}><RefreshCw size={14} className="icono-inline" /> Reintentar</button>
+    </div>
+  </section>;
 
   const { sesion, respaldo, conflicto, restaurar, url_autorizacion, ultimo_error, ultima_sync } = estado;
 
