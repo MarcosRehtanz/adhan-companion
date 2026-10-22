@@ -24,18 +24,20 @@ export function PrayerRegister({ schedule }: { schedule: Schedule | null }) {
   const lock = useRef(false);
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; seq.current++; }; }, []);
-  const reload = useCallback(async () => {
-    const id = ++seq.current; setLoading(true); setLoadError("");
+  // `background`: refresca sin ocultar el mes que ya se ve (después de marcar o por un aviso del core).
+  const reload = useCallback(async (background = false) => {
+    const id = ++seq.current;
+    if (!background) { setLoading(true); setLoadError(""); }
     try {
       const days = await invoke<MarkedDay[]>("get_marked", { month });
-      if (mounted.current && id === seq.current) setRecords({ month, values: new Map(days.map(d => [d.date, new Set(d.prayers)])) });
+      if (mounted.current && id === seq.current) { setRecords({ month, values: new Map(days.map(d => [d.date, new Set(d.prayers)])) }); setLoadError(""); }
     } catch (e) { if (mounted.current && id === seq.current) setLoadError(String(e)); }
     finally { if (mounted.current && id === seq.current) setLoading(false); }
   }, [month]);
   useEffect(() => { void reload(); return () => { seq.current++; }; }, [reload]);
   useEffect(() => {
     let active = true;
-    const un = listen("schedule_changed", () => { if (active) void reload(); });
+    const un = listen("schedule_changed", () => { if (active) void reload(true); });
     return () => { active = false; void un.then(f => f()).catch(() => {}); };
   }, [reload]);
   useEffect(() => {
@@ -51,7 +53,15 @@ export function PrayerRegister({ schedule }: { schedule: Schedule | null }) {
     lock.current = true; setPending(prayer); setSaveError("");
     try {
       await invoke("mark_prayed", { date: selected, prayer });
-      if (mounted.current) await reload();
+      // El core confirmó: el día cambia ya y el mes se refresca sin ocultarse.
+      if (mounted.current) setRecords(current => {
+        if (!current || current.month !== month) return current;
+        const values = new Map(current.values), day = new Set(values.get(selected) ?? []);
+        if (day.has(prayer)) day.delete(prayer); else day.add(prayer);
+        values.set(selected, day);
+        return { month, values };
+      });
+      if (mounted.current) void reload(true);
     } catch (e) { if (mounted.current) setSaveError(`No se pudo guardar el registro: ${e}`); }
     finally { lock.current = false; if (mounted.current) setPending(null); }
   }

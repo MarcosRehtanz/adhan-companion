@@ -753,6 +753,12 @@ fn sin_credencial() -> bool {
     client_id() == CLIENT_ID_FALLBACK
 }
 
+/// Una build sin credencial OAuth (como las de la CI) no ofrece el respaldo:
+/// el panel se oculta y no se consulta el keyring al arrancar.
+pub fn disponible() -> bool {
+    !sin_credencial()
+}
+
 /// Inicia la vinculación: abre el navegador con la pantalla de Google, recibe
 /// el callback en un puerto efímero y guarda el refresh token en el keyring.
 #[tauri::command]
@@ -872,6 +878,9 @@ pub async fn sync_ahora(
 /// botón: restauración/conflicto quedan detenido en el estado — la UI los consulta.
 #[cfg(desktop)]
 pub async fn al_arrancar(app: tauri::AppHandle) {
+    if !disponible() {
+        return;
+    }
     let shared = app.state::<SharedConfig>();
     let sched_tx = app.state::<std::sync::mpsc::Sender<scheduler::Trigger>>();
     match sync_core(&shared, &sched_tx).await {

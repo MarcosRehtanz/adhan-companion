@@ -116,7 +116,7 @@ Módulo `src-tauri/src/sync_google.rs` (desktop-only) con el ciclo completo del 
 | Config / lector | LWW **con consulta**: si difieren, sync detenido en `conflicto` hasta elección local/Drive; el config remoto se adopta con el contrato íntegro de `set_config` (validación + estado compartido + reprogramación del scheduler) |
 | Restauración | registro local vacío + historial remoto → oferta explícita; "descartar" no re-oferta en la ejecución |
 | Estados UI | Panel nuevo **Configuración → Respaldo y sincronización** (`GoogleSync.tsx`) con los estados del módulo: sin sesión/conectando/activa, operación en curso, error con reintento, conflicto y restauración con elección |
-| Credencial | `build.rs` exporta `GOOGLE_OAUTH_CLIENT_ID[/_SECRET]` desde `.oauth.local` (fuera de Git); builds sin credencial compilan con marcador e informan en claro |
+| Credencial | `build.rs` exporta `GOOGLE_OAUTH_CLIENT_ID[/_SECRET]` desde `.oauth.local` (fuera de Git); builds sin credencial compilan con marcador y, desde v0.1.15, no muestran el panel ni consultan el keyring al arrancar (`runtime_info.google_sync`). Las dependencias del sync van en la sección de escritorio de `Cargo.toml`: Android no las compila |
 
 Tests nuevos: 6 de unidad (`sync_google`): unión/deduplica del registro, orden conservador, formato multipart Drive, traducción de errores de token, fechas civiles ISO sin deps. Suite: **36 verdes**. Android queda para fase posterior (Posterior: integración nativa con Play Services), el módulo es `cfg(desktop)`.
 
