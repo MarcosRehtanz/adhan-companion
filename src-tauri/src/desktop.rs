@@ -73,6 +73,18 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // sync con Google al arrancar (si hay sesión): el mismo flujo del botón,
+    // deferrado ("tras el updater") y sin notificación — los conflictos/la
+    // restauración quedan en el estado interno y el UI los consulta al abrir
+    // el panel; un fallo de red sólo deja log, la app sigue local
+    #[cfg(desktop)]
+    let sync_handle = app.handle().clone();
+    #[cfg(desktop)]
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(14));
+        tauri::async_runtime::block_on(crate::sync_google::al_arrancar(sync_handle));
+    });
+
     // Menú según el spec: countdown arriba, los 5 horarios (clic = marcar rezado),
     // test de audio, configuración y salir
     let countdown = MenuItem::with_id(

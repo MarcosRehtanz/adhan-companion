@@ -19,6 +19,7 @@ import { GoogleMapsLocationPicker } from "./components/GoogleMapsLocationPicker"
 import { PrayerAlertsSettings, type AudioConfig } from "./components/PrayerAlertsSettings";
 import { IslamicCalendar, type CalendarConfig } from "./components/IslamicCalendar";
 import { Today } from "./components/Today";
+import { GoogleSync } from "./components/GoogleSync";
 import { hijriLabel } from "./lib/hijri";
 import { cardinal } from "./lib/prayers";
 import { AppearanceSettings, useAppearance, DEFAULT_APPEARANCE, themes, palettes, type Appearance } from "./components/AppearanceSettings";
@@ -34,7 +35,7 @@ const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 // Las mismas páginas en el celular y en escritorio; cambia el marco de navegación.
 // Celular (Android y ventanas de hasta 720 px): barra inferior con Hoy, Registro, Qur’an y Más.
 // Escritorio: barra lateral con Hoy, Registro, Calendario islámico, Qur’an y Configuración.
-type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "actualizaciones" | "acerca";
+type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "respaldo" | "actualizaciones" | "acerca";
 type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | null;
 const TABS: { id: Page; label: string; Icon: LucideIcon }[] = [
   { id: "hoy", label: "Hoy", Icon: Sun },
@@ -50,7 +51,7 @@ const SIDEBAR: { id: Page; label: string; Icon: LucideIcon }[] = [
 ];
 const SUBPAGE_TITLES: Partial<Record<Page, string>> = {
   calendario: "Calendario islámico", qibla: "Qibla", horarios: "Ubicación y cálculo", avisos: "Adhan y avisos",
-  apariencia: "Apariencia", inicio: "Inicio de sesión", actualizaciones: "Actualizaciones", acerca: "Acerca de",
+  apariencia: "Apariencia", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", actualizaciones: "Actualizaciones", acerca: "Acerca de",
 };
 
 interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean; quran_audio: boolean }
@@ -194,6 +195,13 @@ export default function App() {
   }, [cfg, pendiente, loadQibla, loadSchedule]);
 
   const flash = useCallback((text: string, kind: "ok" | "error") => setStatus({ text, kind }), []);
+
+  // Tras una operación del sync (merge de rezos / adopción de config remota):
+  // releer config, horarios, qibla y stats — una sola fuente: el core.
+  const recargadoDeSync = useCallback(() => {
+    invoke<Config>("get_config").then((c) => { setCfg(c); setGuardada(c); }).catch(() => {});
+    void loadSchedule(); void loadQibla(); void loadStats();
+  }, [loadSchedule, loadQibla, loadStats]);
 
   // Sugerencia de ubicación por IP (única pieza de red del spec)
   // Cadena de proveedores: si uno falla o no trae ciudad, se prueba el próximo.
@@ -355,6 +363,7 @@ export default function App() {
   ], [
     { id: "apariencia", label: "Apariencia", value: `Tema ${themes[appearance.theme].toLowerCase()}, acento ${palettes[appearance.accent].name.toLowerCase()}` },
     ...(!isAndroid ? [{ id: "inicio" as Page, label: "Inicio de sesión", value: "Abrir Adhan Companion en la bandeja al iniciar sesión" }] : []),
+    ...(!isAndroid ? [{ id: "respaldo" as Page, label: "Respaldo y sincronización", value: "Configuración, rezos y lectura en tu cuenta de Google" }] : []),
     { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.14"}` },
     { id: "acerca", label: "Acerca de", value: "Archivo de configuración y fuentes" },
   ]];
@@ -384,6 +393,7 @@ export default function App() {
     {page === "avisos" && <div className="page-stack">{avisos}</div>}
     {page === "apariencia" && <div className="page-stack"><AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={appearance} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} /></div>}
     {page === "inicio" && <div className="page-stack"><section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section></div>}
+    {page === "respaldo" && <div className="page-stack"><GoogleSync recargado={recargadoDeSync} /></div>}
     {page === "actualizaciones" && <div className="page-stack">{isAndroid ? <AndroidUpdates /> : <DesktopUpdates />}</div>}
     {page === "acerca" && <div className="page-stack">
       <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>

@@ -699,3 +699,9 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .barra-inferior [aria-current="page"] .icono-tab { background: var(--acento-claro); }
 @media (prefers-reduced-motion: reduce) { .progreso span, .marca { transition: none; } }
 
+
+/* Sync con Google: ícono alineado al texto y detalle del respaldo en subpantalla */
+.icono-inline {
+  vertical-align: -2px;
+  margin-right: 4px;
+}

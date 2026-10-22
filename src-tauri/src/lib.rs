@@ -21,6 +21,8 @@ pub mod quran_audio;
 pub mod registro;
 pub mod scheduler;
 pub mod updater;
+#[cfg(desktop)]
+pub mod sync_google;
 
 use std::sync::mpsc;
 
@@ -456,7 +458,16 @@ pub fn run() {
         ejecutando_deb,
         check_update,
         desktop_update_status,
-        instalar_update
+        instalar_update,
+    ]);
+    #[cfg(desktop)]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        sync_google::sync_estado,
+        sync_google::sync_login,
+        sync_google::sync_logout,
+        sync_google::sync_ahora,
+        sync_google::sync_resolver,
+        sync_google::sync_restaurar
     ]);
     #[cfg(desktop)]
     let builder = builder

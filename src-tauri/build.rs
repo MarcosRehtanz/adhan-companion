@@ -20,5 +20,23 @@ fn main() {
         .warnings(false)
         .compile("praytimes");
 
+    // Credencial OAuth de Google (Desktop): .oauth.local en la raíz del repo
+    // (fuera de Git por *.local). En CI/botella sin credencial la build sigue
+    // y la app avisa en claro que falta configuración (client_id marcador).
+    let mut ruta = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    ruta.pop();
+    let oauth_local = ruta.join(".oauth.local");
+    if let Ok(texto) = std::fs::read_to_string(&oauth_local) {
+        for linea in texto.lines() {
+            if let Some((k, v)) = linea.split_once('=') {
+                let (k, v) = (k.trim(), v.trim());
+                if (k == "GOOGLE_OAUTH_CLIENT_ID" || k == "GOOGLE_OAUTH_CLIENT_SECRET") && !v.is_empty() {
+                    println!("cargo:rustc-env={k}={v}");
+                }
+            }
+        }
+        println!("cargo:rerun-if-changed={}", oauth_local.display());
+    }
+
     tauri_build::build()
 }

@@ -101,6 +101,30 @@ Gotchas confirmados en la práctica:
 
 Con esto, el diseño de arriba queda validado de punta a punta; nada de esta doc cambió. Hilo de implementación v0.1.16 abierto.
 
+## Implementación v0.1.16 (2026-10-22) — Código hecho, validación física pendiente
+
+Módulo `src-tauri/src/sync_google.rs` (desktop-only) con el ciclo completo del diseño:
+
+| Pieza | Implementación |
+|---|---|
+| OAuth PKCE + loopback | `TcpListener` efímero propio (no plugin); callback con `state` (CSRF) y página de cierre; timeout 5 min; URL copiable si `xdg-open` no abre |
+| Refresh token | keyring del sistema (`keyring` 4: libsecret Linux, Credential Manager Windows), servicio `adhan-companion-google-refresh`; access sólo en memoria |
+| Renovación + errores | `reqwest` (0.13, rustls) en el core; `invalid_grant` → sesión limpia + "conectá de nuevo"; 403 `access_denied` → instructivo explícito |
+| Drive | list/create(PATCH+POST multipart)/download sobre `appDataFolder`; sobrescripción PATCH (formato exacto del spike) |
+| Respaldo | un archivo `adhan-companion-backup.json` (schema 1): config raw, lector raw, registro completo |
+| Registro | **unión por evento** con append-only intacto; orden conservador: `rezado` queda último en cada (fecha, rezo) — last-wins del log nunca pierde una marca |
+| Config / lector | LWW **con consulta**: si difieren, sync detenido en `conflicto` hasta elección local/Drive; el config remoto se adopta con el contrato íntegro de `set_config` (validación + estado compartido + reprogramación del scheduler) |
+| Restauración | registro local vacío + historial remoto → oferta explícita; "descartar" no re-oferta en la ejecución |
+| Estados UI | Panel nuevo **Configuración → Respaldo y sincronización** (`GoogleSync.tsx`) con los estados del módulo: sin sesión/conectando/activa, operación en curso, error con reintento, conflicto y restauración con elección |
+| Credencial | `build.rs` exporta `GOOGLE_OAUTH_CLIENT_ID[/_SECRET]` desde `.oauth.local` (fuera de Git); builds sin credencial compilan con marcador e informan en claro |
+
+Tests nuevos: 6 de unidad (`sync_google`): unión/deduplica del registro, orden conservador, formato multipart Drive, traducción de errores de token, fechas civiles ISO sin deps. Suite: **36 verdes**. Android queda para fase posterior (Posterior: integración nativa con Play Services), el módulo es `cfg(desktop)`.
+
+Pendientes para liberar el sync (v0.1.16 en release):
+1. **Cliente de producción en Google Cloud** (ahora hay credencial dev en Testing: refresh caduca a 7 días): proyecto propio, Drive API, consentimiento "En producción" + Client ID Desktop incrustado.
+2. **Validación física del ciclo completo** en esta máquina: conectar → primera subida → editar en otra máquina → conflicto con elección → restauración.
+3. Políticas de UI: la cuenta conectada no muestra dirección de correo (el scope no lo pide — decisión aprobada).
+
 ## Cupos y límites de Drive API (2026)
 
 Verificado contra la documentación oficial (`developers.google.com/workspace/drive/api/guides/limits`):

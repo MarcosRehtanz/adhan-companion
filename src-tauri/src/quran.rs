@@ -53,6 +53,24 @@ fn load() -> Result<ReaderState, String> {
     validate(&state)?;
     Ok(state)
 }
+/// Adopción de un estado remoto (sync con Google): parse + validate + write
+/// atómico con el mismo candado del lector. Si no valida, Err sin tocar el archivo.
+pub fn reemplazar_state(texto: &str) -> Result<(), String> {
+    let _guard = READER_LOCK.lock().map_err(|_| "No se pudo acceder al lector.")?;
+    let estado: ReaderState = serde_json::from_str(texto).map_err(|e| format!("Estado del lector ilegible: {e}"))?;
+    validate(&estado)?;
+    let dir = crate::config::config_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("No se pudo crear la carpeta del lector: {e}"))?;
+    let path = dir.join("quran-reader.json");
+    let tmp = dir.join("quran-reader.json.tmp");
+    let data = serde_json::to_vec_pretty(&estado).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp, data).map_err(|e| format!("No se pudo guardar el lector: {e}"))?;
+    std::fs::rename(&tmp, &path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("No se pudo reemplazar el estado del lector: {e}")
+    })
+}
+
 #[tauri::command]
 pub fn get_quran_reader() -> Result<ReaderState, String> {
     let _guard = READER_LOCK.lock().map_err(|_| "No se pudo acceder al lector.")?;
