@@ -428,7 +428,12 @@ pub fn run() {
         ));
     #[cfg(target_os = "android")]
     let builder = builder.plugin(android_alerts::init());
+    // Un ÚNICO invoke_handler: en Tauri 2 una segunda llamada REEMPLAZA al
+    // handler anterior y se pierden los comandos del primer bloque (bug visto
+    // en dev: "runtime_info not found"). Mantener ambas listas en sync.
+    #[cfg(desktop)]
     let builder = builder.invoke_handler(tauri::generate_handler![
+
         runtime_info,
         android_alert_status,
         android_update,
@@ -459,15 +464,46 @@ pub fn run() {
         check_update,
         desktop_update_status,
         instalar_update,
-    ]);
-    #[cfg(desktop)]
-    let builder = builder.invoke_handler(tauri::generate_handler![
         sync_google::sync_estado,
         sync_google::sync_login,
         sync_google::sync_logout,
         sync_google::sync_ahora,
         sync_google::sync_resolver,
         sync_google::sync_restaurar
+    ]);
+    #[cfg(not(desktop))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+
+        runtime_info,
+        android_alert_status,
+        android_update,
+        quran_audio_status,
+        quran_audio_control,
+        quran::get_quran_reader,
+        quran::update_quran_reader,
+        get_schedule,
+        preview_alert,
+        alert_playback_status,
+        stop_alert,
+        parse_google_maps_location,
+        test_adhan,
+        test_notification,
+        get_config,
+        set_config,
+        set_autostart,
+        get_autostart,
+        mark_prayed,
+        get_marked,
+        get_schedule_for,
+        get_qibla,
+        get_stats,
+        version_actual,
+        ejecutando_appimage,
+        ejecutando_windows,
+        ejecutando_deb,
+        check_update,
+        desktop_update_status,
+        instalar_update,
     ]);
     #[cfg(desktop)]
     let builder = builder
