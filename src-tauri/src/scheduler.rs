@@ -474,6 +474,21 @@ fn refresh_tray(s: &SchedulerLoop, schedule: &Schedule, playing: Option<&str>) {
 }
 
 #[cfg(desktop)]
+/// Rezos de hoy que tocan recordar: pasaron `minutes` minutos de su horario, todavía no empezó
+/// el rezo siguiente y no se recordaron. No se avisa tarde: fuera de una ventana de 10 minutos
+/// (app dormida o cerrada) ese recordatorio se pierde, igual que el Adhan.
+pub fn reminders_due(prayers: &[PrayerSlot], now_secs: i64, minutes: i32, reminded: &[bool]) -> Vec<usize> {
+    const VENTANA: i64 = 600;
+    (0..prayers.len())
+        .filter(|&i| !reminded.get(i).copied().unwrap_or(true) && prayers[i].dec.is_finite())
+        .filter(|&i| {
+            let at = (prayers[i].dec * 3600.0) as i64 + minutes as i64 * 60;
+            let next = prayers[i + 1..].iter().find(|p| p.dec.is_finite()).map_or(24 * 3600, |p| (p.dec * 3600.0) as i64);
+            now_secs >= at && now_secs < at + VENTANA && now_secs < next
+        })
+        .collect()
+}
+
 pub fn run(s: SchedulerLoop) {
     let mut cfg = snapshot(&s.config);
     let mut schedule = compute_schedule(&cfg);
@@ -488,6 +503,9 @@ pub fn run(s: SchedulerLoop) {
     let mut adhan_announced = false;
     // Edge del preaviso: una sola vez por rezo cuando entra en ventada notice
     let mut notice_announced = false;
+    // Recordatorio por rezo de hoy (follow_up): una sola vez, se reinicia al cambiar el día
+    let mut reminded = [false; 5];
+    let mut reminded_date = schedule.date.clone();
     refresh_prayer_items(&s, &schedule);
     publish_schedule(&s, &schedule);
     refresh_tray(&s, &schedule, None);
@@ -621,6 +639,24 @@ pub fn run(s: SchedulerLoop) {
             let _ = s.app.emit("schedule_changed", &schedule);
         }
 
+        // Seguimiento: la pausa calla Adhan, preaviso y recordatorio; el recordatorio avisa si un
+        // rezo de hoy sigue sin marcar N minutos después de su horario.
+        let follow_up = snapshot(&s.config).follow_up;
+        let paused = follow_up.paused_on(now.date_naive());
+        if reminded_date != schedule.date {
+            reminded = [false; 5];
+            reminded_date = schedule.date.clone();
+        }
+        if follow_up.reminder && !paused {
+            let now_secs = now.hour() as i64 * 3600 + now.minute() as i64 * 60 + now.second() as i64;
+            for i in reminders_due(&schedule.prayers, now_secs, follow_up.minutes, &reminded) {
+                reminded[i] = true;
+                if !crate::registro::is_prayer_marked(&schedule.date, PRAYERS[i]) {
+                    notify(&s.app, &format!("¿Ya rezaste {}?", PRAYERS[i]), "Marcalo desde la bandeja o en Hoy.");
+                }
+            }
+        }
+
         // Countdown del próximo rezo aún no disparado
         if fired >= PRAYERS.len() {
             refresh_tray(&s, &schedule, None);
@@ -637,7 +673,8 @@ pub fn run(s: SchedulerLoop) {
                 "adhan de {} terminó (verde {} s) / o sin ventana vivida → marca en el registro y avanza",
                 PRAYERS[fired], ADHAN_SECS
             );
-            if crate::registro::last_status_for(&schedule.date, PRAYERS[fired]).is_none() {
+            // En pausa no se registra como perdido: no hubo aviso que perder.
+            if !paused && crate::registro::last_status_for(&schedule.date, PRAYERS[fired]).is_none() {
                 if let Err(e) = crate::registro::append(&schedule.date, PRAYERS[fired], "perdido") {
                     crate::log!("no se pudo registrar {} como perdido: {e}", PRAYERS[fired]);
                 }
@@ -654,28 +691,31 @@ pub fn run(s: SchedulerLoop) {
         // (secs < -ADHAN_SECS ya avanzó arriba sin tocar el audio).
         if secs < 0 && !adhan_announced {
             adhan_announced = true;
-            // registro del spec: el disparo queda asentado (status "adhan")
-            if let Err(e) = crate::registro::append(&schedule.date, PRAYERS[fired], "adhan") {
-                crate::log!("registro del disparo falló: {e}");
-            }
-            notify(
-                &s.app,
-                "Hora de orar",
-                format!(
-                    "{} ({}) — tocá el menú del tray para confirmar (ya recé) o Silenciar para detener",
-                    PRAYERS[fired], schedule.prayers[fired].hhmm
-                ).as_str(),
-            );
-            let cfg = snapshot(&s.config);
-            if let Err(e) = crate::audio::play_alert(&cfg.audio, &PRAYERS[fired].to_lowercase()) {
-                crate::log!("audio falló en el disparo: {e}");
+            // En pausa se consume el disparo (el cursor avanza igual), pero no suena ni se registra
+            if !paused {
+                // registro del spec: el disparo queda asentado (status "adhan")
+                if let Err(e) = crate::registro::append(&schedule.date, PRAYERS[fired], "adhan") {
+                    crate::log!("registro del disparo falló: {e}");
+                }
+                notify(
+                    &s.app,
+                    "Hora de orar",
+                    format!(
+                        "{} ({}) — tocá el menú del tray para confirmar (ya recé) o Silenciar para detener",
+                        PRAYERS[fired], schedule.prayers[fired].hhmm
+                    ).as_str(),
+                );
+                let cfg = snapshot(&s.config);
+                if let Err(e) = crate::audio::play_alert(&cfg.audio, &PRAYERS[fired].to_lowercase()) {
+                    crate::log!("audio falló en el disparo: {e}");
+                }
             }
         }
 
         // Preaviso del spec: N min antes (notice.minutes_before del config),
         // UNA vez por rezo (edge), solo si el rezo todavía no disparó
         let notice_secs = snapshot(&s.config).notice.minutes_before as i64 * 60;
-        if secs > 0 && secs <= notice_secs && !notice_announced {
+        if !paused && secs > 0 && secs <= notice_secs && !notice_announced {
             notice_announced = true;
             notify(
                 &s.app,

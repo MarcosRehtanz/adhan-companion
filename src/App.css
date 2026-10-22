@@ -705,3 +705,13 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
   vertical-align: -2px;
   margin-right: 4px;
 }
+
+/* Seguimiento: recordatorio y pausa de los avisos. */
+.editor label.fila-check { flex-direction: row; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; font-weight: 500; }
+.fila-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--acento); }
+.pausa-fila { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.pausa-fila label { display: flex; flex-direction: column; gap: 5px; color: var(--texto-suave); font-size: 12px; font-weight: 600; }
+.pausa-fila input { width: 90px; }
+.aviso-pausa { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 680px; margin: 4px auto 12px; padding: 12px 14px; border-radius: 12px; background: var(--acento-claro); color: var(--texto); font-size: 14px; }
+.aviso-pausa p { margin: 0; }
+.aviso-pausa .link-button { padding-left: 0; }

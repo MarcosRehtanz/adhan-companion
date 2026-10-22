@@ -15,7 +15,7 @@ import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import org.json.JSONObject
 
-@InvokeArg class ConfigArgs { lateinit var config: String }
+@InvokeArg class ConfigArgs { lateinit var config: String; var registro: String = "" }
 @InvokeArg class ControlArgs { var action: String = "status" }
 @InvokeArg class PreviewArgs { lateinit var audio: String; lateinit var prayer: String }
 @InvokeArg class MapsLinkArgs { lateinit var url: String }
@@ -47,7 +47,7 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
     }
     @Command fun sync(invoke: Invoke) {
         val args = invoke.parseArgs(ConfigArgs::class.java)
-        background(invoke) { PrayerAlarms.sync(activity, args.config) }
+        background(invoke) { PrayerAlarms.sync(activity, args.config, args.registro) }
     }
     @Command fun control(invoke: Invoke) {
         val action = invoke.parseArgs(ControlArgs::class.java).action

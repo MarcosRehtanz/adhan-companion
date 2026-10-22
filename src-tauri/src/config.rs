@@ -223,6 +223,47 @@ pub struct Notice {
 
 fn default_notice() -> i32 { 10 }
 
+/// Seguimiento de los rezos: recordatorio si no se marcó y pausa de todos los avisos.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FollowUp {
+    /// Avisar si un rezo de hoy sigue sin marcar `minutes` después de su horario.
+    #[serde(default)]
+    pub reminder: bool,
+    #[serde(default = "default_reminder_minutes")]
+    pub minutes: i32,
+    /// Sin Adhan, preaviso ni recordatorio hasta esta fecha local (YYYY-MM-DD, el día en que
+    /// vuelven). La app no pregunta ni guarda el motivo.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paused_until: Option<String>,
+}
+
+fn default_reminder_minutes() -> i32 { 30 }
+
+impl Default for FollowUp {
+    fn default() -> Self { Self { reminder: false, minutes: default_reminder_minutes(), paused_until: None } }
+}
+
+impl FollowUp {
+    /// Reglas del seguimiento al guardar el config.
+    pub fn validar(&self) -> Result<(), String> {
+        if !(5..=120).contains(&self.minutes) {
+            return Err("El recordatorio va de 5 a 120 minutos después del horario.".into());
+        }
+        if let Some(d) = self.paused_until.as_deref() {
+            NaiveDate::parse_from_str(d, "%Y-%m-%d").map_err(|_| "La fecha de la pausa no es válida.".to_string())?;
+        }
+        Ok(())
+    }
+
+    /// ¿Los avisos están en pausa ese día?
+    pub fn paused_on(&self, day: NaiveDate) -> bool {
+        self.paused_until
+            .as_deref()
+            .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
+            .is_some_and(|hasta| day < hasta)
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct AgentConfig {
     #[serde(default)]
@@ -282,6 +323,8 @@ pub struct Config {
     pub calendar: CalendarConfig,
     #[serde(default)]
     pub appearance: Appearance,
+    #[serde(default)]
+    pub follow_up: FollowUp,
 }
 
 fn default_method() -> Method { Method::Mwl }
@@ -302,6 +345,7 @@ impl Default for Config {
             calendar: CalendarConfig::default(),
             appearance: Appearance::default(),
             notice: Notice { minutes_before: 10 },
+            follow_up: FollowUp::default(),
             agent: AgentConfig { mqtt: false, broker: String::new() },
         }
     }

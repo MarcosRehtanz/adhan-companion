@@ -19,6 +19,7 @@ import { GoogleMapsLocationPicker } from "./components/GoogleMapsLocationPicker"
 import { PrayerAlertsSettings, type AudioConfig } from "./components/PrayerAlertsSettings";
 import { IslamicCalendar, type CalendarConfig } from "./components/IslamicCalendar";
 import { Today } from "./components/Today";
+import { PauseAlerts, enPausa, fechaVuelta } from "./components/PauseAlerts";
 import { GoogleSync } from "./components/GoogleSync";
 import { hijriLabel } from "./lib/hijri";
 import { cardinal } from "./lib/prayers";
@@ -71,6 +72,7 @@ interface Config {
   appearance: Appearance;
   notice: { minutes_before: number };
   agent: { mqtt: boolean; broker: string };
+  follow_up: { reminder: boolean; minutes: number; paused_until?: string | null };
 }
 
 const NARROW = "(max-width: 720px)";
@@ -294,7 +296,8 @@ export default function App() {
         if (editando === "ubicacion") return { ...actual, city: snapshotEdicion.city, lat: snapshotEdicion.lat, lon: snapshotEdicion.lon, tz: snapshotEdicion.tz };
         if (editando === "calendario") return { ...actual, calendar: snapshotEdicion.calendar };
         if (editando === "calculo") return { ...actual, method: snapshotEdicion.method, madhab: snapshotEdicion.madhab, highLatRule: snapshotEdicion.highLatRule, offsets: snapshotEdicion.offsets };
-        return { ...actual, audio: snapshotEdicion.audio, notice: snapshotEdicion.notice };
+        // La pausa no es parte del borrador: se conserva la vigente.
+        return { ...actual, audio: snapshotEdicion.audio, notice: snapshotEdicion.notice, follow_up: { ...actual.follow_up, reminder: snapshotEdicion.follow_up.reminder, minutes: snapshotEdicion.follow_up.minutes } };
       });
     }
     setEditando(null);
@@ -350,16 +353,23 @@ export default function App() {
       {editando === "adhan" ? <div className="editor">
         <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>
         <p className="nota">El preaviso es una notificación independiente. Usá 0 para desactivarlo. Guardar aplica todos los cambios.</p>
+        <label className="fila-check"><input type="checkbox" checked={cfg.follow_up.reminder} onChange={(e) => upd({ follow_up: { ...cfg.follow_up, reminder: e.target.checked } })} />Recordarme si no marqué el rezo</label>
+        <label>Cuánto después del horario (minutos)<input type="number" min="5" max="120" disabled={!cfg.follow_up.reminder} value={cfg.follow_up.minutes} onChange={(e) => upd({ follow_up: { ...cfg.follow_up, minutes: +e.target.value } })} /></label>
+        <p className="nota">Un aviso suave, sin Adhan, si a esa hora el rezo sigue sin marcar. No llega tarde ni cuando ya empezó el rezo siguiente.</p>
         <div className="editor-actions"><button className="secondary-button" onClick={() => { invoke("stop_alert").catch(() => {}); cancelarEdicion(); }}>Cancelar</button></div>
-      </div> : <p>Preaviso: {cfg.notice.minutes_before === 0 ? "desactivado" : `${cfg.notice.minutes_before} min antes`}</p>}
+      </div> : <>
+        <p>Preaviso: {cfg.notice.minutes_before === 0 ? "desactivado" : `${cfg.notice.minutes_before} min antes`}</p>
+        <p>Recordatorio: {cfg.follow_up.reminder ? `a los ${cfg.follow_up.minutes} min, si el rezo sigue sin marcar` : "desactivado"}</p>
+      </>}
     </section>
+    <PauseAlerts pausedUntil={cfg.follow_up.paused_until} today={hoy} disabled={!!editando || saving} onChanged={(saved) => { setCfg(saved as Config); setGuardada(saved as Config); void loadSchedule(); }} />
   </>;
   const calendario = scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>;
   const opciones: { id: Page; label: string; value: string }[][] = [[
     ...(mobile ? [{ id: "calendario" as Page, label: "Calendario islámico", value: hoy ? hijriLabel(hoy, calendar.adjustment_days) : "Cargando fecha…" }] : []),
     { id: "qibla", label: "Qibla", value: qibla == null ? "Calculando…" : `${Math.round(qibla)}° desde el norte` },
     { id: "horarios", label: "Ubicación y cálculo", value: `${cfg.city || "Sin ubicación"}, método ${cfg.method}, Asr ${cfg.madhab}` },
-    { id: "avisos", label: "Adhan y avisos", value: cfg.notice.minutes_before === 0 ? "Sonido por rezo, sin preaviso" : `Sonido por rezo, preaviso de ${cfg.notice.minutes_before} min` },
+    { id: "avisos", label: "Adhan y avisos", value: enPausa(cfg.follow_up.paused_until, hoy) ? `En pausa; vuelven el ${fechaVuelta(cfg.follow_up.paused_until!)}` : cfg.notice.minutes_before === 0 ? "Sonido por rezo, sin preaviso" : `Sonido por rezo, preaviso de ${cfg.notice.minutes_before} min` },
   ], [
     { id: "apariencia", label: "Apariencia", value: `Tema ${themes[appearance.theme].toLowerCase()}, acento ${palettes[appearance.accent].name.toLowerCase()}` },
     ...(!isAndroid ? [{ id: "inicio" as Page, label: "Inicio de sesión", value: "Abrir Adhan Companion en la bandeja al iniciar sesión" }] : []),
@@ -371,6 +381,7 @@ export default function App() {
 
   const content = <>
     {page === "quran" && <QuranReader audioAvailable={runtime?.quran_audio ?? false} />}
+    {page === "hoy" && cfg && enPausa(cfg.follow_up.paused_until, hoy) && <div className="aviso-pausa" role="status"><p>Los avisos están en pausa. Vuelven el {fechaVuelta(cfg.follow_up.paused_until!)}.</p><button className="link-button" onClick={() => go("avisos")}>Ver la pausa</button></div>}
     {page === "hoy" && <Today schedule={schedule} scheduleError={scheduleError} onRetry={loadSchedule} qibla={qibla} qiblaError={qiblaError} android={isAndroid} onOpen={go} onMarked={() => { void loadSchedule(); void loadStats(); }} />}
     {page === "registro" && <div className="page-stack registro">
       {statsLoading && stats && <p role="status" className="nota">Actualizando estadísticas…</p>}

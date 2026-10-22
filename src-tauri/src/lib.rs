@@ -305,11 +305,38 @@ async fn set_config(
     if !(-2..=2).contains(&cfg.calendar.adjustment_days) {
         return Err("El ajuste del calendario debe estar entre -2 y +2 días.".into());
     }
+    cfg.follow_up.validar()?;
     log!("set_config: guardar + recalcular en caliente");
     config::save(&cfg)?;
     *state
         .write()
         .map_err(|e| format!("config envenenado: {e}"))? = cfg.clone();
+    let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
+    #[cfg(target_os = "android")]
+    android_alerts::sync(&cfg)?;
+    Ok(cfg)
+}
+
+/// Pausa todos los avisos por `days` días (1 a 60) o los reanuda (`None`). Es una acción, no una
+/// edición con borrador: guarda solo `follow_up.paused_until` sobre el config vigente.
+/// La app no pregunta ni guarda el motivo.
+#[tauri::command]
+async fn set_pause(
+    days: Option<u32>,
+    state: tauri::State<'_, SharedConfig>,
+    sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
+) -> Result<config::Config, String> {
+    let mut cfg = state.read().map_err(|e| format!("config envenenado: {e}"))?.clone();
+    cfg.follow_up.paused_until = match days {
+        Some(d) if (1..=60).contains(&d) => Some(
+            (chrono::Local::now().date_naive() + chrono::Days::new(d.into())).format("%Y-%m-%d").to_string(),
+        ),
+        Some(_) => return Err("La pausa va de 1 a 60 días.".into()),
+        None => None,
+    };
+    log!("set_pause: {}", if days.is_some() { "avisos en pausa" } else { "avisos reanudados" });
+    config::save(&cfg)?;
+    *state.write().map_err(|e| format!("config envenenado: {e}"))? = cfg.clone();
     let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
     #[cfg(target_os = "android")]
     android_alerts::sync(&cfg)?;
@@ -456,6 +483,7 @@ pub fn run() {
         test_notification,
         get_config,
         set_config,
+        set_pause,
         set_autostart,
         get_autostart,
         mark_prayed,
@@ -496,6 +524,7 @@ pub fn run() {
         test_notification,
         get_config,
         set_config,
+        set_pause,
         set_autostart,
         get_autostart,
         mark_prayed,
