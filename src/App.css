@@ -624,6 +624,8 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .aviso-permisos .link-button { color: inherit; text-decoration: underline; padding-left: 0; }
 .proximo { margin: 8px 0 20px; padding: 18px 18px 14px; border-radius: 20px; background: var(--tarjeta); }
 .proximo-rotulo { margin: 0; color: var(--texto-suave); font-size: 14px; }
+.rezo-ahora { margin: -8px 0 20px; padding: 14px 16px; border-radius: 20px; background: var(--tarjeta); }
+.rezo-ahora p { margin: 0 0 10px; font-size: 15px; }
 .proximo-linea { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .proximo h2 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 12px; margin: 0; font-size: 44px; font-weight: 600; line-height: 1.15; letter-spacing: -1px; color: var(--sidebar); }
 :root[data-theme="dark"] .proximo h2 { color: var(--texto); }

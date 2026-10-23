@@ -35,8 +35,9 @@ function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus, debajo 
   </article>;
 }
 
-export function GuiaRezo({ escuelaInicial, schedule, scheduleError, android, onMarked }: { escuelaInicial: Escuela; schedule: Schedule | null; scheduleError: string; android: boolean; onMarked: () => void }) {
-  const [rezo, setRezo] = useState<Rezo>(() => guardado("guia.rezo", Object.keys(REZOS) as Rezo[], "dhuhr"));
+/** `rezoInicial` (desde la tarjeta de Hoy): abre con ese rezo y directo en «Antes de empezar». */
+export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError, android, onMarked }: { escuelaInicial: Escuela; rezoInicial?: Rezo; schedule: Schedule | null; scheduleError: string; android: boolean; onMarked: () => void }) {
+  const [rezo, setRezo] = useState<Rezo>(() => rezoInicial ?? guardado("guia.rezo", Object.keys(REZOS) as Rezo[], "dhuhr"));
   const [escuela, setEscuela] = useState<Escuela>(() => guardado("guia.escuela", ESCUELAS_VISIBLES, ESCUELAS_VISIBLES.includes(escuelaInicial) ? escuelaInicial : ESCUELAS_VISIBLES[0]));
   const [completo, setCompleto] = useState(() => localStorage.getItem("guia.completo") === "1");
   const [viajero, setViajero] = useState(false);
@@ -46,7 +47,7 @@ export function GuiaRezo({ escuelaInicial, schedule, scheduleError, android, onM
   const [combinado, setCombinado] = useState(false);
   const [textos, setTextos] = useState<Record<string, TextoFormula>>({});
   const [corpus, setCorpus] = useState<Corpus | null>(null);
-  const [etapa, setEtapa] = useState<"guia" | "preparar" | "acompanar">("guia");
+  const [etapa, setEtapa] = useState<"guia" | "preparar" | "acompanar">(rezoInicial ? "preparar" : "guia");
   const [avance, setAvance] = useState<Avance>(() => guardado("guia.avance", ["tocar", "contador"], "tocar"));
   const [debajo, setDebajo] = useState<Debajo>(() => ({ tr: localStorage.getItem("guia.tr") !== "0", es: localStorage.getItem("guia.es") !== "0" }));
   useEffect(() => { void cargarFormulas().then(setTextos); loadQuran().then(setCorpus).catch(() => {}); }, []);

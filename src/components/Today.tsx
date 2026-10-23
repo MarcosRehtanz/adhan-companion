@@ -6,11 +6,21 @@ import { ARABIC_NAMES, PRAYER_NAMES, cardinal, hoursOf, prayerReached, remaining
 
 type AlertStatus = { enabled: boolean; exact: boolean; notifications: boolean; error: string };
 
-/** Hoy, en el celular y en escritorio: el próximo rezo, el recorrido del sol y los rezos del día para marcar. */
-export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, android, onOpen, onMarked }: {
+/** El rezo cuyo tiempo está en curso y que todavía no se marcó (Fajr, solo hasta la salida del sol). */
+function rezoPendiente(schedule: Schedule, now: Date): string | null {
+  const llegados = PRAYER_NAMES.filter(n => schedule.prayers.some(s => s.name === n && Number.isFinite(s.dec)) && prayerReached(schedule, schedule.date, n, now));
+  const actual = llegados[llegados.length - 1];
+  if (!actual || schedule.marked.includes(actual)) return null;
+  if (actual === "Fajr" && schedule.sunrise != null && hoursOf(now) >= schedule.sunrise) return null;
+  return actual;
+}
+
+/** Hoy, en el celular y en escritorio: el próximo rezo, el recorrido del sol y los rezos del día para marcar.
+ *  Con `onGuia` (la guía del rezo, en desarrollo), una tarjeta ofrece rezar con guía el rezo en curso sin marcar. */
+export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, android, onOpen, onMarked, onGuia }: {
   schedule: Schedule | null; scheduleError: string; onRetry: () => Promise<void>;
   qibla: number | null; qiblaError: string; android: boolean;
-  onOpen: (page: "avisos" | "qibla" | "registro") => void; onMarked: () => void;
+  onOpen: (page: "avisos" | "qibla" | "registro") => void; onMarked: () => void; onGuia?: (prayer: string) => void;
 }) {
   const [alerts, setAlerts] = useState<AlertStatus | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -32,6 +42,7 @@ export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, and
   const next = scheduleError ? undefined : schedule?.next ?? undefined;
   const nextToday = !!next && next.date === schedule?.date;
   const marked = new Set(schedule?.marked ?? []);
+  const pendiente = onGuia && schedule && !scheduleError ? rezoPendiente(schedule, now) : null;
   const notice = !alerts ? null : !alerts.enabled ? "Los avisos de rezo están apagados en este teléfono." : !alerts.notifications || !alerts.exact ? "Faltan permisos para que suenen los avisos." : alerts.error ? `No se pudieron programar los avisos: ${alerts.error}` : null;
 
   async function toggle(name: string) {
@@ -59,6 +70,11 @@ export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, and
           {schedule.sunrise != null && schedule.sunset != null && <SunPath prayers={schedule.prayers} sunrise={schedule.sunrise} sunset={schedule.sunset} now={hoursOf(now)} next={nextToday ? next.name : null} />}
         </>}
     </section>
+
+    {pendiente && onGuia && <section className="rezo-ahora" aria-label={`Rezar ${pendiente} con guía`}>
+      <p>Ya es la hora de <b>{pendiente}</b> ({schedule?.prayers.find(s => s.name === pendiente)?.hhmm}) y todavía no lo marcaste.</p>
+      <button className="guia-boton" onClick={() => onGuia(pendiente)}>Rezar {pendiente} con guía</button>
+    </section>}
 
     {schedule && !scheduleError && <section className="rezos-hoy" aria-labelledby="rezos-titulo">
       <div className="seccion-cabecera"><h2 id="rezos-titulo">Rezos de hoy</h2><span>{marked.size} de 5</span></div>

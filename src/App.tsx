@@ -20,6 +20,7 @@ import { PrayerAlertsSettings, type AudioConfig } from "./components/PrayerAlert
 import { IslamicCalendar, type CalendarConfig } from "./components/IslamicCalendar";
 import { Today } from "./components/Today";
 import { GuiaRezo } from "./components/GuiaRezo";
+import type { Rezo } from "./lib/guia";
 import { GoogleSync } from "./components/GoogleSync";
 import { hijriLabel } from "./lib/hijri";
 import { cardinal } from "./lib/prayers";
@@ -95,6 +96,9 @@ export default function App() {
   // En escritorio el calendario está en la barra lateral; en el celular, dentro de Más.
   const isSubpage = (p: Page) => p in SUBPAGE_TITLES && !(p === "calendario" && !mobile);
   const [page, setPage] = useState<Page>("hoy");
+  // Pedido de la tarjeta de Hoy: abrir la guía con ese rezo. Se descarta al salir de la guía.
+  const [guiaPedido, setGuiaPedido] = useState<{ rezo: Rezo; n: number } | null>(null);
+  useEffect(() => { if (page !== "guia") setGuiaPedido(null); }, [page]);
   // Las subpantallas de «Más» entran al historial: el botón atrás de Android vuelve a «Más».
   const mobileRef = useRef(mobile);
   mobileRef.current = mobile;
@@ -375,7 +379,8 @@ export default function App() {
 
   const content = <>
     {page === "quran" && <QuranReader audioAvailable={runtime?.quran_audio ?? false} />}
-    {page === "hoy" && <Today schedule={schedule} scheduleError={scheduleError} onRetry={loadSchedule} qibla={qibla} qiblaError={qiblaError} android={isAndroid} onOpen={go} onMarked={() => { void loadSchedule(); void loadStats(); }} />}
+    {page === "hoy" && <Today schedule={schedule} scheduleError={scheduleError} onRetry={loadSchedule} qibla={qibla} qiblaError={qiblaError} android={isAndroid} onOpen={go} onMarked={() => { void loadSchedule(); void loadStats(); }}
+      onGuia={GUIA_REZO ? prayer => { setGuiaPedido({ rezo: prayer.toLowerCase() as Rezo, n: Date.now() }); go("guia"); } : undefined} />}
     {page === "registro" && <div className="page-stack registro">
       {statsLoading && stats && <p role="status" className="nota">Actualizando estadísticas…</p>}
       {statsError ? <ResourceError message={statsError} onRetry={loadStats} /> : !stats ? <p role="status">Consultando estadísticas…</p> : <div className="racha">
@@ -398,7 +403,7 @@ export default function App() {
     {page === "avisos" && <div className="page-stack">{avisos}</div>}
     {page === "apariencia" && <div className="page-stack"><AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={appearance} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} /></div>}
     {page === "inicio" && <div className="page-stack"><section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section></div>}
-    {page === "guia" && GUIA_REZO && <div className="page-stack"><GuiaRezo escuelaInicial={cfg?.method === "Jafari" || cfg?.method === "Tehran" ? "jafari" : cfg?.madhab === "Hanafi" ? "hanafi" : "shafii"} schedule={schedule} scheduleError={scheduleError} android={isAndroid} onMarked={() => { void loadSchedule(); void loadStats(); }} /></div>}
+    {page === "guia" && GUIA_REZO && <div className="page-stack"><GuiaRezo key={guiaPedido?.n ?? 0} rezoInicial={guiaPedido?.rezo} escuelaInicial={cfg?.method === "Jafari" || cfg?.method === "Tehran" ? "jafari" : cfg?.madhab === "Hanafi" ? "hanafi" : "shafii"} schedule={schedule} scheduleError={scheduleError} android={isAndroid} onMarked={() => { void loadSchedule(); void loadStats(); }} /></div>}
     {page === "respaldo" && runtime?.google_sync && <div className="page-stack"><GoogleSync recargado={recargadoDeSync} /></div>}
     {page === "actualizaciones" && <div className="page-stack">{isAndroid ? <AndroidUpdates /> : <DesktopUpdates />}</div>}
     {page === "acerca" && <div className="page-stack">
