@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadQuran, type Corpus } from "../lib/quran";
 import {
-  armarRezo, cargarFormulas, COMBINAR, ESCUELAS, MENSTRUACION, MUJER, notaMujer, REZOS, VIAJE, visible,
+  armarRezo, cargarFormulas, COMBINAR, ESCUELAS, ESCUELAS_VISIBLES, MENSTRUACION, MUJER, notaMujer, REZOS, VIAJE, visible,
   type Avance, type Escuela, type Paso, type Perfil, type Postura, type Rezo, type TextoFormula,
 } from "../lib/guia";
 import type { Schedule } from "../types";
@@ -37,7 +37,7 @@ function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus, debajo 
 
 export function GuiaRezo({ escuelaInicial, schedule, scheduleError, android, onMarked }: { escuelaInicial: Escuela; schedule: Schedule | null; scheduleError: string; android: boolean; onMarked: () => void }) {
   const [rezo, setRezo] = useState<Rezo>(() => guardado("guia.rezo", Object.keys(REZOS) as Rezo[], "dhuhr"));
-  const [escuela, setEscuela] = useState<Escuela>(() => guardado("guia.escuela", Object.keys(ESCUELAS) as Escuela[], escuelaInicial));
+  const [escuela, setEscuela] = useState<Escuela>(() => guardado("guia.escuela", ESCUELAS_VISIBLES, ESCUELAS_VISIBLES.includes(escuelaInicial) ? escuelaInicial : ESCUELAS_VISIBLES[0]));
   const [completo, setCompleto] = useState(() => localStorage.getItem("guia.completo") === "1");
   const [viajero, setViajero] = useState(false);
   const [mujer, setMujer] = useState(() => localStorage.getItem("guia.mujer") === "1");
@@ -69,7 +69,7 @@ export function GuiaRezo({ escuelaInicial, schedule, scheduleError, android, onM
 
   return <div className="guia">
     <div className="guia-selector" role="group" aria-label="Rezo">{(Object.keys(REZOS) as Rezo[]).map(k => <button key={k} className="guia-chip" aria-pressed={rezo === k} onClick={() => elegirRezo(k)}>{REZOS[k].nombre}<small>{viajero && REZOS[k].rakats === 4 ? 2 : REZOS[k].rakats}</small></button>)}</div>
-    <div className="guia-selector" role="group" aria-label="Escuela">{(Object.keys(ESCUELAS) as Escuela[]).map(k => <button key={k} className="guia-chip" aria-pressed={escuela === k} onClick={() => setEscuela(k)}>{ESCUELAS[k].nombre}{k === "jafari" && <small>Sistani</small>}</button>)}</div>
+    {ESCUELAS_VISIBLES.length > 1 && <div className="guia-selector" role="group" aria-label="Escuela">{ESCUELAS_VISIBLES.map(k => <button key={k} className="guia-chip" aria-pressed={escuela === k} onClick={() => setEscuela(k)}>{ESCUELAS[k].nombre}{k === "jafari" && <small>Sistani</small>}</button>)}</div>}
     {escuela === "jafari" && <div className="guia-selector" role="group" aria-label="Perfil">
       <button className="guia-chip" aria-pressed={perfil === "practica"} onClick={() => setPerfil("practica")}>Mi práctica<small>como se aprende</small></button>
       <button className="guia-chip" aria-pressed={perfil === "sistani"} onClick={() => setPerfil("sistani")}>Sistani completo<small>con fuentes</small></button>

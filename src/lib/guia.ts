@@ -58,6 +58,9 @@ export const ESCUELAS: Record<Escuela, { nombre: string; detalle: string }> = {
   shafii: { nombre: "Shafi'i", detalle: "sunni" },
   hanbali: { nombre: "Hanbali", detalle: "sunni" },
 };
+/** Escuelas que muestra la guía. Las sunnis siguen en el código, ocultas hasta que alguien revise su
+ *  contenido (decisión del 23/10/2026: por ahora, solo la práctica ja'fari). */
+export const ESCUELAS_VISIBLES: Escuela[] = ["jafari"];
 export const ETIQUETAS: Record<Estatus, string> = { pilar: "pilar", obligatorio: "obligatorio", condicion: "condición", sunna: "sunna", recomendado: "recomendado" };
 export const esObligatorio = (e: Estatus | null) => e === "pilar" || e === "obligatorio" || e === "condicion";
 /** Lo obligatorio siempre; lo recomendado, solo en el modo completo. */
