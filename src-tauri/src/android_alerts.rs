@@ -85,8 +85,10 @@ pub extern "system" fn Java_io_github_marcosrehtanz_adhancompanion_experimental_
                 offset,
                 &(&cfg).into(),
             );
+            // Los 5 rezos y, al final (índice 5), la salida del sol: el recordatorio de Fajr termina ahí.
             let seconds: Vec<Option<i64>> = crate::prayer::PRAYER_INDICES
                 .iter()
+                .chain(std::iter::once(&1))
                 .map(|&i| {
                     times[i]
                         .is_finite()

@@ -474,16 +474,22 @@ fn refresh_tray(s: &SchedulerLoop, schedule: &Schedule, playing: Option<&str>) {
 }
 
 /// Rezos de hoy que tocan recordar: pasaron `minutes` minutos de su horario, todavía no empezó
-/// el rezo siguiente y no se recordaron. No se avisa tarde: fuera de una ventana de 10 minutos
+/// el rezo siguiente y no se recordaron. El tiempo de Fajr termina con la salida del sol
+/// (`sunrise`): después ya no se recuerda. No se avisa tarde: fuera de una ventana de 10 minutos
 /// (app dormida o cerrada) ese recordatorio se pierde, igual que el Adhan.
 #[cfg(desktop)]
-pub fn reminders_due(prayers: &[PrayerSlot], now_secs: i64, minutes: i32, reminded: &[bool]) -> Vec<usize> {
+pub fn reminders_due(prayers: &[PrayerSlot], now_secs: i64, minutes: i32, reminded: &[bool], sunrise: Option<f64>) -> Vec<usize> {
     const VENTANA: i64 = 600;
     (0..prayers.len())
         .filter(|&i| !reminded.get(i).copied().unwrap_or(true) && prayers[i].dec.is_finite())
         .filter(|&i| {
             let at = (prayers[i].dec * 3600.0) as i64 + minutes as i64 * 60;
-            let next = prayers[i + 1..].iter().find(|p| p.dec.is_finite()).map_or(24 * 3600, |p| (p.dec * 3600.0) as i64);
+            let mut next = prayers[i + 1..].iter().find(|p| p.dec.is_finite()).map_or(24 * 3600, |p| (p.dec * 3600.0) as i64);
+            if prayers[i].name == "Fajr" {
+                if let Some(sale) = sunrise.filter(|h| h.is_finite()) {
+                    next = next.min((sale * 3600.0) as i64);
+                }
+            }
             now_secs >= at && now_secs < at + VENTANA && now_secs < next
         })
         .collect()
@@ -650,7 +656,7 @@ pub fn run(s: SchedulerLoop) {
         }
         if follow_up.reminder && !paused {
             let now_secs = now.hour() as i64 * 3600 + now.minute() as i64 * 60 + now.second() as i64;
-            for i in reminders_due(&schedule.prayers, now_secs, follow_up.minutes, &reminded) {
+            for i in reminders_due(&schedule.prayers, now_secs, follow_up.minutes, &reminded, schedule.sunrise) {
                 reminded[i] = true;
                 if !crate::registro::is_prayer_marked(&schedule.date, PRAYERS[i]) {
                     notify(&s.app, &format!("¿Ya rezaste {}?", PRAYERS[i]), "Marcalo desde la bandeja o en Hoy.");

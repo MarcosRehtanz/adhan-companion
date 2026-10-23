@@ -98,14 +98,17 @@ object PrayerAlarms {
                 val times = JSONArray(PrayerNative.calculate(config, date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1, date.get(Calendar.DAY_OF_MONTH), offset))
                 val day = dayOf(date)
                 val atOf = { i: Int -> (date.clone() as Calendar).apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, times.getInt(i)) }.timeInMillis }
+                // Índice 5: la salida del sol, donde termina el tiempo de Fajr (y su recordatorio).
+                val sunrise = if (times.length() > 5 && !times.isNull(5)) atOf(5) else null
                 prayers.forEachIndexed { i, prayer ->
                     if (!times.isNull(i)) {
                         val at = atOf(i)
                         if (at > from) events.add(Event(prayer, at, KIND_PRAYER, day))
                         if (before > 0 && at - before * 60000L > from) events.add(Event(prayer, at - before * 60000L, KIND_PRE, day))
                         if (reminder) {
-                            // Hasta que empiece el rezo siguiente del mismo día.
-                            val next = (i + 1 until prayers.size).firstOrNull { !times.isNull(it) }?.let { atOf(it) } ?: Long.MAX_VALUE
+                            // Hasta que empiece el rezo siguiente del mismo día; Fajr, hasta la salida del sol.
+                            var next = (i + 1 until prayers.size).firstOrNull { !times.isNull(it) }?.let { atOf(it) } ?: Long.MAX_VALUE
+                            if (i == 0 && sunrise != null) next = minOf(next, sunrise)
                             val at2 = at + reminderMinutes * 60000L
                             if (at2 > from && at2 < next) events.add(Event(prayer, at2, KIND_REMINDER, day))
                         }
