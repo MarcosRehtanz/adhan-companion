@@ -74,10 +74,12 @@ Ver la fila «Guía y acompañamiento del rezo» de [estados-interfaz.md](estado
 
 ## Versión de prueba con la guía visible
 
-1. Rama de prueba que no se mergea, con un `.env.production` que define `VITE_GUIA_REZO=1`
-   (ejemplo: `prueba/seguimiento-y-guia`, que une el seguimiento del PR #9 con la guía).
-2. CI manual: `gh workflow run release.yml --ref <rama>`. Genera `.deb`, AppImage, NSIS y los APK
-   firmados con la clave de siempre, sin publicar nada.
+1. CI manual con la opción «guia»: `gh workflow run release.yml --ref feat/guia-rezo -f guia=true`
+   (o «Run workflow» en Actions, marcando la casilla). Define `VITE_GUIA_REZO=1` solo en esa ejecución:
+   no hace falta una rama de prueba ni un `.env.production`. Genera `.deb`, AppImage, NSIS y los APK
+   firmados con la clave de siempre, sin publicar nada. Los tags y los PR nunca la encienden.
+2. Mientras el seguimiento (PR #9) no esté en `main`, la versión de prueba que lo combina con la guía
+   sale de una rama que los une y no se mergea (`prueba/seguimiento-y-guia`), con la misma opción.
 3. Los paquetes se suben a una prerelease cuyo tag no sigue los patrones de los actualizadores
    (`vX.Y.Z`, `android-experimental-<sha7>`) y sin `android-update.json`: ninguna app la ofrece.
    Se borra al terminar la prueba.
