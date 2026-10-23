@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.view.WindowManager
 import androidx.core.app.ActivityCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
@@ -15,10 +16,11 @@ import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import org.json.JSONObject
 
-@InvokeArg class ConfigArgs { lateinit var config: String }
+@InvokeArg class ConfigArgs { lateinit var config: String; var registro: String = "" }
 @InvokeArg class ControlArgs { var action: String = "status" }
 @InvokeArg class PreviewArgs { lateinit var audio: String; lateinit var prayer: String }
 @InvokeArg class MapsLinkArgs { lateinit var url: String }
+@InvokeArg class AcompanarArgs { var action: String = "status"; var sensor: Boolean = false }
 @InvokeArg class QuranArgs {
     var action: String = "state"; var sura: Int = 0; var aya: Int = 0; var count: Int = 0
     var volume: Int = 70; var keep: Boolean = false; var url: String = ""; var path: String = ""; var max: Long = 0
@@ -47,7 +49,7 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
     }
     @Command fun sync(invoke: Invoke) {
         val args = invoke.parseArgs(ConfigArgs::class.java)
-        background(invoke) { PrayerAlarms.sync(activity, args.config) }
+        background(invoke) { PrayerAlarms.sync(activity, args.config, args.registro) }
     }
     @Command fun control(invoke: Invoke) {
         val action = invoke.parseArgs(ControlArgs::class.java).action
@@ -116,6 +118,27 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
             }
             invoke.resolve(JSObject(AndroidUpdates.status(activity).toString()))
         } catch (e: Exception) { invoke.reject(e.message ?: "No se pudo actualizar") }
+    }
+    /** Acompañar el rezo: pantalla encendida mientras dura y, si se pide, el sensor de proximidad. */
+    @Command fun acompanar(invoke: Invoke) {
+        val args = invoke.parseArgs(AcompanarArgs::class.java)
+        activity.runOnUiThread {
+            try {
+                when (args.action) {
+                    "status", "read" -> {}
+                    "start" -> {
+                        activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        if (args.sensor) Proximidad.start(activity) else Proximidad.stop()
+                    }
+                    "stop" -> {
+                        activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        Proximidad.stop()
+                    }
+                    else -> error("Acción desconocida")
+                }
+                invoke.resolve(JSObject(Proximidad.state(activity).toString()))
+            } catch (e: Throwable) { invoke.reject(e.message ?: "No se pudo acompañar el rezo.") }
+        }
     }
 
 }

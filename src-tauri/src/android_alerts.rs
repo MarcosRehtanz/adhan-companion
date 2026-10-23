@@ -26,9 +26,30 @@ pub fn call(command: &str, args: serde_json::Value) -> Result<serde_json::Value,
 pub fn sync(cfg: &crate::config::Config) -> Result<(), String> {
     call(
         "sync",
-        serde_json::json!({"config": serde_json::to_string(cfg).map_err(|e| e.to_string())?}),
+        serde_json::json!({
+            "config": serde_json::to_string(cfg).map_err(|e| e.to_string())?,
+            // El recordatorio consulta el registro desde el receptor de alarmas, sin Tauri.
+            "registro": crate::registro::registro_path().to_string_lossy(),
+        }),
     )?;
     Ok(())
+}
+
+/// ¿Ese rezo ya está marcado? Lo usa el recordatorio de PrayerAlarms antes de avisar. Sin
+/// unwrap: en release `panic = "abort"`, así que cualquier error responde «no marcado».
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_github_marcosrehtanz_adhancompanion_experimental_PrayerNative_marked(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    path: jni::objects::JString,
+    date: jni::objects::JString,
+    prayer: jni::objects::JString,
+) -> jni::sys::jboolean {
+    let mut leer = |s: &jni::objects::JString| -> Option<String> { env.get_string(s).ok().map(Into::into) };
+    match (leer(&path), leer(&date), leer(&prayer)) {
+        (Some(p), Some(d), Some(r)) => crate::registro::marked_in(std::path::Path::new(&p), &d, &r) as jni::sys::jboolean,
+        _ => 0,
+    }
 }
 
 // Un receiver puede cargar la biblioteca sin arrancar Tauri. Esta función pura
@@ -64,8 +85,10 @@ pub extern "system" fn Java_io_github_marcosrehtanz_adhancompanion_experimental_
                 offset,
                 &(&cfg).into(),
             );
+            // Los 5 rezos y, al final (índice 5), la salida del sol: el recordatorio de Fajr termina ahí.
             let seconds: Vec<Option<i64>> = crate::prayer::PRAYER_INDICES
                 .iter()
+                .chain(std::iter::once(&1))
                 .map(|&i| {
                     times[i]
                         .is_finite()

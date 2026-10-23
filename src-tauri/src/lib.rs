@@ -216,11 +216,13 @@ fn get_stats() -> Result<registro::Stats, String> {
     Ok(registro::stats())
 }
 
-// Contrato IPC del spec: marcar/desmarcar rezado por fecha (toggle, last-wins)
+// Contrato IPC del spec: marcar/desmarcar rezado por fecha (toggle, last-wins).
+// `combinado`: Asr o Isha rezado unido al anterior; se puede marcar desde el horario de ese rezo.
 #[tauri::command]
 async fn mark_prayed(
     date: String,
     prayer: String,
+    combinado: Option<bool>,
     sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
     state: tauri::State<'_, SharedConfig>,
 ) -> Result<String, String> {
@@ -236,7 +238,7 @@ async fn mark_prayed(
     #[cfg(mobile)]
     {
         let cfg = state.read().map_err(|e| format!("config: {e}"))?.clone();
-        mobile::mark_prayed(&date, &prayer, &cfg)?;
+        mobile::mark_prayed(&date, &prayer, &cfg, combinado.unwrap_or(false))?;
         let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
         return Ok(prayer);
     }
@@ -248,7 +250,7 @@ async fn mark_prayed(
         let name = prayer.clone();
         tauri::async_runtime::spawn_blocking(move || {
             let (reply, received) = mpsc::channel();
-            sender.send(scheduler::Trigger::Pray { date, prayer: name, reply: Some(reply) })
+            sender.send(scheduler::Trigger::Pray { date, prayer: name, combinado: combinado.unwrap_or(false), reply: Some(reply) })
                 .map_err(|e| format!("scheduler no disponible: {e}"))?;
             received.recv().map_err(|_| "El scheduler se cerró antes de confirmar el guardado.".to_string())?
         }).await.map_err(|e| e.to_string())??;
@@ -305,11 +307,38 @@ async fn set_config(
     if !(-2..=2).contains(&cfg.calendar.adjustment_days) {
         return Err("El ajuste del calendario debe estar entre -2 y +2 días.".into());
     }
+    cfg.follow_up.validar()?;
     log!("set_config: guardar + recalcular en caliente");
     config::save(&cfg)?;
     *state
         .write()
         .map_err(|e| format!("config envenenado: {e}"))? = cfg.clone();
+    let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
+    #[cfg(target_os = "android")]
+    android_alerts::sync(&cfg)?;
+    Ok(cfg)
+}
+
+/// Pausa todos los avisos por `days` días (1 a 60) o los reanuda (`None`). Es una acción, no una
+/// edición con borrador: guarda solo `follow_up.paused_until` sobre el config vigente.
+/// La app no pregunta ni guarda el motivo.
+#[tauri::command]
+async fn set_pause(
+    days: Option<u32>,
+    state: tauri::State<'_, SharedConfig>,
+    sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
+) -> Result<config::Config, String> {
+    let mut cfg = state.read().map_err(|e| format!("config envenenado: {e}"))?.clone();
+    cfg.follow_up.paused_until = match days {
+        Some(d) if (1..=60).contains(&d) => Some(
+            (chrono::Local::now().date_naive() + chrono::Days::new(d.into())).format("%Y-%m-%d").to_string(),
+        ),
+        Some(_) => return Err("La pausa va de 1 a 60 días.".into()),
+        None => None,
+    };
+    log!("set_pause: {}", if days.is_some() { "avisos en pausa" } else { "avisos reanudados" });
+    config::save(&cfg)?;
+    *state.write().map_err(|e| format!("config envenenado: {e}"))? = cfg.clone();
     let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
     #[cfg(target_os = "android")]
     android_alerts::sync(&cfg)?;
@@ -367,6 +396,15 @@ async fn android_update(action: Option<String>) -> Result<serde_json::Value, Str
     { android_alerts::call("update", serde_json::json!({"action": action.unwrap_or_else(|| "status".into())})) }
     #[cfg(not(target_os = "android"))]
     { let _ = action; Err("Solo disponible en Android.".into()) }
+}
+
+// Acompañar el rezo: pantalla encendida y sensor de proximidad (start, read, stop, status).
+#[tauri::command]
+async fn android_acompanar(action: String, sensor: Option<bool>) -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "android")]
+    { android_alerts::call("acompanar", serde_json::json!({"action": action, "sensor": sensor.unwrap_or(false)})) }
+    #[cfg(not(target_os = "android"))]
+    { let _ = (action, sensor); Err("Solo disponible en Android.".into()) }
 }
 
 // Contratos comunes: escritorio reproduce con rodio y Android con su servicio nativo.
@@ -443,6 +481,7 @@ pub fn run() {
         runtime_info,
         android_alert_status,
         android_update,
+        android_acompanar,
         quran_audio_status,
         quran_audio_control,
         quran::get_quran_reader,
@@ -456,6 +495,7 @@ pub fn run() {
         test_notification,
         get_config,
         set_config,
+        set_pause,
         set_autostart,
         get_autostart,
         mark_prayed,
@@ -483,6 +523,7 @@ pub fn run() {
         runtime_info,
         android_alert_status,
         android_update,
+        android_acompanar,
         quran_audio_status,
         quran_audio_control,
         quran::get_quran_reader,
@@ -496,6 +537,7 @@ pub fn run() {
         test_notification,
         get_config,
         set_config,
+        set_pause,
         set_autostart,
         get_autostart,
         mark_prayed,

@@ -93,6 +93,22 @@ pub fn load_all() -> Vec<RegistroEntry> {
         .collect()
 }
 
+/// ¿El último evento de (date, prayer) en el registro de `path` es "rezado"? Para el receptor de
+/// alarmas de Android, que corre sin Tauri y recibe la ruta en vez de usar `config_dir`.
+/// Nunca entra en pánico: ante cualquier problema de lectura responde que no está marcado.
+pub fn marked_in(path: &std::path::Path, date: &str, prayer: &str) -> bool {
+    std::fs::read_to_string(path)
+        .map(|content| {
+            content
+                .lines()
+                .filter_map(|l| serde_json::from_str::<RegistroEntry>(l).ok())
+                .filter(|e| e.date == date && e.prayer.eq_ignore_ascii_case(prayer))
+                .last()
+                .is_some_and(|e| e.status == "rezado")
+        })
+        .unwrap_or(false)
+}
+
 /// último status registrado para un (date, prayer) — None si nunca hubo evento
 pub fn last_status_for(date: &str, prayer: &str) -> Option<String> {
     load_for_date(date)

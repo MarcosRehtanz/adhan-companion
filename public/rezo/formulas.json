@@ -1,0 +1,247 @@
+{
+  "schema": 1,
+  "formulas": {
+    "j_takbir": {
+      "ar": "ٱللَّهُ أَكْبَرُ",
+      "tr": "Allāhu akbar",
+      "es": "Allah es el más grande.",
+      "fuente": "Sistani, Islamic Laws, regla 991 (tramo final de las tasbīḥāt; el takbīr es la regla 934)",
+      "reviso": "Yaḥyā"
+    },
+    "j_tasbihat": {
+      "ar": "سُبْحَـٰنَ ٱللَّهِ وَٱلْحَمْدُ لِلَّهِ وَلَآ إِلَـٰهَ إِلَّا ٱللَّهُ وَٱللَّهُ أَكْبَرُ",
+      "tr": "Subḥāna llāhi wa l-ḥamdu lillāhi wa lā ilāha illā llāhu wa llāhu akbar",
+      "es": "Glorificado sea Allah, la alabanza es para Allah, no hay dios sino Allah, y Allah es el más grande.",
+      "fuente": "Sistani, Islamic Laws, regla 991",
+      "reviso": "Yaḥyā"
+    },
+    "j_ruku": {
+      "ar": "سُبْحَـٰنَ رَبِّىَ ٱلْعَظِيمِ وَبِحَمْدِهِۦ",
+      "tr": "Subḥāna rabbiya l-ʿaẓīmi wa biḥamdih",
+      "es": "Glorificado sea mi Señor, el Grandioso, y con Su alabanza.",
+      "fuente": "Sistani, Islamic Laws, Translation of prayers, §3",
+      "reviso": "Yaḥyā"
+    },
+    "j_subhanallah": {
+      "ar": "سُبْحَـٰنَ ٱللَّهِ",
+      "tr": "Subḥāna llāh",
+      "es": "Glorificado sea Allah.",
+      "fuente": "Sistani, Islamic Laws, regla 1014 (rukūʿ) y 1035 (sujūd)",
+      "reviso": "Yaḥyā"
+    },
+    "j_samia": {
+      "ar": "سَمِعَ ٱللَّهُ لِمَن حَمِدَهُۥ",
+      "tr": "Samiʿa llāhu liman ḥamidah",
+      "es": "Allah escucha a quien Lo alaba.",
+      "fuente": "Sistani, Islamic Laws, regla 1029",
+      "reviso": "Yaḥyā"
+    },
+    "j_suyud": {
+      "ar": "سُبْحَـٰنَ رَبِّىَ ٱلْأَعْلَىٰ وَبِحَمْدِهِۦ",
+      "tr": "Subḥāna rabbiya l-aʿlā wa biḥamdih",
+      "es": "Glorificado sea mi Señor, el Altísimo, y con Su alabanza.",
+      "fuente": "Sistani, Islamic Laws, Translation of prayers, §3",
+      "reviso": "Yaḥyā"
+    },
+    "j_tashahhud": {
+      "ar": "أَشْهَدُ أَن لَّآ إِلَـٰهَ إِلَّا ٱللَّهُ وَحْدَهُۥ لَا شَرِيكَ لَهُۥ، وَأَشْهَدُ أَنَّ مُحَمَّدًا عَبْدُهُۥ وَرَسُولُهُۥ. ٱللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَءَالِ مُحَمَّدٍ",
+      "tr": "Ash-hadu an lā ilāha illā llāh, waḥdahū lā sharīka lah, wa ash-hadu anna Muḥammadan ʿabduhū wa rasūluh. Allāhumma ṣalli ʿalā Muḥammadin wa āli Muḥammad",
+      "es": "Atestiguo que no hay dios sino Allah, Único, sin asociado, y atestiguo que Muhammad es Su siervo y Su mensajero. Oh Allah, bendice a Muhammad y a la familia de Muhammad.",
+      "fuente": "Sistani, Islamic Laws, regla 1086",
+      "reviso": "Yaḥyā"
+    },
+    "j_salam_nabi": {
+      "ar": "ٱلسَّلَـٰمُ عَلَيْكَ أَيُّهَا ٱلنَّبِىُّ وَرَحْمَةُ ٱللَّهِ وَبَرَكَـٰتُهُۥ",
+      "tr": "As-salāmu ʿalayka ayyuhā n-nabiyyu wa raḥmatu llāhi wa barakātuh",
+      "es": "La paz sea contigo, oh Profeta, y la misericordia de Allah y Sus bendiciones.",
+      "fuente": "Sistani, Islamic Laws, regla 1091",
+      "reviso": "Yaḥyā"
+    },
+    "j_salam_alayna": {
+      "ar": "ٱلسَّلَـٰمُ عَلَيْنَا وَعَلَىٰ عِبَادِ ٱللَّهِ ٱلصَّـٰلِحِينَ",
+      "tr": "As-salāmu ʿalaynā wa ʿalā ʿibādi llāhi ṣ-ṣāliḥīn",
+      "es": "La paz sea con nosotros y con los siervos virtuosos de Allah.",
+      "fuente": "Sistani, Islamic Laws, regla 1091",
+      "reviso": "Yaḥyā"
+    },
+    "j_salam": {
+      "ar": "ٱلسَّلَـٰمُ عَلَيْكُمْ",
+      "tr": "As-salāmu ʿalaykum",
+      "es": "La paz sea con ustedes.",
+      "fuente": "Sistani, Islamic Laws, regla 1091",
+      "reviso": "Yaḥyā"
+    },
+    "j_salam_agregado": {
+      "ar": "وَرَحْمَةُ ٱللَّهِ وَبَرَكَـٰتُهُۥ",
+      "tr": "wa raḥmatu llāhi wa barakātuh",
+      "es": "Y la misericordia de Allah y Sus bendiciones.",
+      "fuente": "Sistani, Islamic Laws, regla 1091",
+      "reviso": "Yaḥyā"
+    },
+    "adh_tawhid": {
+      "ar": "أَشْهَدُ أَن لَّآ إِلَـٰهَ إِلَّا ٱللَّهُ",
+      "tr": "Ash-hadu an lā ilāha illā llāh",
+      "es": "Atestiguo que no hay dios sino Allah.",
+      "fuente": "Sistani, Islamic Laws, regla 904",
+      "reviso": "Yaḥyā"
+    },
+    "adh_risala": {
+      "ar": "أَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ ٱللَّهِ",
+      "tr": "Ash-hadu anna Muḥammadan rasūlu llāh",
+      "es": "Atestiguo que Muhammad es el mensajero de Allah.",
+      "fuente": "Sistani, Islamic Laws, regla 904",
+      "reviso": "Yaḥyā"
+    },
+    "adh_wilaya": {
+      "ar": "أَشْهَدُ أَنَّ عَلِيًّا وَلِىُّ ٱللَّهِ",
+      "tr": "Ash-hadu anna ʿAliyyan waliyyu llāh",
+      "es": "Atestiguo que Alí es el walí de Allah.",
+      "fuente": "Sistani, Islamic Laws, regla 905",
+      "reviso": "Yaḥyā"
+    },
+    "adh_salat": {
+      "ar": "حَىَّ عَلَى ٱلصَّلَوٰةِ",
+      "tr": "Ḥayya ʿalā ṣ-ṣalāh",
+      "es": "Vengan al rezo.",
+      "fuente": "Sistani, Islamic Laws, regla 904",
+      "reviso": "Yaḥyā"
+    },
+    "adh_falah": {
+      "ar": "حَىَّ عَلَى ٱلْفَلَاحِ",
+      "tr": "Ḥayya ʿalā l-falāḥ",
+      "es": "Vengan a la salvación.",
+      "fuente": "Sistani, Islamic Laws, regla 904",
+      "reviso": "Yaḥyā"
+    },
+    "adh_khayr": {
+      "ar": "حَىَّ عَلَىٰ خَيْرِ ٱلْعَمَلِ",
+      "tr": "Ḥayya ʿalā khayri l-ʿamal",
+      "es": "Vengan a la mejor de las obras.",
+      "fuente": "Sistani, Islamic Laws, regla 904",
+      "reviso": "Yaḥyā"
+    },
+    "adh_qad_qamat": {
+      "ar": "قَدْ قَامَتِ ٱلصَّلَوٰةُ",
+      "tr": "Qad qāmati ṣ-ṣalāh",
+      "es": "Ya se ha establecido el rezo.",
+      "fuente": "Sistani, Islamic Laws, regla 904",
+      "reviso": "Yaḥyā"
+    },
+    "adh_tahlil": {
+      "ar": "لَآ إِلَـٰهَ إِلَّا ٱللَّهُ",
+      "tr": "Lā ilāha illā llāh",
+      "es": "No hay dios sino Allah.",
+      "fuente": "Sistani, Islamic Laws, regla 904",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_fajr": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلْفَجْرِ رَكْعَتَيْنِ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta l-fajri rakʿatayni qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo del fajr, dos rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_dhuhr": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلظُّهْرِ أَرْبَعَ رَكَعَاتٍ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta ẓ-ẓuhri arbaʿa rakaʿātin qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo del dhuhr, cuatro rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_asr": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلْعَصْرِ أَرْبَعَ رَكَعَاتٍ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta l-ʿaṣri arbaʿa rakaʿātin qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo del asr, cuatro rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_maghrib": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلْمَغْرِبِ ثَلَـٰثَ رَكَعَاتٍ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta l-maghribi thalātha rakaʿātin qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo del maghrib, tres rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_isha": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلْعِشَآءِ أَرْبَعَ رَكَعَاتٍ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta l-ʿishāʾi arbaʿa rakaʿātin qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo de la isha, cuatro rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_hamd": {
+      "ar": "ٱلْحَمْدُ لِلَّهِ",
+      "tr": "Al-ḥamdu lillāh",
+      "es": "La alabanza es para Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, regla 1108 (tasbīḥ de Fátima)",
+      "reviso": "Yaḥyā"
+    },
+    "m_salawat": {
+      "ar": "ٱللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَءَالِ مُحَمَّدٍ",
+      "tr": "Allāhumma ṣalli ʿalā Muḥammadin wa āli Muḥammad",
+      "es": "Oh Allah, bendice a Muhammad y a la familia de Muhammad.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 1103–1105 (en el qunut basta cualquier dhikr)",
+      "reviso": "Yaḥyā"
+    },
+    "q_1_1": {
+      "tr": "Bismillāhi r-raḥmāni r-raḥīm",
+      "fuente": "Corán 1:1 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_1_2": {
+      "tr": "Al-ḥamdu lillāhi rabbi l-ʿālamīn",
+      "fuente": "Corán 1:2 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_1_3": {
+      "tr": "Ar-raḥmāni r-raḥīm",
+      "fuente": "Corán 1:3 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_1_4": {
+      "tr": "Māliki yawmi d-dīn",
+      "fuente": "Corán 1:4 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_1_5": {
+      "tr": "Iyyāka naʿbudu wa iyyāka nastaʿīn",
+      "fuente": "Corán 1:5 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_1_6": {
+      "tr": "Ihdinā ṣ-ṣirāṭa l-mustaqīm",
+      "fuente": "Corán 1:6 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_1_7": {
+      "tr": "Ṣirāṭa lladhīna anʿamta ʿalayhim, ghayri l-maghḍūbi ʿalayhim wa lā ḍ-ḍāllīn",
+      "fuente": "Corán 1:7 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_112_1": {
+      "tr": "Qul huwa llāhu aḥad",
+      "fuente": "Corán 112:1 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_112_2": {
+      "tr": "Allāhu ṣ-ṣamad",
+      "fuente": "Corán 112:2 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_112_3": {
+      "tr": "Lam yalid wa lam yūlad",
+      "fuente": "Corán 112:3 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_112_4": {
+      "tr": "Wa lam yakun lahū kufuwan aḥad",
+      "fuente": "Corán 112:4 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_2_201": {
+      "tr": "Rabbanā ātinā fī d-dunyā ḥasanatan wa fī l-ākhirati ḥasanatan wa qinā ʿadhāba n-nār",
+      "fuente": "Corán 2:201 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    }
+  }
+}

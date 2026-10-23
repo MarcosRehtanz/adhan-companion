@@ -4,13 +4,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.10 para Linux, Windows y Android** — interfaz reorganizada, preferencias en modo lectura con edición explícita, tray con estados, scheduler 24/7, calendario de seguimiento, notificaciones + preaviso, cálculo local por FFI y biblioteca fija de muecines por rezo. Descargas: `.deb`, `.AppImage` e instalador de Windows x64 en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.10.md).
+✅ **v0.1.16 para Linux, Windows y Android** — seguimiento de los rezos (recordatorio si no marcaste y pausa de avisos) y guía del rezo con acompañamiento, sobre la interfaz nueva, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el calendario de seguimiento, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.16.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.10_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.16_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -36,6 +36,11 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
+
+## Novedades de v0.1.16
+
+- Seguimiento de los rezos: recordatorio «¿Ya rezaste…?» si un rezo sigue sin marcar y pausa de los avisos por días.
+- Guía del rezo (ja'fari, según Sistani) con las fórmulas en árabe, transliteración y traducción, y «Rezar con guía»: pantalla completa que avanza con toques, contador de rakʿas o sensor de proximidad en Android.
 
 ## Novedades de v0.1.8
 

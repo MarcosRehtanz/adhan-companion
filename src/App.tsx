@@ -19,6 +19,9 @@ import { GoogleMapsLocationPicker } from "./components/GoogleMapsLocationPicker"
 import { PrayerAlertsSettings, type AudioConfig } from "./components/PrayerAlertsSettings";
 import { IslamicCalendar, type CalendarConfig } from "./components/IslamicCalendar";
 import { Today } from "./components/Today";
+import { PauseAlerts, enPausa, fechaVuelta } from "./components/PauseAlerts";
+import { GuiaRezo } from "./components/GuiaRezo";
+import type { Rezo } from "./lib/guia";
 import { GoogleSync } from "./components/GoogleSync";
 import { hijriLabel } from "./lib/hijri";
 import { cardinal } from "./lib/prayers";
@@ -35,7 +38,7 @@ const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 // Las mismas páginas en el celular y en escritorio; cambia el marco de navegación.
 // Celular (Android y ventanas de hasta 720 px): barra inferior con Hoy, Registro, Qur’an y Más.
 // Escritorio: barra lateral con Hoy, Registro, Calendario islámico, Qur’an y Configuración.
-type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "respaldo" | "actualizaciones" | "acerca";
+type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "respaldo" | "actualizaciones" | "acerca" | "guia";
 type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | null;
 const TABS: { id: Page; label: string; Icon: LucideIcon }[] = [
   { id: "hoy", label: "Hoy", Icon: Sun },
@@ -51,7 +54,7 @@ const SIDEBAR: { id: Page; label: string; Icon: LucideIcon }[] = [
 ];
 const SUBPAGE_TITLES: Partial<Record<Page, string>> = {
   calendario: "Calendario islámico", qibla: "Qibla", horarios: "Ubicación y cálculo", avisos: "Adhan y avisos",
-  apariencia: "Apariencia", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", actualizaciones: "Actualizaciones", acerca: "Acerca de",
+  apariencia: "Apariencia", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", guia: "Guía del rezo", actualizaciones: "Actualizaciones", acerca: "Acerca de",
 };
 
 interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean; quran_audio: boolean; google_sync: boolean }
@@ -71,9 +74,12 @@ interface Config {
   appearance: Appearance;
   notice: { minutes_before: number };
   agent: { mqtt: boolean; broker: string };
+  follow_up: { reminder: boolean; minutes: number; paused_until?: string | null };
 }
 
 const NARROW = "(max-width: 720px)";
+// La guía del rezo va en todas las compilaciones desde v0.1.16 (antes, solo en desarrollo).
+const GUIA_REZO = true;
 
 /// Ventana principal: dashboard diario y preferencias en modo lectura por defecto.
 /// El estado vive en Rust (core) y se actualiza por IPC/eventos.
@@ -92,6 +98,9 @@ export default function App() {
   // En escritorio el calendario está en la barra lateral; en el celular, dentro de Más.
   const isSubpage = (p: Page) => p in SUBPAGE_TITLES && !(p === "calendario" && !mobile);
   const [page, setPage] = useState<Page>("hoy");
+  // Pedido de la tarjeta de Hoy: abrir la guía con ese rezo. Se descarta al salir de la guía.
+  const [guiaPedido, setGuiaPedido] = useState<{ rezo: Rezo; n: number } | null>(null);
+  useEffect(() => { if (page !== "guia") setGuiaPedido(null); }, [page]);
   // Las subpantallas de «Más» entran al historial: el botón atrás de Android vuelve a «Más».
   const mobileRef = useRef(mobile);
   mobileRef.current = mobile;
@@ -294,7 +303,8 @@ export default function App() {
         if (editando === "ubicacion") return { ...actual, city: snapshotEdicion.city, lat: snapshotEdicion.lat, lon: snapshotEdicion.lon, tz: snapshotEdicion.tz };
         if (editando === "calendario") return { ...actual, calendar: snapshotEdicion.calendar };
         if (editando === "calculo") return { ...actual, method: snapshotEdicion.method, madhab: snapshotEdicion.madhab, highLatRule: snapshotEdicion.highLatRule, offsets: snapshotEdicion.offsets };
-        return { ...actual, audio: snapshotEdicion.audio, notice: snapshotEdicion.notice };
+        // La pausa no es parte del borrador: se conserva la vigente.
+        return { ...actual, audio: snapshotEdicion.audio, notice: snapshotEdicion.notice, follow_up: { ...actual.follow_up, reminder: snapshotEdicion.follow_up.reminder, minutes: snapshotEdicion.follow_up.minutes } };
       });
     }
     setEditando(null);
@@ -350,28 +360,38 @@ export default function App() {
       {editando === "adhan" ? <div className="editor">
         <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>
         <p className="nota">El preaviso es una notificación independiente. Usá 0 para desactivarlo. Guardar aplica todos los cambios.</p>
+        <label className="fila-check"><input type="checkbox" checked={cfg.follow_up.reminder} onChange={(e) => upd({ follow_up: { ...cfg.follow_up, reminder: e.target.checked } })} />Recordarme si no marqué el rezo</label>
+        <label>Cuánto después del horario (minutos)<input type="number" min="5" max="120" disabled={!cfg.follow_up.reminder} value={cfg.follow_up.minutes} onChange={(e) => upd({ follow_up: { ...cfg.follow_up, minutes: +e.target.value } })} /></label>
+        <p className="nota">Un aviso suave, sin Adhan, si a esa hora el rezo sigue sin marcar. No llega tarde ni cuando ya empezó el rezo siguiente.</p>
         <div className="editor-actions"><button className="secondary-button" onClick={() => { invoke("stop_alert").catch(() => {}); cancelarEdicion(); }}>Cancelar</button></div>
-      </div> : <p>Preaviso: {cfg.notice.minutes_before === 0 ? "desactivado" : `${cfg.notice.minutes_before} min antes`}</p>}
+      </div> : <>
+        <p>Preaviso: {cfg.notice.minutes_before === 0 ? "desactivado" : `${cfg.notice.minutes_before} min antes`}</p>
+        <p>Recordatorio: {cfg.follow_up.reminder ? `a los ${cfg.follow_up.minutes} min, si el rezo sigue sin marcar` : "desactivado"}</p>
+      </>}
     </section>
+    <PauseAlerts pausedUntil={cfg.follow_up.paused_until} today={hoy} disabled={!!editando || saving} onChanged={(saved) => { setCfg(saved as Config); setGuardada(saved as Config); void loadSchedule(); }} />
   </>;
   const calendario = scheduleError ? <ResourceError message={scheduleError} onRetry={loadSchedule} /> : hoy ? <IslamicCalendar disabled={!!editando && editando !== "calendario"} today={hoy} config={calendar} editing={editando === "calendario"} onEdit={() => iniciarEdicion("calendario")} onCancel={cancelarEdicion} onChange={(calendar) => upd({ calendar })} /> : <p>Cargando fecha local…</p>;
   const opciones: { id: Page; label: string; value: string }[][] = [[
+    ...(GUIA_REZO ? [{ id: "guia" as Page, label: "Guía del rezo", value: "Aprender y repasar cada rezo, paso a paso" }] : []),
     ...(mobile ? [{ id: "calendario" as Page, label: "Calendario islámico", value: hoy ? hijriLabel(hoy, calendar.adjustment_days) : "Cargando fecha…" }] : []),
     { id: "qibla", label: "Qibla", value: qibla == null ? "Calculando…" : `${Math.round(qibla)}° desde el norte` },
     { id: "horarios", label: "Ubicación y cálculo", value: `${cfg.city || "Sin ubicación"}, método ${cfg.method}, Asr ${cfg.madhab}` },
-    { id: "avisos", label: "Adhan y avisos", value: cfg.notice.minutes_before === 0 ? "Sonido por rezo, sin preaviso" : `Sonido por rezo, preaviso de ${cfg.notice.minutes_before} min` },
+    { id: "avisos", label: "Adhan y avisos", value: enPausa(cfg.follow_up.paused_until, hoy) ? `En pausa; vuelven el ${fechaVuelta(cfg.follow_up.paused_until!)}` : cfg.notice.minutes_before === 0 ? "Sonido por rezo, sin preaviso" : `Sonido por rezo, preaviso de ${cfg.notice.minutes_before} min` },
   ], [
     { id: "apariencia", label: "Apariencia", value: `Tema ${themes[appearance.theme].toLowerCase()}, acento ${palettes[appearance.accent].name.toLowerCase()}` },
     ...(!isAndroid ? [{ id: "inicio" as Page, label: "Inicio de sesión", value: "Abrir Adhan Companion en la bandeja al iniciar sesión" }] : []),
     // Solo builds con credencial OAuth; las publicadas por la CI todavía no la tienen.
     ...(runtime?.google_sync ? [{ id: "respaldo" as Page, label: "Respaldo y sincronización", value: "Configuración, rezos y lectura en tu cuenta de Google" }] : []),
-    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.15"}` },
+    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.16"}` },
     { id: "acerca", label: "Acerca de", value: "Archivo de configuración y fuentes" },
   ]];
 
   const content = <>
     {page === "quran" && <QuranReader audioAvailable={runtime?.quran_audio ?? false} />}
-    {page === "hoy" && <Today schedule={schedule} scheduleError={scheduleError} onRetry={loadSchedule} qibla={qibla} qiblaError={qiblaError} android={isAndroid} onOpen={go} onMarked={() => { void loadSchedule(); void loadStats(); }} />}
+    {page === "hoy" && cfg && enPausa(cfg.follow_up.paused_until, hoy) && <div className="aviso-pausa" role="status"><p>Los avisos están en pausa. Vuelven el {fechaVuelta(cfg.follow_up.paused_until!)}.</p><button className="link-button" onClick={() => go("avisos")}>Ver la pausa</button></div>}
+    {page === "hoy" && <Today schedule={schedule} scheduleError={scheduleError} onRetry={loadSchedule} qibla={qibla} qiblaError={qiblaError} android={isAndroid} onOpen={go} onMarked={() => { void loadSchedule(); void loadStats(); }}
+      onGuia={GUIA_REZO ? prayer => { setGuiaPedido({ rezo: prayer.toLowerCase() as Rezo, n: Date.now() }); go("guia"); } : undefined} />}
     {page === "registro" && <div className="page-stack registro">
       {statsLoading && stats && <p role="status" className="nota">Actualizando estadísticas…</p>}
       {statsError ? <ResourceError message={statsError} onRetry={loadStats} /> : !stats ? <p role="status">Consultando estadísticas…</p> : <div className="racha">
@@ -394,11 +414,12 @@ export default function App() {
     {page === "avisos" && <div className="page-stack">{avisos}</div>}
     {page === "apariencia" && <div className="page-stack"><AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={appearance} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} /></div>}
     {page === "inicio" && <div className="page-stack"><section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section></div>}
+    {page === "guia" && GUIA_REZO && <div className="page-stack"><GuiaRezo key={guiaPedido?.n ?? 0} rezoInicial={guiaPedido?.rezo} escuelaInicial={cfg?.method === "Jafari" || cfg?.method === "Tehran" ? "jafari" : cfg?.madhab === "Hanafi" ? "hanafi" : "shafii"} schedule={schedule} scheduleError={scheduleError} android={isAndroid} onMarked={() => { void loadSchedule(); void loadStats(); }} /></div>}
     {page === "respaldo" && runtime?.google_sync && <div className="page-stack"><GoogleSync recargado={recargadoDeSync} /></div>}
     {page === "actualizaciones" && <div className="page-stack">{isAndroid ? <AndroidUpdates /> : <DesktopUpdates />}</div>}
     {page === "acerca" && <div className="page-stack">
       <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
-      <p className="nota">Adhan Companion {verActual || "0.1.15"}{isAndroid ? " para Android" : ""}. Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
+      <p className="nota">Adhan Companion {verActual || "0.1.16"}{isAndroid ? " para Android" : ""}. Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
     </div>}
   </>;
 
@@ -441,7 +462,7 @@ export default function App() {
           <button className={"nav-item " + (section === "mas" ? "activa" : "")} aria-label="Configuración" aria-current={section === "mas" ? "page" : undefined} disabled={saving} onClick={() => go("mas")}>
             <Settings size={17} strokeWidth={2} /><span>Configuración</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.15"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.16"}</span>
         </div>
       </aside>}
       <div className="workspace">
