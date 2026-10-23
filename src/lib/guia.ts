@@ -87,14 +87,14 @@ function pasosJafari(rezo: Rezo, r: number, total: number): Paso[] {
     : { postura: "pie", nombre: "Qiyām: recitación", detalle: "Al-Fatiha o al-tasbīḥāt al-arbaʿa (una vez basta; mejor tres). Manos sueltas sobre los muslos.", estatus: "obligatorio", fuente: IL("991–993", urlQ), voz: "baja",
         formulas: [{ id: "j_tasbihat", estatus: "obligatorio", veces: "×1, mejor ×3" }, { id: "j_istighfar", estatus: "recomendado" }] };
   p.push(recitacion);
-  if (segunda) p.push({ postura: "pie", nombre: "Qunūt", detalle: "Antes del rukūʿ, con las manos alzadas frente a la cara. Basta cualquier dhikr.", formulas: [{ id: "j_qunut", estatus: "recomendado" }], estatus: "recomendado", fuente: IL("1103–1105", "https://www.sistani.org/english/book/48/2243/") });
+  if (segunda) p.push({ postura: "pie", nombre: "Qunūt", detalle: "Antes del rukūʿ, con las manos alzadas frente a la cara. Basta cualquier dhikr: Rabbanā ātinā (2:201) o la ṣalawāt.", corpus: ["2:201"], formulas: [{ id: "m_salawat", estatus: "recomendado", nota: "o, más breve" }], estatus: "recomendado", fuente: IL("1103–1105", "https://www.sistani.org/english/book/48/2243/") });
   p.push({ postura: "inclinado", nombre: "Rukūʿ", detalle: "Inclinarse hasta que las manos lleguen a las rodillas y quedarse quieto.", formulas: [tk("de pie y quieto, antes de inclinarse · regla 1029"), { id: "j_ruku", estatus: "obligatorio" }, { id: "j_subhanallah", estatus: "obligatorio", veces: "×3", nota: "en lugar de la anterior", pendiente: "«Subḥāna llāh»: fórmula pendiente de revisión." }], estatus: "pilar", fuente: IL("1008–1015", "https://www.sistani.org/english/book/48/2234/") });
   p.push({ postura: "pie", nombre: "Levantarse del rukūʿ", detalle: "Ponerse de pie y quedarse quieto.", formulas: [{ id: "j_samia", estatus: "recomendado" }], estatus: "obligatorio", fuente: IL("1026, 1029", "https://www.sistani.org/english/book/48/2234/") });
   const sujud = (n: number): Paso => ({ postura: "postrado", nombre: `Sujūd ${n}`, detalle: "Siete apoyos: frente, palmas, rodillas y dedos gordos de los pies. La frente sobre tierra o lo que crece de ella (no comestible ni vestible); lo mejor, la turba.", formulas: [tk(n === 1 ? "de pie y quieto, antes de bajar · regla 1077" : "sentado y quieto, antes de la segunda · regla 1077"), { id: "j_suyud", estatus: "obligatorio" }, { id: "j_subhanallah", estatus: "obligatorio", veces: "×3", nota: "en lugar de la anterior", pendiente: "«Subḥāna llāh»: fórmula pendiente de revisión." }, ...(n === 1 ? [{ id: "j_ya_khayr", estatus: "recomendado" } as Formula] : [])], estatus: "pilar", difiere: "La frente sobre tierra o turba es condición ja'fari; ninguna escuela sunni la exige.", fuente: IL("1031–1035, 1062, 1069", "https://www.sistani.org/english/book/48/2235/") });
   p.push(sujud(1));
   p.push({ postura: "sentado", nombre: "Entre las dos sajdas", detalle: "Sentarse y quedarse quieto.", formulas: [tk("al sentarte, ya quieto · regla 1077"), { id: "j_istighfar", estatus: "recomendado" }], estatus: "obligatorio", fuente: IL("1042, 1077", "https://www.sistani.org/english/book/48/2237/") });
   p.push(sujud(2));
-  if (conTashahhud) p.push({ postura: "sentado", nombre: ultima ? "Tashahhud final" : "Tashahhud", detalle: "Sentado y quieto.", formulas: [tk("al sentarte tras la segunda sajda · regla 1077"), { id: "j_antes_tash", estatus: "recomendado", antes: true }, { id: "j_tashahhud", estatus: "obligatorio" }, { id: "j_taqabbal", estatus: "recomendado" }], estatus: "obligatorio", fuente: IL("1086–1089", "https://www.sistani.org/english/book/48/2239/") });
+  if (conTashahhud) p.push({ postura: "sentado", nombre: ultima ? "Tashahhud final" : "Tashahhud", detalle: "Sentado y quieto.", formulas: [tk("al sentarte tras la segunda sajda · regla 1077"), { id: "m_hamd", estatus: "recomendado", antes: true }, { id: "j_tashahhud", estatus: "obligatorio" }, { id: "j_taqabbal", estatus: "recomendado" }], estatus: "obligatorio", fuente: IL("1086–1089", "https://www.sistani.org/english/book/48/2239/") });
   if (ultima) p.push({ postura: "sentado", nombre: "Taslīm", detalle: "La salida del rezo.", formulas: [{ id: "j_salam_nabi", estatus: "recomendado", nota: "no es fórmula de salida" }, { id: "j_salam_alayna", estatus: "recomendado", nota: "si se dice, igual se agrega «as-salāmu ʿalaykum»" }, { id: "j_salam", estatus: "obligatorio" }, { id: "j_salam_agregado", estatus: "recomendado", nota: "precaución recomendada" }], estatus: "obligatorio", fuente: IL("1091", "https://www.sistani.org/english/book/48/2240/") });
   else p.push({ postura: "pie", nombre: `Levantarse para la rakʿa ${r + 1}`, detalle: conTashahhud ? "Desde el tashahhud." : "Antes, un breve asiento de descanso (precaución obligatoria).", formulas: [...(conTashahhud ? [] : [tk("al sentarte tras la segunda sajda · regla 1077")]), { id: "j_bihawli", estatus: "recomendado" }], estatus: "obligatorio", fuente: IL("952, 1061", "https://www.sistani.org/english/book/48/2232/") });
   return p;
@@ -212,15 +212,23 @@ function pasosSunni(esc: Escuela, rezo: Rezo, r: number, total: number): Paso[] 
 }
 
 /** Los pasos del rezo, rakʿa por rakʿa. De viaje, los rezos de cuatro rakʿas se acortan a dos. */
+/** Súplicas de Sistani que no están en las notas del usuario: fuera de la guía por ahora (decisión del
+ *  23/10/2026: los textos son los de sus notas). Siguen en los pasos y en la planilla; vuelven si él da
+ *  su texto. «Subḥāna llāh» sale solo como alternativa en rukūʿ y sujūd: en el tasbīḥ de Fátima se queda. */
+const SIN_TEXTO_PROPIO = new Set(["j_ya_muhsin", "j_taawwudh", "j_hamd", "j_kadhalika", "j_ya_khayr", "j_istighfar", "j_bihawli", "j_taqabbal", "j_shukr", "j_qunut", "j_antes_tash"]);
+const conTextoPropio = (f: Formula) => !(f.id && SIN_TEXTO_PROPIO.has(f.id)) && !(f.id === "j_subhanallah" && f.nota === "en lugar de la anterior");
+const soloTextoPropio = (pasos: Paso[]): Paso[] => pasos.map(p => ({ ...p, formulas: p.formulas.filter(conTextoPropio), formulasDespues: p.formulasDespues?.filter(conTextoPropio) }));
+
 export function armarRezo(escuela: Escuela, rezo: Rezo, op: Opciones): RezoArmado {
   const total = op.viajero && REZOS[rezo].rakats === 4 ? 2 : REZOS[rezo].rakats;
   const jafari = escuela === "jafari", practica = jafari && op.perfil === "practica", combinado = !!op.combinado;
+  const sistani = jafari && !practica, filtro = (p: Paso[]) => sistani ? soloTextoPropio(p) : p;
   const pasos = (r: number) => practica ? pasosPractica(rezo, r, total) : jafari ? pasosJafari(rezo, r, total) : pasosSunni(escuela, rezo, r, total);
   return {
     rezo, total, practica,
-    antes: practica ? antesJafari(rezo, combinado, null, false) : jafari ? antesJafari(rezo, combinado, "recomendado", true) : [],
-    rakats: Array.from({ length: total }, (_, i) => ({ rakat: i + 1, pasos: pasos(i + 1) })),
-    despues: practica ? despuesJafari(null, false) : jafari ? despuesJafari("recomendado", true) : [],
+    antes: filtro(practica ? antesJafari(rezo, combinado, null, false) : jafari ? antesJafari(rezo, combinado, "recomendado", true) : []),
+    rakats: Array.from({ length: total }, (_, i) => ({ rakat: i + 1, pasos: filtro(pasos(i + 1)) })),
+    despues: filtro(practica ? despuesJafari(null, false) : jafari ? despuesJafari("recomendado", true) : []),
   };
 }
 

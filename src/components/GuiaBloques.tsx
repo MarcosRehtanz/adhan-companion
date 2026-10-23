@@ -49,10 +49,11 @@ export function FormulaBloque({ f, textos, tr = true, es = true }: { f: Formula;
   </div>;
 }
 
-const LECTURAS: Record<Lectura, { sura: number; aya?: number; nombre: string }> = {
+/** `desde`: en una aleya que no es toda súplica, la palabra (contada desde 0) donde empieza lo que se dice. */
+const LECTURAS: Record<Lectura, { sura: number; aya?: number; desde?: number; nombre: string }> = {
   fatiha: { sura: 1, nombre: "Al-Fatiha" },
   ikhlas: { sura: 112, nombre: "Al-Ikhlas (u otra sura)" },
-  "2:201": { sura: 2, aya: 201, nombre: "Rabbanā ātinā (Corán 2:201)" },
+  "2:201": { sura: 2, aya: 201, desde: 3, nombre: "Rabbanā ātinā (Corán 2:201)" },  // sin «wa minhum man yaqūlu»
 };
 /** De 2:201 solo se dice la súplica: en la traducción, lo que va entre comillas. */
 const soloSuplica = (texto: string) => texto.match(/«(.+)»/)?.[1] ?? texto;
@@ -65,7 +66,7 @@ export function CorpusBloque({ id, corpus, textos = {}, tr = true, es = true }: 
   return <div className="guia-formula corpus">
     <div className="guia-formula-meta"><span>{l.nombre}</span></div>
     {versos ? <>
-      <p className="guia-ar" lang="ar" dir="rtl">{versos.map(v => v.arabic).join(" ۝ ")}</p>
+      <p className="guia-ar" lang="ar" dir="rtl">{l.desde ? versos[0].arabic.split(" ").slice(l.desde).join(" ") : versos.map(v => v.arabic).join(" ۝ ")}</p>
       {tr && translit.length > 0 && <p className="guia-tr">{translit.join(" · ")}</p>}
       {es && <p className="guia-es">{l.aya ? soloSuplica(versos[0].translation) : versos.map(v => v.translation).join(" ")}</p>}
       <p className="guia-fuente">Tanzil Uthmani 1.1 · traducción de Raúl González Bórnez (la del lector)</p>

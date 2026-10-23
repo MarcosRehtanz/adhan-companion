@@ -63,6 +63,11 @@ y `__alejar()`.
 - Primera tanda (23/10/2026): 19 fórmulas y la transliteración de Al-Fatiha y Al-Ikhlas, revisadas por
   Yaḥyā. La tabla, con las aleyas de donde sale la escritura, también está en el vault del Islam
   («Práctica de la salat chií», sección «Fórmulas en escritura coránica»).
+- Las súplicas de Sistani que no están en las notas del usuario quedan **fuera de la guía** por ahora
+  (`SIN_TEXTO_PROPIO` en `src/lib/guia.ts`): Yā muḥsin, taʿawwudh, al-ḥamdu tras la Fatiha, kadhālika
+  llāhu rabbī, «subḥāna llāh» como alternativa en rukūʿ y sujūd, la súplica de la sajda, istighfār,
+  bi-ḥawli llāh, taqabbal y sajdat al-shukr (el acto sigue, sin fórmula). El qunūt usa lo de sus notas
+  (Rabbanā ātinā, 2:201 desde «رَبَّنَآ», o la ṣalawāt) y antes del tashahhud va «Al-ḥamdu lillāh».
 - `scripts/planilla-notas.py` copia, tal cual, el árabe y la transliteración de las notas de estudio del
   usuario a dos columnas de ayuda de la planilla; quien revisa las pasa a las columnas revisadas y firma.
 - Al-Fatiha, Al-Ikhlas y 2:201 usan el árabe y la traducción del lector (Tanzil Uthmani y Bórnez).

@@ -22,6 +22,13 @@
       "fuente": "Sistani, Islamic Laws, Translation of prayers, §3",
       "reviso": "Yaḥyā"
     },
+    "j_subhanallah": {
+      "ar": "سُبْحَـٰنَ ٱللَّهِ",
+      "tr": "Subḥāna llāh",
+      "es": "Glorificado sea Allah.",
+      "fuente": "Sistani, Islamic Laws, regla 1014 (rukūʿ) y 1035 (sujūd)",
+      "reviso": "Yaḥyā"
+    },
     "j_samia": {
       "ar": "سَمِعَ ٱللَّهُ لِمَن حَمِدَهُۥ",
       "tr": "Samiʿa llāhu liman ḥamidah",
@@ -134,6 +141,13 @@
       "fuente": "Tus notas; Sistani, Islamic Laws, regla 1108 (tasbīḥ de Fátima)",
       "reviso": "Yaḥyā"
     },
+    "m_salawat": {
+      "ar": "ٱللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَءَالِ مُحَمَّدٍ",
+      "tr": "Allāhumma ṣalli ʿalā Muḥammadin wa āli Muḥammad",
+      "es": "Oh Allah, bendice a Muhammad y a la familia de Muhammad.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 1103–1105 (en el qunut basta cualquier dhikr)",
+      "reviso": "Yaḥyā"
+    },
     "q_1_1": {
       "tr": "Bismillāhi r-raḥmāni r-raḥīm",
       "fuente": "Corán 1:1 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
@@ -187,6 +201,11 @@
     "q_112_4": {
       "tr": "Wa lam yakun lahū kufuwan aḥad",
       "fuente": "Corán 112:4 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
+      "reviso": "Yaḥyā"
+    },
+    "q_2_201": {
+      "tr": "Rabbanā ātinā fī d-dunyā ḥasanatan wa fī l-ākhirati ḥasanatan wa qinā ʿadhāba n-nār",
+      "fuente": "Corán 2:201 · árabe y traducción del lector (Tanzil Uthmani y Bórnez)",
       "reviso": "Yaḥyā"
     }
   }
