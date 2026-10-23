@@ -48,11 +48,13 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
   const [textos, setTextos] = useState<Record<string, TextoFormula>>({});
   const [corpus, setCorpus] = useState<Corpus | null>(null);
   const [etapa, setEtapa] = useState<"guia" | "preparar" | "acompanar">(rezoInicial ? "preparar" : "guia");
-  const [avance, setAvance] = useState<Avance>(() => guardado("guia.avance", ["tocar", "contador"], "tocar"));
+  const [avanceGuardado, setAvance] = useState<Avance>(() => guardado("guia.avance", ["tocar", "contador", "sensor"], "tocar"));
+  // El sensor solo existe en Android: en escritorio un valor guardado así se toma como «tocar».
+  const avance: Avance = !android && avanceGuardado === "sensor" ? "tocar" : avanceGuardado;
   const [debajo, setDebajo] = useState<Debajo>(() => ({ tr: localStorage.getItem("guia.tr") !== "0", es: localStorage.getItem("guia.es") !== "0" }));
   useEffect(() => { void cargarFormulas().then(setTextos); loadQuran().then(setCorpus).catch(() => {}); }, []);
   useEffect(() => { localStorage.setItem("guia.rezo", rezo); localStorage.setItem("guia.escuela", escuela); localStorage.setItem("guia.completo", completo ? "1" : "0"); localStorage.setItem("guia.mujer", mujer ? "1" : "0"); localStorage.setItem("guia.perfil", perfil); }, [rezo, escuela, completo, mujer, perfil]);
-  useEffect(() => { localStorage.setItem("guia.avance", avance); localStorage.setItem("guia.tr", debajo.tr ? "1" : "0"); localStorage.setItem("guia.es", debajo.es ? "1" : "0"); }, [avance, debajo]);
+  useEffect(() => { localStorage.setItem("guia.avance", avanceGuardado); localStorage.setItem("guia.tr", debajo.tr ? "1" : "0"); localStorage.setItem("guia.es", debajo.es ? "1" : "0"); }, [avanceGuardado, debajo]);
   const armado = useMemo(() => armarRezo(escuela, rezo, { completo, viajero, mujer, combinado, perfil }), [escuela, rezo, completo, viajero, mujer, combinado, perfil]);
   const elegirRezo = (k: Rezo) => { setRezo(k); setCombinado(false); };
   const seccion = (clave: string, titulo: string, pasos: Paso[]) => {
@@ -113,7 +115,7 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
 
     {etapa === "preparar" && <PrepararHoja armado={armado} escuela={escuela} completo={completo} combinado={combinado} android={android} avance={avance} debajo={debajo}
       onAvance={setAvance} onDebajo={setDebajo} onCancelar={() => setEtapa("guia")} onEmpezar={() => setEtapa("acompanar")} />}
-    {etapa === "acompanar" && <AcompanarRezo armado={armado} escuela={escuela} completo={completo} combinado={combinado} viajero={viajero} avance={avance} debajo={debajo}
+    {etapa === "acompanar" && <AcompanarRezo armado={armado} escuela={escuela} completo={completo} combinado={combinado} viajero={viajero} android={android} avance={avance} debajo={debajo}
       textos={textos} corpus={corpus} schedule={schedule} scheduleError={scheduleError} onMarked={onMarked} onSalir={() => setEtapa("guia")}
       onCombinar={siguiente => { setRezo(siguiente); setCombinado(true); setEtapa("preparar"); }} />}
   </div>;

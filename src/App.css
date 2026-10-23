@@ -830,3 +830,7 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .acompanar-acciones { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
 .acompanar-acciones .guia-boton.secundario { border-color: var(--lectura-borde); }
 .acompanar-estado { margin: 0; color: var(--lectura-es); font-size: 14px; }
+.acompanar-sensor::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 4px; background: var(--lectura-borde); vertical-align: middle; }
+.acompanar-sensor.lejos::before { background: var(--acento); }
+.acompanar-sensor.cerca::before { background: var(--lectura-ornamento); }
+.acompanar-sensor.cerca, .acompanar-sensor.error { color: var(--lectura-es); }

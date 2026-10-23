@@ -9,13 +9,32 @@ Estado al 23/10/2026: **en desarrollo**. Se ve en `tauri dev` y en las compilaci
 - **Aprender** (Más → Guía del rezo): cada rezo obligatorio paso a paso, con su árabe, transliteración
   y traducción a medida que se revisan.
 - **Acompañar** («Rezar … con guía»): una pantalla completa sigue el rezo. Se elige antes cómo avanzar:
-  tocar para avanzar, o contador de rakʿas. El sensor de proximidad de Android todavía no está.
+  tocar para avanzar, contador de rakʿas o, en Android, el sensor de proximidad (ver abajo). En Android
+  la pantalla queda encendida mientras dura el acompañamiento, en cualquier modo.
 - **Hoy**: si llegó la hora del último rezo y no está marcado, una tarjeta ofrece rezarlo con guía
   (Fajr, solo hasta la salida del sol).
 - Al terminar, marcar el rezo en el registro. Con Dhuhr o Maghrib, «Marcar X y seguir con Y» marca el
   primero y abre el siguiente **unido** (solo iqama); el segundo se marca con `mark_prayed` y
   `combinado`, que el core permite desde el horario del primero si el primero ya está marcado
   (`scheduler::mark_time_rule`, el ishtirak ja'fari).
+
+## Sensor de proximidad (Android)
+
+Con el teléfono en el suelo, delante del lugar de la postración. Es un modo híbrido: los toques
+siguen avanzando paso a paso y el sensor corrige la posición en cada postración.
+
+- **Postración:** algo cerca durante 0,7 s (una mano que pasa no cuenta) lleva al próximo paso de
+  sujūd; si ya está en uno, se queda.
+- **Levantarse:** lejos durante 0,4 s después de una postración pasa al paso siguiente (entre las
+  sajdas, tashahhud o la rakʿa siguiente).
+- Si el teléfono no tiene sensor, la opción aparece deshabilitada y un modo guardado «sensor» vuelve
+  a «tocar». Si el sensor falla durante el rezo, el pie lo dice y se sigue con toques.
+
+Nativo: `Proximidad.kt` registra el sensor y guarda si hay algo cerca y desde cuándo; el comando
+`acompanar` de `AdhanPlugin.kt` (`android_acompanar` en Rust: `status`, `start`, `read`, `stop`)
+pone o quita `FLAG_KEEP_SCREEN_ON` y prende o suelta el sensor. La interfaz lee cada 250 ms y
+decide qué es una postración. En el banco de pruebas, `tauri-mock.js` lo simula con `__acercar()`
+y `__alejar()`.
 
 ## Escuelas y perfiles
 
@@ -69,7 +88,8 @@ Ver la fila «Guía y acompañamiento del rezo» de [estados-interfaz.md](estado
 
 - Completar la planilla (68 filas; 37 con texto de las notas en las columnas de ayuda).
 - Probar el acompañamiento rezando, en el J7 y en escritorio.
-- Sensor de proximidad en Android.
+- Probar el sensor de proximidad en el J7: si detecta la cabeza en la postración a la distancia
+  real y si 0,7 s / 0,4 s alcanzan.
 - Lectura en voz alta de los pasos (a evaluar): reusar la recitación del lector para el Corán; el resto
   necesitaría grabaciones con licencia, y consultar si seguir una grabación durante el rezo afecta su
   validez.

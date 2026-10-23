@@ -224,8 +224,9 @@ export function armarRezo(escuela: Escuela, rezo: Rezo, op: Opciones): RezoArmad
   };
 }
 
-/** Cómo avanza el acompañamiento: un toque por paso o un toque por rakʿa. */
-export type Avance = "tocar" | "contador";
+/** Cómo avanza el acompañamiento: un toque por paso, un toque por rakʿa o, en Android, toques más
+ *  el sensor de proximidad, que lleva a cada sujūd y pasa al paso siguiente al levantarse. */
+export type Avance = "tocar" | "contador" | "sensor";
 /** `rakat` es 0 antes del rezo (adhan e iqama) y total + 1 en la taʿqībāt. */
 export interface PasoEnCurso { rakat: number; paso: Paso; indice: number; delRakat: Paso[] }
 /** Los pasos visibles en el orden en que se rezan, para acompañarlos de a uno. */
