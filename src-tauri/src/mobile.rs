@@ -7,12 +7,12 @@ use tauri::{Emitter, Manager};
 
 // La respuesta IPC confirma la escritura real. Dos toques concurrentes se
 // serializan para conservar la semántica de toggle del registro.
-pub fn mark_prayed(date: &str, prayer: &str, cfg: &config::Config) -> Result<(), String> {
+pub fn mark_prayed(date: &str, prayer: &str, cfg: &config::Config, combinado: bool) -> Result<(), String> {
     static MARK_LOCK: Mutex<()> = Mutex::new(());
     let _guard = MARK_LOCK.lock().map_err(|e| format!("registro: {e}"))?;
     let already = registro::is_prayer_marked(date, prayer);
     if !already {
-        scheduler::check_mark_time(date, prayer, cfg)?;
+        scheduler::check_mark_time(date, prayer, cfg, combinado)?;
     }
     let status = if already { "desmarcado" } else { "rezado" };
     registro::append(date, prayer, status)
@@ -44,14 +44,14 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             let mut changed = false;
             match rx.recv_timeout(Duration::from_secs(1)) {
-                Ok(scheduler::Trigger::Pray { date, prayer, reply }) => {
+                Ok(scheduler::Trigger::Pray { date, prayer, combinado, reply }) => {
                     let date = if date.is_empty() {
                         chrono::Local::now().format("%Y-%m-%d").to_string()
                     } else {
                         date
                     };
                     let current = config.read().unwrap_or_else(|e| e.into_inner()).clone();
-                    let result = mark_prayed(&date, &prayer, &current);
+                    let result = mark_prayed(&date, &prayer, &current, combinado);
                     if let Err(error) = &result { crate::log!("registro Android: {error}"); }
                     if let Some(reply) = reply { let _ = reply.send(result); }
                     changed = true;

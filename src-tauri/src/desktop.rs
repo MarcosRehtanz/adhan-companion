@@ -223,6 +223,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(name) = scheduler::PRAYERS.get(idx) {
                         if let Err(e) = pray_tx.send(scheduler::Trigger::Pray {
                             date: String::new(), // hoy
+                            combinado: false,
                             reply: None,
                             prayer: (*name).to_string(),
                         }) {

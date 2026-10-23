@@ -183,8 +183,9 @@ pub enum Trigger {
     /// el config cambió (IPC set_config) → recalcular
     ConfigChanged,
     /// el usuario marcó/desmarcó un rezo (menú del tray o IPC mark_prayed).
-    /// `date` vacía = hoy (lo resuelve el scheduler con el schedule del día)
-    Pray { date: String, prayer: String, reply: Option<std::sync::mpsc::Sender<Result<(), String>>> },
+    /// `date` vacía = hoy (lo resuelve el scheduler con el schedule del día).
+    /// `combinado`: se rezó unido al anterior (ver `check_mark_time`).
+    Pray { date: String, prayer: String, combinado: bool, reply: Option<std::sync::mpsc::Sender<Result<(), String>>> },
 }
 
 /// Rezos (los 5) calculados para una fecha concreta con el config dado.
@@ -241,22 +242,50 @@ pub fn compute_schedule(cfg_snapshot: &crate::config::Config) -> Schedule {
 /// Un rezo de hoy se puede marcar desde su horario, no antes. Los días anteriores
 /// y desmarcar no se limitan. Si el horario no se puede calcular, o si Isha cae
 /// pasada la medianoche, no se bloquea.
-pub fn check_mark_time(date: &str, prayer: &str, cfg: &crate::config::Config) -> Result<(), String> {
+pub fn check_mark_time(date: &str, prayer: &str, cfg: &crate::config::Config, combinado: bool) -> Result<(), String> {
     let now = chrono::Local::now();
     if date != now.date_naive().to_string() {
         return Ok(());
     }
     let slots = prayer_slots_for(now.year(), now.month() as i32, now.day() as i32, cfg);
-    let Some(slot) = slots.iter().find(|s| s.name == prayer) else { return Ok(()) };
-    let dhuhr = slots.iter().find(|s| s.name == "Dhuhr").map_or(12.0, |s| s.dec);
-    if !slot.dec.is_finite() || (prayer != "Fajr" && slot.dec < dhuhr) {
-        return Ok(());
-    }
     let now_h = now.hour() as f64 + now.minute() as f64 / 60.0 + now.second() as f64 / 3600.0;
-    if now_h < slot.dec {
-        return Err(format!("Todavía no es la hora de {prayer} ({}).", slot.hhmm));
+    if mark_time_rule(&slots, prayer, now_h, combinado)? {
+        // Unido antes de su hora: el primero del par tiene que estar rezado (el orden del ishtirak).
+        if let Some(previo) = combina_con(prayer) {
+            if !crate::registro::is_prayer_marked(date, previo) {
+                return Err(format!("Para marcar {prayer} unido a {previo}, primero tiene que estar marcado {previo}."));
+            }
+        }
     }
     Ok(())
+}
+
+/// El rezo al que se une otro en el mismo tramo (ishtirak): Asr a Dhuhr, Isha a Maghrib.
+pub fn combina_con(prayer: &str) -> Option<&'static str> {
+    match prayer {
+        "Asr" => Some("Dhuhr"),
+        "Isha" => Some("Maghrib"),
+        _ => None,
+    }
+}
+
+/// Regla pura del marcado de hoy. Un rezo se marca desde su horario. Con `combinado`, Asr e Isha
+/// también desde el horario del rezo al que se unen. `Ok(true)` = se permite solo por estar unido.
+fn mark_time_rule(slots: &[PrayerSlot], prayer: &str, now_h: f64, combinado: bool) -> Result<bool, String> {
+    let Some(slot) = slots.iter().find(|s| s.name == prayer) else { return Ok(false) };
+    let dhuhr = slots.iter().find(|s| s.name == "Dhuhr").map_or(12.0, |s| s.dec);
+    if !slot.dec.is_finite() || (prayer != "Fajr" && slot.dec < dhuhr) || now_h >= slot.dec {
+        return Ok(false);
+    }
+    if combinado {
+        if let Some(previo) = combina_con(prayer).and_then(|n| slots.iter().find(|s| s.name == n)) {
+            if previo.dec.is_finite() && now_h >= previo.dec {
+                return Ok(true);
+            }
+            return Err(format!("Todavía no es la hora de {} ({}): {prayer} se puede unir recién desde ahí.", previo.name, previo.hhmm));
+        }
+    }
+    Err(format!("Todavía no es la hora de {prayer} ({}).", slot.hhmm))
 }
 
 /// Actualiza el próximo evento desde los horarios cacheados mientras la app
@@ -517,7 +546,7 @@ pub fn run(s: SchedulerLoop) {
                     crate::log!("trigger: cambio de config → recalcular con el config nuevo");
                     recal = Some("config");
                 }
-                Trigger::Pray { date, prayer, reply } => prayers.push((date, prayer, reply)),
+                Trigger::Pray { date, prayer, combinado, reply } => prayers.push((date, prayer, combinado, reply)),
             }
         }
         if let Some(via) = recal {
@@ -535,12 +564,12 @@ pub fn run(s: SchedulerLoop) {
             refresh_prayer_items(&s, &schedule);
             publish_schedule(&s, &schedule);
         }
-        for (date_arg, name, reply) in prayers {
+        for (date_arg, name, combinado, reply) in prayers {
             if PRAYERS.contains(&name.as_str()) {
                 let date = if date_arg.is_empty() { schedule.date.clone() } else { date_arg };
                 let already = crate::registro::is_prayer_marked(&date, &name);
                 if !already {
-                    if let Err(error) = check_mark_time(&date, &name, &cfg) {
+                    if let Err(error) = check_mark_time(&date, &name, &cfg, combinado) {
                         if let Some(reply) = reply { let _ = reply.send(Err(error)); }
                         continue;
                     }
@@ -723,6 +752,24 @@ mod tests {
             sunrise: Some(6.5),
             sunset: Some(18.0),
         }
+    }
+
+    #[test]
+    fn combined_prayer_can_be_marked_from_the_first_prayers_time() {
+        let slots = fixture("2026-10-17").prayers; // Fajr 5, Dhuhr 12, Asr 15, Maghrib 18, Isha 20
+        // Sin combinar, la regla de siempre: desde su horario.
+        assert!(mark_time_rule(&slots, "Asr", 13.0, false).is_err());
+        assert_eq!(mark_time_rule(&slots, "Asr", 15.5, false), Ok(false));
+        // Unido a Dhuhr: desde el horario de Dhuhr, y se informa que fue por estar unido.
+        assert_eq!(mark_time_rule(&slots, "Asr", 13.0, true), Ok(true));
+        assert!(mark_time_rule(&slots, "Asr", 11.0, true).unwrap_err().contains("Dhuhr"));
+        assert_eq!(mark_time_rule(&slots, "Isha", 19.0, true), Ok(true));
+        assert!(mark_time_rule(&slots, "Isha", 17.0, true).is_err());
+        // Fajr, Dhuhr y Maghrib no se unen a un rezo anterior.
+        assert!(mark_time_rule(&slots, "Dhuhr", 11.0, true).is_err());
+        assert!(mark_time_rule(&slots, "Maghrib", 16.0, true).is_err());
+        assert_eq!(combina_con("Asr"), Some("Dhuhr"));
+        assert_eq!(combina_con("Fajr"), None);
     }
 
     #[test]
