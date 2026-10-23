@@ -330,7 +330,8 @@ export interface TextoFormula { ar: string; tr: string; es: string; fuente: stri
 let cargando: Promise<Record<string, TextoFormula>> | null = null;
 /** Solo trae las fórmulas transcritas y revisadas; las demás se muestran como pendientes. */
 export function cargarFormulas(): Promise<Record<string, TextoFormula>> {
-  if (!cargando) cargando = fetch("/rezo/formulas.json")
+  // En desarrollo se relee cada vez: lo que se pasa de la planilla se ve al volver a abrir la guía.
+  if (!cargando || import.meta.env.DEV) cargando = fetch("/rezo/formulas.json")
     .then(r => (r.ok ? r.json() : { formulas: {} }))
     .then((d: { formulas?: Record<string, TextoFormula> }) => d.formulas ?? {})
     .catch(() => ({}));

@@ -1,6 +1,7 @@
 // Guía del rezo: cada rezo obligatorio paso a paso, según la escuela. Muestra lo obligatorio y, en
-// el modo completo, lo recomendado. En ja'fari hay dos perfiles: «Mi práctica» (el orden con que se
-// aprende, con adhan, iqama y taʿqībāt, sin estatus) y Sistani completo (con estatus y fuentes). Las fórmulas aparecen a medida que se transcriben y revisan
+// el modo completo, lo recomendado. Ja'fari sigue a Sistani, con estatus y fuentes. El perfil «Mi
+// práctica» quedó oculto por decisión del usuario (23/10): su código sigue en guia.ts, como las
+// escuelas sunnis. Las fórmulas aparecen a medida que se transcriben y revisan
 // (public/rezo/formulas.json); mientras tanto, cada una muestra su lugar y su referencia.
 import { useEffect, useMemo, useState } from "react";
 import { loadQuran, type Corpus } from "../lib/quran";
@@ -42,7 +43,7 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
   const [completo, setCompleto] = useState(() => localStorage.getItem("guia.completo") === "1");
   const [viajero, setViajero] = useState(false);
   const [mujer, setMujer] = useState(() => localStorage.getItem("guia.mujer") === "1");
-  const [perfil, setPerfil] = useState<Perfil>(() => guardado("guia.perfil", ["practica", "sistani"], "practica"));
+  const perfil: Perfil = "sistani";
   // Unido al rezo anterior: lo pone «Seguir con…» al final del acompañamiento; elegir otro rezo lo quita.
   const [combinado, setCombinado] = useState(false);
   const [textos, setTextos] = useState<Record<string, TextoFormula>>({});
@@ -53,7 +54,7 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
   const avance: Avance = !android && avanceGuardado === "sensor" ? "tocar" : avanceGuardado;
   const [debajo, setDebajo] = useState<Debajo>(() => ({ tr: localStorage.getItem("guia.tr") !== "0", es: localStorage.getItem("guia.es") !== "0" }));
   useEffect(() => { void cargarFormulas().then(setTextos); loadQuran().then(setCorpus).catch(() => {}); }, []);
-  useEffect(() => { localStorage.setItem("guia.rezo", rezo); localStorage.setItem("guia.escuela", escuela); localStorage.setItem("guia.completo", completo ? "1" : "0"); localStorage.setItem("guia.mujer", mujer ? "1" : "0"); localStorage.setItem("guia.perfil", perfil); }, [rezo, escuela, completo, mujer, perfil]);
+  useEffect(() => { localStorage.setItem("guia.rezo", rezo); localStorage.setItem("guia.escuela", escuela); localStorage.setItem("guia.completo", completo ? "1" : "0"); localStorage.setItem("guia.mujer", mujer ? "1" : "0"); }, [rezo, escuela, completo, mujer]);
   useEffect(() => { localStorage.setItem("guia.avance", avanceGuardado); localStorage.setItem("guia.tr", debajo.tr ? "1" : "0"); localStorage.setItem("guia.es", debajo.es ? "1" : "0"); }, [avanceGuardado, debajo]);
   const armado = useMemo(() => armarRezo(escuela, rezo, { completo, viajero, mujer, combinado, perfil }), [escuela, rezo, completo, viajero, mujer, combinado, perfil]);
   const elegirRezo = (k: Rezo) => { setRezo(k); setCombinado(false); };
@@ -73,10 +74,6 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
   return <div className="guia">
     <div className="guia-selector" role="group" aria-label="Rezo">{(Object.keys(REZOS) as Rezo[]).map(k => <button key={k} className="guia-chip" aria-pressed={rezo === k} onClick={() => elegirRezo(k)}>{REZOS[k].nombre}<small>{viajero && REZOS[k].rakats === 4 ? 2 : REZOS[k].rakats}</small></button>)}</div>
     {ESCUELAS_VISIBLES.length > 1 && <div className="guia-selector" role="group" aria-label="Escuela">{ESCUELAS_VISIBLES.map(k => <button key={k} className="guia-chip" aria-pressed={escuela === k} onClick={() => setEscuela(k)}>{ESCUELAS[k].nombre}{k === "jafari" && <small>Sistani</small>}</button>)}</div>}
-    {escuela === "jafari" && <div className="guia-selector" role="group" aria-label="Perfil">
-      <button className="guia-chip" aria-pressed={perfil === "practica"} onClick={() => setPerfil("practica")}>Mi práctica<small>como se aprende</small></button>
-      <button className="guia-chip" aria-pressed={perfil === "sistani"} onClick={() => setPerfil("sistani")}>Sistani completo<small>con fuentes</small></button>
-    </div>}
     <div className="guia-opciones">
       {!armado.practica && <label><input type="checkbox" checked={completo} onChange={e => setCompleto(e.target.checked)} />Completo (con lo recomendado)</label>}
       <label><input type="checkbox" checked={viajero} onChange={e => setViajero(e.target.checked)} />De viaje</label>

@@ -40,8 +40,9 @@ y `__alejar()`.
 
 - Por ahora se muestra **solo ja'fari** (`ESCUELAS_VISIBLES` en `src/lib/guia.ts`). Las cuatro
   escuelas sunnis siguen en el código, ocultas hasta que alguien revise su contenido.
-- Ja'fari tiene dos perfiles:
-  - **Mi práctica** (por defecto, subtítulo «como se aprende»): el orden con que el usuario aprendió el
+- Ja'fari muestra **solo «Sistani completo»** (decisión del usuario del 23/10/2026; ya no hay selector).
+  «Mi práctica» sigue en el código, oculto. Los dos perfiles:
+  - **Mi práctica** (oculto; antes, el perfil por defecto con el subtítulo «como se aprende»): el orden con que el usuario aprendió el
     rezo, tal como está en sus notas de estudio. Adhan e iqama, niyya, takbir, Al-Fatiha y Al-Ikhlas,
     takbires de transición, rukūʿ y sujūd ×3, qunut con Rabbanā ātinā (2:201) o la salawat,
     tashahhud con «Al-ḥamdu lillāh», taslīm con los tres saludos, y la taʿqībāt: tres takbires y el
@@ -58,8 +59,10 @@ y `__alejar()`.
 - La guía no trae texto religioso propio: cada fórmula es un `id` que se llena desde
   `public/rezo/formulas.json`, generado por `scripts/planilla-formulas.py` a partir de la planilla que
   revisa una persona. Ver `public/rezo/README.md`.
-- **Un agente no transcribe, corrige ni completa** árabe, transliteración ni traducción, ni copia texto
-  de ediciones con derechos (Sistani, © The World Federation; sunnah.com; dorar.net).
+- **Proceso decidido por el usuario el 23/10/2026:** las palabras y el orden de cada fórmula son los de sus notas (columnas «de tus notas» de la planilla). El asistente solo ajusta la escritura árabe al Corán de la app con `scripts/escritura-coranica.py` (palabras y frases tal cual del texto Tanzil; lo que no está, con las mismas reglas de escritura) y la transliteración a la convención estricta, y propone traducciones. No agrega palabras ni inventa fórmulas. El usuario aprueba cada fila (en el chat o en la planilla) y firma «Revisó». Sigue prohibido copiar texto de ediciones con derechos (Sistani, © The World Federation; sunnah.com; dorar.net), y las fórmulas que no están en sus notas no tienen texto hasta que él lo dé.
+- Primera tanda (23/10/2026): 19 fórmulas y la transliteración de Al-Fatiha y Al-Ikhlas, revisadas por
+  Yaḥyā. La tabla, con las aleyas de donde sale la escritura, también está en el vault del Islam
+  («Práctica de la salat chií», sección «Fórmulas en escritura coránica»).
 - `scripts/planilla-notas.py` copia, tal cual, el árabe y la transliteración de las notas de estudio del
   usuario a dos columnas de ayuda de la planilla; quien revisa las pasa a las columnas revisadas y firma.
 - Al-Fatiha, Al-Ikhlas y 2:201 usan el árabe y la traducción del lector (Tanzil Uthmani y Bórnez).
@@ -95,4 +98,3 @@ Ver la fila «Guía y acompañamiento del rezo» de [estados-interfaz.md](estado
 - Lectura en voz alta de los pasos (a evaluar): reusar la recitación del lector para el Corán; el resto
   necesitaría grabaciones con licencia, y consultar si seguir una grabación durante el rezo afecta su
   validez.
-- Antes de publicarla: decidir el nombre «Mi práctica» en una app pública.
