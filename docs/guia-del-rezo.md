@@ -1,8 +1,7 @@
 # Guía y acompañamiento del rezo
 
-Estado al 23/10/2026: **en desarrollo**. Se ve en `tauri dev` y en las compilaciones de prueba con
-`VITE_GUIA_REZO=1`; las oficiales no la incluyen (el código ni entra en el bundle). PR #10, rama
-`feat/guia-rezo`.
+Estado: **publicada en v0.1.16** (23/10/2026), en todas las compilaciones. Solo ja'fari, perfil
+«Sistani completo», con 38 fórmulas revisadas por el usuario.
 
 ## Qué hace
 
@@ -91,18 +90,15 @@ y `__alejar()`.
 
 Ver la fila «Guía y acompañamiento del rezo» de [estados-interfaz.md](estados-interfaz.md).
 
-## Versión de prueba con la guía visible
+## Versiones de prueba
 
-1. CI manual con la opción «guia»: `gh workflow run release.yml --ref feat/guia-rezo -f guia=true`
-   (o «Run workflow» en Actions, marcando la casilla). Define `VITE_GUIA_REZO=1` solo en esa ejecución:
-   no hace falta una rama de prueba ni un `.env.production`. Genera `.deb`, AppImage, NSIS y los APK
-   firmados con la clave de siempre, sin publicar nada. Los tags y los PR nunca la encienden.
-2. Mientras el seguimiento (PR #9) no esté en `main`, la versión de prueba que lo combina con la guía
-   sale de una rama que los une y no se mergea (`prueba/seguimiento-y-guia`), con la misma opción.
-3. Los paquetes se suben a una prerelease cuyo tag no sigue los patrones de los actualizadores
+1. CI manual sobre la rama: `gh workflow run release.yml --ref <rama>`. Genera `.deb`, AppImage, NSIS y
+   los APK firmados con la clave de siempre, sin publicar nada. (Hasta v0.1.16, la opción «guia» y
+   `VITE_GUIA_REZO=1` encendían la guía en estas versiones; ya no hacen falta.)
+2. Los paquetes se suben a una prerelease cuyo tag no sigue los patrones de los actualizadores
    (`vX.Y.Z`, `android-experimental-<sha7>`) y sin `android-update.json`: ninguna app la ofrece.
    Se borra al terminar la prueba.
-4. En una PC con `.oauth.local`, no compilar localmente la versión de prueba: la compilación local
+3. En una PC con `.oauth.local`, no compilar localmente la versión de prueba: la compilación local
    activa el sync con Google. Usar los paquetes de la CI.
 
 ## Pendiente
