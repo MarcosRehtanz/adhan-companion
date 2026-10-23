@@ -5,7 +5,8 @@ Uso: python3 scripts/planilla-notas.py <planilla.xlsx> <carpeta con los «Texto 
 
 Lee las notas de estudio del usuario (Obsidian, vault Islam: 08 Práctica/Rezos/Texto del fajr.md, …) y copia,
 tal cual, la línea árabe y la transliteración de cada fórmula de «Mi práctica» en dos columnas al final de la
-hoja «Fórmulas». Son una ayuda para quien revisa: las columnas amarillas (árabe, transliteración y traducción
+hoja «Fórmulas». También las aleyas que se recitan (Al-Fatiha, Al-Ikhlas y 2:201, ids q_<sura>_<aleya>): de
+esas la app solo usa la transliteración, porque el árabe y la traducción son los del lector. Son una ayuda para quien revisa: las columnas amarillas (árabe, transliteración y traducción
 revisadas, «Revisó») no se tocan, y nada de esto llega a formulas.json si una persona no lo copia y firma.
 No transcribe, corrige ni completa texto: si una línea no está literalmente en la nota, falla.
 
@@ -88,6 +89,13 @@ def formulas(carpeta):
     }
     for rezo in NOTAS:
         f[f'm_niyya_{rezo}'] = buscar(rezo, 'Nawaytu')
+    # Las aleyas: en la rakʿa 1 de la nota del Fajr, las 7 de Al-Fatiha y después las 4 de Al-Ikhlas.
+    rakat1 = [(ar, tr) for s, ar, tr in lista[fajr] if s.startswith('4.')]
+    fatiha, ikhlas = rakat1[:7], rakat1[7:11]
+    if not (fatiha[0][1].startswith('Bismillāh') and ikhlas[0][1].startswith('Qul huwa') and ikhlas[3][1].startswith('Wa lam yakun')):
+        raise SystemExit('No se reconocen Al-Fatiha y Al-Ikhlas en la rakʿa 1 de la nota del Fajr')
+    f |= {f'q_1_{n}': par for n, par in enumerate(fatiha, 1)} | {f'q_112_{n}': par for n, par in enumerate(ikhlas, 1)}
+    f['q_2_201'] = buscar(fajr, 'Rabbanā ātinā')
     for fid, (ar, tr) in f.items():  # copia literal: cada tramo está en alguna nota
         if not any(ar in t for t in textos.values()) or not any(tr in t for t in textos.values()):
             raise SystemExit(f'{fid}: el texto no aparece literalmente en las notas')

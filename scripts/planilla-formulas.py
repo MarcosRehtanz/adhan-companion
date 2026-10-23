@@ -5,6 +5,8 @@ Uso: python3 scripts/planilla-formulas.py <planilla.xlsx> [--comprobar]
 
 Una fila está lista cuando tiene el árabe, la transliteración y la traducción revisadas
 y las iniciales de quien revisó (la misma regla que la columna «Estado» de la planilla).
+Las filas del Corán (ids q_<sura>_<aleya>) solo aportan la transliteración: el árabe y la
+traducción son los del lector, así que les alcanza con la transliteración y «Revisó».
 No transcribe, corrige ni completa texto: copia lo que tipeó la persona que revisa.
 Con --comprobar solo informa, sin escribir. Solo usa la biblioteca estándar.
 """
@@ -83,12 +85,16 @@ def main():
             errores.append(f'fila {n}: el id «{fid}» no aparece en src/lib/guia.ts')
         if fid in formulas or fid in pendientes:
             errores.append(f'fila {n}: el id «{fid}» está repetido')
-        if not all(celdas[k] for k in ('ar', 'tr', 'es', 'reviso')):
+        coran = fid.startswith('q_')
+        if not all(celdas[k] for k in (('tr', 'reviso') if coran else ('ar', 'tr', 'es', 'reviso'))):
             pendientes.append(fid)
             continue
         if not celdas['fuente'] or celdas['fuente'].startswith('Falta'):
             errores.append(f'fila {n} ({fid}): falta la referencia de la fuente')
         ar = celdas['ar']
+        if coran:
+            formulas[fid] = {k: celdas[k] for k in ('tr', 'fuente', 'reviso')}
+            continue
         if not re.search('[ء-ي]', ar):
             errores.append(f'fila {n} ({fid}): la columna del árabe no tiene letras árabes')
         if re.search('[A-Za-z]', ar):

@@ -237,6 +237,14 @@ export function pasosEnOrden(r: RezoArmado, completo: boolean): PasoEnCurso[] {
   return [...tramo(r.antes, 0), ...r.rakats.flatMap(k => tramo(k.pasos, k.rakat)), ...tramo(r.despues, r.total + 1)];
 }
 
+/** Transliteración de lo que se recita del Corán, aleya por aleya (planilla, ids q_<sura>_<aleya>). El árabe y la
+ *  traducción son los del lector (Tanzil y Bórnez): estas filas solo aportan la transliteración revisada. */
+export const TRANSLIT_CORAN: Record<Lectura, string[]> = {
+  fatiha: ["q_1_1", "q_1_2", "q_1_3", "q_1_4", "q_1_5", "q_1_6", "q_1_7"],
+  ikhlas: ["q_112_1", "q_112_2", "q_112_3", "q_112_4"],
+  "2:201": ["q_2_201"],
+};
+
 /** Clave de pronunciación de la transliteración estricta (la de la planilla y la de Sistani). */
 export const CLAVE_TRANSLITERACION: [string, string][] = [
   ["ā ī ū", "vocal larga: se alarga, como «aa», «ii», «uu»"],

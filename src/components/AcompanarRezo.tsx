@@ -94,7 +94,7 @@ function Formulas({ p, completo, textos, corpus, debajo }: { p: Paso; completo: 
   const ver = (lista: Paso["formulas"]) => lista.filter(f => visible(f.estatus, completo));
   return <>
     {ver(p.formulas.filter(f => f.antes)).map((f, i) => <FormulaBloque key={"a" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
-    {p.corpus?.map(id => <CorpusBloque key={id} id={id} corpus={corpus} es={debajo.es} />)}
+    {p.corpus?.map(id => <CorpusBloque key={id} id={id} corpus={corpus} textos={textos} tr={debajo.tr} es={debajo.es} />)}
     {ver(p.formulas.filter(f => !f.antes)).map((f, i) => <FormulaBloque key={"p" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
     {ver(p.formulasDespues ?? []).map((f, i) => <FormulaBloque key={"d" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
   </>;

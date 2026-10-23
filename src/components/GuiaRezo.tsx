@@ -24,7 +24,7 @@ function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus, debajo 
       <div className="guia-paso-cabecera"><b>{p.nombre}</b><Estado estatus={p.estatus} />{p.voz && <span className="guia-voz">en voz {p.voz}</span>}</div>
       <p className="guia-detalle">{p.detalle}</p>
       {antes.map((f, i) => <FormulaBloque key={"a" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
-      {p.corpus?.map(id => <CorpusBloque key={id} id={id} corpus={corpus} es={debajo.es} />)}
+      {p.corpus?.map(id => <CorpusBloque key={id} id={id} corpus={corpus} textos={textos} tr={debajo.tr} es={debajo.es} />)}
       {principales.map((f, i) => <FormulaBloque key={"p" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
       {despues.map((f, i) => <FormulaBloque key={"d" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
       {ocultas > 0 && <p className="guia-solo-completo">{ocultas === 1 ? "Hay una recitación recomendada" : `Hay ${ocultas} recitaciones recomendadas`} en el modo completo.</p>}

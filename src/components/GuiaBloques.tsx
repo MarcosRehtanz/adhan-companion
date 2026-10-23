@@ -2,7 +2,7 @@
 // las fórmulas (con su texto revisado o como pendientes) y las suras del lector.
 import type { ReactNode } from "react";
 import type { Corpus } from "../lib/quran";
-import { CLAVE_TRANSLITERACION, esObligatorio, ETIQUETAS, type Caso, type Estatus, type Formula, type Lectura, type Postura, type TextoFormula } from "../lib/guia";
+import { CLAVE_TRANSLITERACION, esObligatorio, TRANSLIT_CORAN, ETIQUETAS, type Caso, type Estatus, type Formula, type Lectura, type Postura, type TextoFormula } from "../lib/guia";
 
 const POSTURAS: Record<Postura, string> = {
   pie: "M12 7.5v8.5M12 16l-2.2 5.5M12 16l2.2 5.5M12 9.5l-2 5M12 9.5l2 5",
@@ -57,14 +57,16 @@ const LECTURAS: Record<Lectura, { sura: number; aya?: number; nombre: string }> 
 /** De 2:201 solo se dice la súplica: en la traducción, lo que va entre comillas. */
 const soloSuplica = (texto: string) => texto.match(/«(.+)»/)?.[1] ?? texto;
 
-export function CorpusBloque({ id, corpus, es = true }: { id: Lectura; corpus: Corpus | null; es?: boolean }) {
+export function CorpusBloque({ id, corpus, textos = {}, tr = true, es = true }: { id: Lectura; corpus: Corpus | null; textos?: Record<string, TextoFormula>; tr?: boolean; es?: boolean }) {
   const l = LECTURAS[id];
+  const translit = TRANSLIT_CORAN[id].map(k => textos[k]?.tr).filter(Boolean);
   const sura = corpus?.suras[l.sura - 1];
   const versos = sura && (l.aya ? sura.slice(l.aya - 1, l.aya) : sura);
   return <div className="guia-formula corpus">
     <div className="guia-formula-meta"><span>{l.nombre}</span></div>
     {versos ? <>
       <p className="guia-ar" lang="ar" dir="rtl">{versos.map(v => v.arabic).join(" ۝ ")}</p>
+      {tr && translit.length > 0 && <p className="guia-tr">{translit.join(" · ")}</p>}
       {es && <p className="guia-es">{l.aya ? soloSuplica(versos[0].translation) : versos.map(v => v.translation).join(" ")}</p>}
       <p className="guia-fuente">Tanzil Uthmani 1.1 · traducción de Raúl González Bórnez (la del lector)</p>
     </> : <p className="guia-pendiente">Abriendo el texto del lector…</p>}
