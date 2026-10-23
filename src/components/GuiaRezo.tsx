@@ -83,6 +83,7 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
       <label><input type="checkbox" checked={debajo.es} onChange={e => setDebajo({ ...debajo, es: e.target.checked })} />Traducción</label>
     </div>
     {debajo.tr && <ClaveTransliteracion />}
+    <button className="guia-boton guia-empezar" onClick={() => setEtapa("preparar")}>Rezar {REZOS[rezo].nombre} con guía</button>
     {revisadas === 0 && <p className="guia-aviso-preparacion">Guía en preparación: las fórmulas aparecen a medida que se transcriben y revisan. Al-Fatiha y la sura vienen del lector.</p>}
     {viajero && <Aviso titulo="De viaje" caso={VIAJE[escuela]} />}
     {mujer && <>
@@ -109,7 +110,6 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
     {seccion("antes", combinado ? "Antes del rezo · unido al anterior" : "Antes del rezo", armado.antes)}
     {armado.rakats.map(k => seccion(`rakat-${k.rakat}`, `Rakʿa ${k.rakat} de ${armado.total}`, k.pasos))}
     {seccion("despues", "Después del rezo · taʿqībāt", armado.despues)}
-    <button className="guia-boton guia-empezar" onClick={() => setEtapa("preparar")}>Rezar {REZOS[rezo].nombre} con guía</button>
 
     {etapa === "preparar" && <PrepararHoja armado={armado} escuela={escuela} completo={completo} combinado={combinado} android={android} avance={avance} debajo={debajo}
       onAvance={setAvance} onDebajo={setDebajo} onCancelar={() => setEtapa("guia")} onEmpezar={() => setEtapa("acompanar")} />}

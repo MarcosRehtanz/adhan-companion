@@ -769,7 +769,7 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .guia-boton:disabled { opacity: .6; cursor: default; }
 .guia-boton.secundario { border: 1px solid var(--borde); background: transparent; color: var(--acento); }
 .guia-boton.texto { background: transparent; color: var(--acento); }
-.guia-empezar { margin: 20px 0 8px; }
+.guia-empezar { margin: 4px 0 16px; }
 .guia-hoja { width: 440px; max-width: calc(100vw - 24px); max-height: calc(100vh - 48px); padding: 18px 20px 20px; overflow: auto; border: 1px solid var(--borde); border-radius: 16px; background: var(--tarjeta); color: var(--texto); box-shadow: 0 18px 50px rgba(0, 0, 0, .25); }
 .guia-hoja::backdrop { background: rgba(10, 12, 16, .45); }
 .guia-hoja h2 { margin: 0 0 4px; font-size: 18px; }
