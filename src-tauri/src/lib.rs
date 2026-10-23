@@ -398,6 +398,15 @@ async fn android_update(action: Option<String>) -> Result<serde_json::Value, Str
     { let _ = action; Err("Solo disponible en Android.".into()) }
 }
 
+// Acompañar el rezo: pantalla encendida y sensor de proximidad (start, read, stop, status).
+#[tauri::command]
+async fn android_acompanar(action: String, sensor: Option<bool>) -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "android")]
+    { android_alerts::call("acompanar", serde_json::json!({"action": action, "sensor": sensor.unwrap_or(false)})) }
+    #[cfg(not(target_os = "android"))]
+    { let _ = (action, sensor); Err("Solo disponible en Android.".into()) }
+}
+
 // Contratos comunes: escritorio reproduce con rodio y Android con su servicio nativo.
 #[tauri::command]
 async fn quran_audio_status(sura: u16) -> Result<serde_json::Value, String> {
@@ -472,6 +481,7 @@ pub fn run() {
         runtime_info,
         android_alert_status,
         android_update,
+        android_acompanar,
         quran_audio_status,
         quran_audio_control,
         quran::get_quran_reader,
@@ -513,6 +523,7 @@ pub fn run() {
         runtime_info,
         android_alert_status,
         android_update,
+        android_acompanar,
         quran_audio_status,
         quran_audio_control,
         quran::get_quran_reader,

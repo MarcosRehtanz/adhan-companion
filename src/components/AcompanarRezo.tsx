@@ -9,6 +9,10 @@
 //   Un paso con cuenta (tasbīḥ de Fátima) suma un toque por repetición y avanza al completarla.
 //   La posición no se guarda: si la app se cierra, el rezo se vuelve a empezar desde la guía.
 //   «Terminar» (o Escape) sale sin marcar. El modo y las opciones quedan en localStorage.
+//   «sensor» (solo Android) avanza con toques como «tocar» y, además, cada postración detectada
+//   lleva al próximo sujūd y levantarse pasa al paso siguiente. Estados del sensor: apagado,
+//   activando, lejos, postración detectada, error (sigue con toques). En Android la pantalla
+//   queda encendida mientras dura el acompañamiento, en cualquier modo; al salir se suelta.
 // - rezando → fin: el último toque (tocar) o «Terminé» (contador).
 // - fin: marcar usa mark_prayed, que en el core alterna (si ya estaba marcado, lo desmarca) y
 //   rechaza rezos cuyo horario no llegó. Por eso el botón solo aparece si el rezo de hoy no está
@@ -23,9 +27,10 @@ import type { Schedule } from "../types";
 import { prayerReached } from "../lib/prayers";
 import { COMBINAR, ESCUELAS, pasosEnOrden, REZOS, visible, type Avance, type Escuela, type Paso, type Rezo, type RezoArmado, type TextoFormula } from "../lib/guia";
 
+import { CorpusBloque, FormulaBloque, NotaOculta, PosturaIcono } from "./GuiaBloques";
+
 /** El rezo al que se une Asr o Isha (el mismo par que valida el core). */
 const UNIDO_A: Partial<Record<string, string>> = { Asr: "Dhuhr", Isha: "Maghrib" };
-import { CorpusBloque, FormulaBloque, PosturaIcono } from "./GuiaBloques";
 
 export interface Debajo { tr: boolean; es: boolean }
 
@@ -44,6 +49,54 @@ function usePantallaEncendida() {
   }, []);
 }
 
+type Sensor = { estado: "apagado" | "activando" | "lejos" | "cerca" } | { estado: "error"; mensaje: string };
+interface Lectura { near: boolean; since: number; elapsed: number }
+// Cerca durante 0,7 s es una postración (no una mano que pasa); lejos 0,4 s después, levantarse.
+const CERCA_MS = 700, LEJOS_MS = 400, LECTURA_MS = 250;
+
+/** En Android: pantalla encendida mientras dura el acompañamiento y, con el sensor, avisos de cada
+ *  postración y de cada vez que la persona se levanta. Al desmontarse suelta las dos cosas. */
+function useAcompanarAndroid(android: boolean, conSensor: boolean, alPostrarse: () => void, alLevantarse: () => void): Sensor {
+  const [sensor, setSensor] = useState<Sensor>({ estado: android && conSensor ? "activando" : "apagado" });
+  const avisos = useRef({ alPostrarse, alLevantarse });
+  avisos.current = { alPostrarse, alLevantarse };
+  useEffect(() => {
+    if (!android) return;
+    let vivo = true, timer = 0, leyendo = false, postrado: number | null = null, levantado: number | null = null;
+    const fallar = (e: unknown) => { if (!vivo) return; window.clearInterval(timer); setSensor({ estado: "error", mensaje: String(e) }); };
+    const leer = () => {
+      if (leyendo) return;
+      leyendo = true;
+      invoke<Lectura>("android_acompanar", { action: "read" }).then(r => {
+        if (!vivo) return;
+        if (r.near && r.elapsed >= CERCA_MS && postrado !== r.since) { postrado = r.since; avisos.current.alPostrarse(); }
+        else if (!r.near && r.elapsed >= LEJOS_MS && postrado !== null && r.since > postrado && levantado !== r.since) { levantado = r.since; avisos.current.alLevantarse(); }
+        setSensor({ estado: r.near && postrado === r.since ? "cerca" : "lejos" });
+      }).catch(fallar).finally(() => { leyendo = false; });
+    };
+    invoke("android_acompanar", { action: "start", sensor: conSensor })
+      .then(() => { if (vivo && conSensor) timer = window.setInterval(leer, LECTURA_MS); })
+      .catch(e => { if (conSensor) fallar(e); });
+    return () => { vivo = false; window.clearInterval(timer); void invoke("android_acompanar", { action: "stop" }).catch(() => {}); };
+  }, [android, conSensor]);
+  return sensor;
+}
+
+type Disponible = "consultando" | "si" | "no" | "error";
+/** Si este teléfono tiene sensor de proximidad (solo se consulta en Android). */
+function useHaySensor(android: boolean): Disponible {
+  const [hay, setHay] = useState<Disponible>(android ? "consultando" : "no");
+  useEffect(() => {
+    if (!android) return;
+    let vivo = true;
+    invoke<{ sensor: boolean }>("android_acompanar", { action: "status" })
+      .then(r => { if (vivo) setHay(r.sensor ? "si" : "no"); })
+      .catch(() => { if (vivo) setHay("error"); });
+    return () => { vivo = false; };
+  }, [android]);
+  return hay;
+}
+
 /** Abre el dialog como modal al montarse: el resto de la app queda inerte mientras tanto. Con
  *  `enfocar`, el foco queda en el dialog y no en su primer botón (si no, la barra espaciadora
  *  activaría «Terminar» en vez de avanzar). */
@@ -58,10 +111,14 @@ export function PrepararHoja({ armado, escuela, completo, combinado, android, av
   onAvance: (a: Avance) => void; onDebajo: (d: Debajo) => void; onCancelar: () => void; onEmpezar: () => void;
 }) {
   const ref = useModal();
-  const modos: { id: Avance | "sensor"; nombre: string; tipo: string; texto: string }[] = [
-    { id: "tocar", nombre: "Tocar para avanzar", tipo: "manual", texto: "Un toque en cualquier parte de la pantalla pasa al paso siguiente." },
-    { id: "contador", nombre: "Contador de rakʿas", tipo: "manual", texto: "Solo el número de la rakʿa, grande. Un toque suma una al levantarte." },
-    ...(android ? [{ id: "sensor" as const, nombre: "Sensor de proximidad", tipo: "automático", texto: "Todavía no está disponible en esta versión." }] : []),
+  const haySensor = useHaySensor(android);
+  // Si el modo guardado es el sensor y este teléfono no lo tiene, se vuelve a «tocar».
+  useEffect(() => { if (avance === "sensor" && (haySensor === "no" || haySensor === "error")) onAvance("tocar"); }, [avance, haySensor, onAvance]);
+  const textoSensor = { consultando: "Consultando si este teléfono tiene sensor…", si: "Con el teléfono en el suelo, delante del lugar de la postración: cada postración lleva al sujūd y, al levantarte, sigue solo. Los demás pasos, con un toque.", no: "Este teléfono no tiene sensor de proximidad.", error: "No se pudo consultar el sensor de este teléfono." }[haySensor];
+  const modos: { id: Avance; nombre: string; tipo: string; texto: string; disponible: boolean }[] = [
+    { id: "tocar", nombre: "Tocar para avanzar", tipo: "manual", texto: "Un toque en cualquier parte de la pantalla pasa al paso siguiente.", disponible: true },
+    { id: "contador", nombre: "Contador de rakʿas", tipo: "manual", texto: "Solo el número de la rakʿa, grande. Un toque suma una al levantarte.", disponible: true },
+    ...(android ? [{ id: "sensor" as const, nombre: "Sensor de proximidad", tipo: "automático", texto: textoSensor, disponible: haySensor === "si" }] : []),
   ];
   return <dialog ref={ref} className="guia-hoja" aria-labelledby="guia-hoja-titulo"
     onCancel={e => { e.preventDefault(); onCancelar(); }} onClick={e => { if (e.target === e.currentTarget) onCancelar(); }}>
@@ -70,9 +127,8 @@ export function PrepararHoja({ armado, escuela, completo, combinado, android, av
     <p className="guia-hoja-grupo" id="guia-hoja-avance">Cómo avanza</p>
     <div className="guia-modos" role="radiogroup" aria-labelledby="guia-hoja-avance">
       {modos.map(m => {
-        const disponible = m.id !== "sensor";
-        return <label key={m.id} className={"guia-modo" + (avance === m.id ? " elegido" : "") + (disponible ? "" : " no-disponible")}>
-          <input type="radio" name="guia-avance" checked={avance === m.id} disabled={!disponible} onChange={() => { if (m.id !== "sensor") onAvance(m.id); }} />
+        return <label key={m.id} className={"guia-modo" + (avance === m.id ? " elegido" : "") + (m.disponible ? "" : " no-disponible")}>
+          <input type="radio" name="guia-avance" checked={avance === m.id} disabled={!m.disponible} onChange={() => onAvance(m.id)} />
           <span><b>{m.nombre}<span className="guia-modo-tipo">{m.tipo}</span></b>{m.texto}</span>
         </label>;
       })}
@@ -82,7 +138,7 @@ export function PrepararHoja({ armado, escuela, completo, combinado, android, av
       <button className="guia-chip" aria-pressed={debajo.tr} onClick={() => onDebajo({ ...debajo, tr: !debajo.tr })}>Transliteración</button>
       <button className="guia-chip" aria-pressed={debajo.es} onClick={() => onDebajo({ ...debajo, es: !debajo.es })}>Traducción</button>
     </div>
-    {!("wakeLock" in navigator) && <p className="guia-pendiente">Este equipo puede apagar la pantalla durante el rezo.</p>}
+    {!android && !("wakeLock" in navigator) && <p className="guia-pendiente">Este equipo puede apagar la pantalla durante el rezo.</p>}
     <div className="guia-hoja-acciones">
       <button className="guia-boton secundario" onClick={onCancelar}>Cancelar</button>
       <button className="guia-boton" onClick={onEmpezar}>Empezar</button>
@@ -97,6 +153,7 @@ function Formulas({ p, completo, textos, corpus, debajo }: { p: Paso; completo: 
     {p.corpus?.map(id => <CorpusBloque key={id} id={id} corpus={corpus} textos={textos} tr={debajo.tr} es={debajo.es} />)}
     {ver(p.formulas.filter(f => !f.antes)).map((f, i) => <FormulaBloque key={"p" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
     {ver(p.formulasDespues ?? []).map((f, i) => <FormulaBloque key={"d" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
+    {p.notaOculta && <NotaOculta nota={p.notaOculta} textos={textos} tr={debajo.tr} es={debajo.es} />}
   </>;
 }
 
@@ -152,8 +209,8 @@ function MarcarYSeguir({ nombre, siguiente, schedule, onMarked, onCombinar }: { 
   </>;
 }
 
-export function AcompanarRezo({ armado, escuela, completo, combinado, viajero, avance: avanceElegido, debajo, textos, corpus, schedule, scheduleError, onMarked, onSalir, onCombinar }: {
-  armado: RezoArmado; escuela: Escuela; completo: boolean; combinado: boolean; viajero: boolean; avance: Avance; debajo: Debajo;
+export function AcompanarRezo({ armado, escuela, completo, combinado, viajero, android, avance: avanceElegido, debajo, textos, corpus, schedule, scheduleError, onMarked, onSalir, onCombinar }: {
+  armado: RezoArmado; escuela: Escuela; completo: boolean; combinado: boolean; viajero: boolean; android: boolean; avance: Avance; debajo: Debajo;
   textos: Record<string, TextoFormula>; corpus: Corpus | null; schedule: Schedule | null; scheduleError: string;
   onMarked: () => void; onSalir: () => void; onCombinar: (siguiente: Rezo) => void;
 }) {
@@ -188,6 +245,16 @@ export function AcompanarRezo({ armado, escuela, completo, combinado, viajero, a
     else irA(Math.max(0, i - 1));
   };
   const termine = () => { if (primeraTaqiba >= 0) { setEnTaqibat(true); irA(primeraTaqiba); } else setFin(true); };
+  // Sensor: una postración lleva al próximo sujūd (o se queda si ya está en uno); levantarse
+  // desde un sujūd pasa al paso siguiente. Los toques siguen funcionando igual.
+  const sensor = useAcompanarAndroid(android, avanceElegido === "sensor", () => {
+    if (fin) return;
+    const destino = pasos.findIndex((x, j) => j >= i && x.paso.postura === "postrado");
+    if (destino > i) irA(destino);
+  }, () => {
+    if (!fin && actual.paso.postura === "postrado") { if (i + 1 < pasos.length) irA(i + 1); else setFin(true); }
+  });
+  const textoSensor = sensor.estado === "activando" ? "Activando el sensor…" : sensor.estado === "cerca" ? "Postración detectada" : sensor.estado === "lejos" ? "Sensor activo: cada postración avanza sola" : sensor.estado === "error" ? `Sensor sin lectura (${sensor.mensaje}): seguí con toques` : "";
   // En escritorio: espacio, Enter o flecha derecha avanzan; flecha izquierda vuelve.
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
@@ -253,7 +320,7 @@ export function AcompanarRezo({ armado, escuela, completo, combinado, viajero, a
       </>}
       <div className="acompanar-pie">
         <button className="acompanar-atras" disabled={avance === "contador" ? rakat === 1 : i === 0 && cuenta === 0} onClick={parar(anterior)}>{avance === "contador" ? "Restar una" : "Paso anterior"}</button>
-        <span>{avance === "contador" ? "Tocá en cualquier parte al levantarte" : fases ? `Un toque por cada dhikr · ${Math.min(cuenta, totalCuenta)} de ${totalCuenta}` : `Tocá en cualquier parte para seguir · paso ${i + 1} de ${pasos.length}`}</span>
+        <span>{avance === "contador" ? "Tocá en cualquier parte al levantarte" : fases ? `Un toque por cada dhikr · ${Math.min(cuenta, totalCuenta)} de ${totalCuenta}` : avance === "sensor" ? <><span className={"acompanar-sensor " + sensor.estado} role={sensor.estado === "error" ? "alert" : undefined}>{textoSensor}</span> · paso {i + 1} de {pasos.length}</> : `Tocá en cualquier parte para seguir · paso ${i + 1} de ${pasos.length}`}</span>
         {avance === "contador" && <button className="acompanar-atras" onClick={parar(termine)}>Terminé</button>}
         {fases && <button className="acompanar-atras" onClick={parar(() => { if (i + 1 < pasos.length) irA(i + 1); else setFin(true); })}>Saltar</button>}
       </div>

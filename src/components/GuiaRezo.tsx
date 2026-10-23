@@ -1,16 +1,17 @@
 // Guía del rezo: cada rezo obligatorio paso a paso, según la escuela. Muestra lo obligatorio y, en
-// el modo completo, lo recomendado. En ja'fari hay dos perfiles: «Mi práctica» (el orden con que se
-// aprende, con adhan, iqama y taʿqībāt, sin estatus) y Sistani completo (con estatus y fuentes). Las fórmulas aparecen a medida que se transcriben y revisan
+// el modo completo, lo recomendado. Ja'fari sigue a Sistani, con estatus y fuentes. El perfil «Mi
+// práctica» quedó oculto por decisión del usuario (23/10): su código sigue en guia.ts, como las
+// escuelas sunnis. Las fórmulas aparecen a medida que se transcriben y revisan
 // (public/rezo/formulas.json); mientras tanto, cada una muestra su lugar y su referencia.
 import { useEffect, useMemo, useState } from "react";
 import { loadQuran, type Corpus } from "../lib/quran";
 import {
   armarRezo, cargarFormulas, COMBINAR, ESCUELAS, ESCUELAS_VISIBLES, MENSTRUACION, MUJER, notaMujer, REZOS, VIAJE, visible,
-  type Avance, type Escuela, type Paso, type Perfil, type Postura, type Rezo, type TextoFormula,
+  type Avance, type Escuela, type Paso, type Perfil, type Postura, type Rezo, type RezoArmado, type TextoFormula,
 } from "../lib/guia";
 import type { Schedule } from "../types";
 import { AcompanarRezo, PrepararHoja, type Debajo } from "./AcompanarRezo";
-import { Aviso, ClaveTransliteracion, CorpusBloque, Estado, FormulaBloque, Fuente, guardado, NOMBRES_POSTURA, PosturaIcono } from "./GuiaBloques";
+import { Aviso, ClaveTransliteracion, CorpusBloque, Estado, FormulaBloque, guardado, NOMBRES_POSTURA, NotaOculta, PosturaIcono } from "./GuiaBloques";
 
 function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus, debajo }: { p: Paso; escuela: Escuela; rezo: Rezo; completo: boolean; mujer: boolean; textos: Record<string, TextoFormula>; corpus: Corpus | null; debajo: Debajo }) {
   const antes = p.formulas.filter(f => f.antes && visible(f.estatus, completo));
@@ -29,10 +30,30 @@ function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus, debajo 
       {despues.map((f, i) => <FormulaBloque key={"d" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
       {ocultas > 0 && <p className="guia-solo-completo">{ocultas === 1 ? "Hay una recitación recomendada" : `Hay ${ocultas} recitaciones recomendadas`} en el modo completo.</p>}
       {p.difiere && <p className="guia-difiere">{p.difiere}</p>}
-      {nota && <p className="guia-difiere guia-mujer"><b>Mujer (recomendado):</b> {nota.texto} <a href={nota.fuente.url} target="_blank" rel="noreferrer">{nota.fuente.etiqueta}</a></p>}
-      {p.fuente && <Fuente caso={{ fuente: p.fuente }} />}
+      {p.notaOculta && <NotaOculta nota={p.notaOculta} textos={textos} tr={debajo.tr} es={debajo.es} />}
+      {nota && <p className="guia-difiere guia-mujer"><b>Mujer (recomendado):</b> {nota.texto}</p>}
     </div>
   </article>;
+}
+
+const pasosDe = (a: RezoArmado) => [...a.antes, ...a.rakats.flatMap(k => k.pasos), ...a.despues];
+const unicos = <T,>(lista: T[], clave: (x: T) => string) => [...new Map(lista.map(x => [clave(x), x])).values()];
+
+/** Las fuentes, aparte de los pasos (decisión del usuario del 23/10/2026): de dónde sale cada paso, cada
+ *  texto y cada caso especial, y quién revisó cada fórmula. Cerrado hasta que se abre. */
+function FuentesGuia({ armado, completo, textos, casos }: { armado: RezoArmado; completo: boolean; textos: Record<string, TextoFormula>; casos: { titulo: string; fuente: { etiqueta: string; url: string } }[] }) {
+  const pasos = pasosDe(armado).filter(p => visible(p.estatus, completo));
+  const deLosPasos = unicos(pasos.filter(p => p.fuente).map(p => ({ nombre: p.nombre, fuente: p.fuente! })), x => x.nombre + x.fuente.etiqueta);
+  const ids = unicos(pasos.flatMap(p => [...p.formulas, ...(p.formulasDespues ?? []), ...(p.notaOculta?.formulas ?? [])])
+    .filter(f => visible(f.estatus, completo) && f.id && textos[f.id]).map(f => f.id!), x => x);
+  const lector = pasos.some(p => p.corpus?.length);
+  return <details className="guia-fuentes">
+    <summary>Fuentes y revisión</summary>
+    {deLosPasos.length > 0 && <><h3>Pasos</h3><ul>{deLosPasos.map(x => <li key={x.nombre + x.fuente.etiqueta}>{x.nombre}: <a href={x.fuente.url} target="_blank" rel="noreferrer">{x.fuente.etiqueta}</a></li>)}</ul></>}
+    {ids.length > 0 && <><h3>Textos</h3><ul>{ids.map(id => <li key={id}><i>{textos[id].tr || id}</i>: {textos[id].fuente} · revisó {textos[id].reviso}</li>)}</ul></>}
+    {casos.length > 0 && <><h3>Casos</h3><ul>{unicos(casos, c => c.titulo).map(c => <li key={c.titulo}>{c.titulo}: <a href={c.fuente.url} target="_blank" rel="noreferrer">{c.fuente.etiqueta}</a></li>)}</ul></>}
+    {lector && <p>Al-Fatiha, Al-Ikhlas y Rabbanā ātinā (2:201): texto Tanzil Uthmani 1.1 y traducción de Raúl González Bórnez, los del lector del Qur’an. La escritura árabe de las fórmulas sigue el mismo texto.</p>}
+  </details>;
 }
 
 /** `rezoInicial` (desde la tarjeta de Hoy): abre con ese rezo y directo en «Antes de empezar». */
@@ -42,17 +63,19 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
   const [completo, setCompleto] = useState(() => localStorage.getItem("guia.completo") === "1");
   const [viajero, setViajero] = useState(false);
   const [mujer, setMujer] = useState(() => localStorage.getItem("guia.mujer") === "1");
-  const [perfil, setPerfil] = useState<Perfil>(() => guardado("guia.perfil", ["practica", "sistani"], "practica"));
+  const perfil: Perfil = "sistani";
   // Unido al rezo anterior: lo pone «Seguir con…» al final del acompañamiento; elegir otro rezo lo quita.
   const [combinado, setCombinado] = useState(false);
   const [textos, setTextos] = useState<Record<string, TextoFormula>>({});
   const [corpus, setCorpus] = useState<Corpus | null>(null);
   const [etapa, setEtapa] = useState<"guia" | "preparar" | "acompanar">(rezoInicial ? "preparar" : "guia");
-  const [avance, setAvance] = useState<Avance>(() => guardado("guia.avance", ["tocar", "contador"], "tocar"));
+  const [avanceGuardado, setAvance] = useState<Avance>(() => guardado("guia.avance", ["tocar", "contador", "sensor"], "tocar"));
+  // El sensor solo existe en Android: en escritorio un valor guardado así se toma como «tocar».
+  const avance: Avance = !android && avanceGuardado === "sensor" ? "tocar" : avanceGuardado;
   const [debajo, setDebajo] = useState<Debajo>(() => ({ tr: localStorage.getItem("guia.tr") !== "0", es: localStorage.getItem("guia.es") !== "0" }));
   useEffect(() => { void cargarFormulas().then(setTextos); loadQuran().then(setCorpus).catch(() => {}); }, []);
-  useEffect(() => { localStorage.setItem("guia.rezo", rezo); localStorage.setItem("guia.escuela", escuela); localStorage.setItem("guia.completo", completo ? "1" : "0"); localStorage.setItem("guia.mujer", mujer ? "1" : "0"); localStorage.setItem("guia.perfil", perfil); }, [rezo, escuela, completo, mujer, perfil]);
-  useEffect(() => { localStorage.setItem("guia.avance", avance); localStorage.setItem("guia.tr", debajo.tr ? "1" : "0"); localStorage.setItem("guia.es", debajo.es ? "1" : "0"); }, [avance, debajo]);
+  useEffect(() => { localStorage.setItem("guia.rezo", rezo); localStorage.setItem("guia.escuela", escuela); localStorage.setItem("guia.completo", completo ? "1" : "0"); localStorage.setItem("guia.mujer", mujer ? "1" : "0"); }, [rezo, escuela, completo, mujer]);
+  useEffect(() => { localStorage.setItem("guia.avance", avanceGuardado); localStorage.setItem("guia.tr", debajo.tr ? "1" : "0"); localStorage.setItem("guia.es", debajo.es ? "1" : "0"); }, [avanceGuardado, debajo]);
   const armado = useMemo(() => armarRezo(escuela, rezo, { completo, viajero, mujer, combinado, perfil }), [escuela, rezo, completo, viajero, mujer, combinado, perfil]);
   const elegirRezo = (k: Rezo) => { setRezo(k); setCombinado(false); };
   const seccion = (clave: string, titulo: string, pasos: Paso[]) => {
@@ -71,10 +94,6 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
   return <div className="guia">
     <div className="guia-selector" role="group" aria-label="Rezo">{(Object.keys(REZOS) as Rezo[]).map(k => <button key={k} className="guia-chip" aria-pressed={rezo === k} onClick={() => elegirRezo(k)}>{REZOS[k].nombre}<small>{viajero && REZOS[k].rakats === 4 ? 2 : REZOS[k].rakats}</small></button>)}</div>
     {ESCUELAS_VISIBLES.length > 1 && <div className="guia-selector" role="group" aria-label="Escuela">{ESCUELAS_VISIBLES.map(k => <button key={k} className="guia-chip" aria-pressed={escuela === k} onClick={() => setEscuela(k)}>{ESCUELAS[k].nombre}{k === "jafari" && <small>Sistani</small>}</button>)}</div>}
-    {escuela === "jafari" && <div className="guia-selector" role="group" aria-label="Perfil">
-      <button className="guia-chip" aria-pressed={perfil === "practica"} onClick={() => setPerfil("practica")}>Mi práctica<small>como se aprende</small></button>
-      <button className="guia-chip" aria-pressed={perfil === "sistani"} onClick={() => setPerfil("sistani")}>Sistani completo<small>con fuentes</small></button>
-    </div>}
     <div className="guia-opciones">
       {!armado.practica && <label><input type="checkbox" checked={completo} onChange={e => setCompleto(e.target.checked)} />Completo (con lo recomendado)</label>}
       <label><input type="checkbox" checked={viajero} onChange={e => setViajero(e.target.checked)} />De viaje</label>
@@ -93,7 +112,6 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
         <p>Duración máxima según {ESCUELAS[escuela].nombre}: menstruación, {m.hayd}; posparto, {m.nifas}. Para los casos de hábito, conviene consultar.</p>
         {m.extra && <p>{m.extra}</p>}
         <p>Los avisos se pueden pausar desde «Adhan y avisos»; la app no guarda el motivo.</p>
-        <Fuente caso={m} />
       </Aviso>
     </>}
     {combinar && <Aviso titulo={`Combinar con ${rezo === "dhuhr" ? "Asr" : "Isha"}`} caso={COMBINAR[escuela]} />}
@@ -110,10 +128,16 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
     {seccion("antes", combinado ? "Antes del rezo · unido al anterior" : "Antes del rezo", armado.antes)}
     {armado.rakats.map(k => seccion(`rakat-${k.rakat}`, `Rakʿa ${k.rakat} de ${armado.total}`, k.pasos))}
     {seccion("despues", "Después del rezo · taʿqībāt", armado.despues)}
+    <FuentesGuia armado={armado} completo={completo} textos={textos} casos={[
+      ...(viajero ? [{ titulo: "De viaje", fuente: VIAJE[escuela].fuente }] : []),
+      ...(mujer ? [{ titulo: "Para la mujer", fuente: MUJER[escuela].fuente }, { titulo: "Menstruación y posparto", fuente: m.fuente },
+        ...pasosDe(armado).flatMap(p => { const n = notaMujer(escuela, p, rezo); return n ? [{ titulo: `Mujer: ${p.nombre}`, fuente: n.fuente }] : []; })] : []),
+      ...(combinar ? [{ titulo: `Combinar con ${rezo === "dhuhr" ? "Asr" : "Isha"}`, fuente: COMBINAR[escuela].fuente }] : []),
+    ]} />
 
     {etapa === "preparar" && <PrepararHoja armado={armado} escuela={escuela} completo={completo} combinado={combinado} android={android} avance={avance} debajo={debajo}
       onAvance={setAvance} onDebajo={setDebajo} onCancelar={() => setEtapa("guia")} onEmpezar={() => setEtapa("acompanar")} />}
-    {etapa === "acompanar" && <AcompanarRezo armado={armado} escuela={escuela} completo={completo} combinado={combinado} viajero={viajero} avance={avance} debajo={debajo}
+    {etapa === "acompanar" && <AcompanarRezo armado={armado} escuela={escuela} completo={completo} combinado={combinado} viajero={viajero} android={android} avance={avance} debajo={debajo}
       textos={textos} corpus={corpus} schedule={schedule} scheduleError={scheduleError} onMarked={onMarked} onSalir={() => setEtapa("guia")}
       onCombinar={siguiente => { setRezo(siguiente); setCombinado(true); setEtapa("preparar"); }} />}
   </div>;

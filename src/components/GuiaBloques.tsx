@@ -2,7 +2,7 @@
 // las fórmulas (con su texto revisado o como pendientes) y las suras del lector.
 import type { ReactNode } from "react";
 import type { Corpus } from "../lib/quran";
-import { CLAVE_TRANSLITERACION, esObligatorio, TRANSLIT_CORAN, ETIQUETAS, type Caso, type Estatus, type Formula, type Lectura, type Postura, type TextoFormula } from "../lib/guia";
+import { CLAVE_TRANSLITERACION, esObligatorio, TRANSLIT_CORAN, ETIQUETAS, type Caso, type Estatus, type Formula, type Paso, type Lectura, type Postura, type TextoFormula } from "../lib/guia";
 
 const POSTURAS: Record<Postura, string> = {
   pie: "M12 7.5v8.5M12 16l-2.2 5.5M12 16l2.2 5.5M12 9.5l-2 5M12 9.5l2 5",
@@ -30,10 +30,19 @@ export function Fuente({ caso, prefijo = "Según" }: { caso: { fuente: { etiquet
   return <p className="guia-fuente">{prefijo} <a href={caso.fuente.url} target="_blank" rel="noreferrer">{caso.fuente.etiqueta}</a></p>;
 }
 export function Aviso({ titulo, caso, children }: { titulo: string; caso?: Caso; children?: ReactNode }) {
-  return <div className="guia-aviso"><b>{titulo}</b>{caso && <p>{caso.texto}</p>}{children}{caso && <Fuente caso={caso} />}</div>;
+  return <div className="guia-aviso"><b>{titulo}</b>{caso && <p>{caso.texto}</p>}{children}</div>;
 }
 
-/** Una fórmula con su árabe y, debajo, lo que se elija (en la guía, las dos líneas). */
+/** Nota que se abre a pedido dentro de un paso (la niyya dicha en voz alta). No avanza el acompañamiento. */
+export function NotaOculta({ nota, textos, tr = true, es = true }: { nota: NonNullable<Paso["notaOculta"]>; textos: Record<string, TextoFormula>; tr?: boolean; es?: boolean }) {
+  return <details className="guia-nota" onClick={e => e.stopPropagation()}>
+    <summary>{nota.titulo}</summary>
+    {nota.formulas.map((f, i) => <FormulaBloque key={i} f={f} textos={textos} tr={tr} es={es} />)}
+  </details>;
+}
+
+/** Una fórmula con su árabe y, debajo, lo que se elija (en la guía, las dos líneas). Sus fuentes van
+ *  aparte, en «Fuentes y revisión» al final de la guía (decisión del usuario del 23/10/2026). */
 export function FormulaBloque({ f, textos, tr = true, es = true }: { f: Formula; textos: Record<string, TextoFormula>; tr?: boolean; es?: boolean }) {
   const t = f.id ? textos[f.id] : undefined;
   const meta = <div className="guia-formula-meta"><Estado estatus={f.estatus} />{f.veces && <span>{f.veces}</span>}{f.nota && <span>{f.nota}</span>}</div>;
@@ -45,14 +54,14 @@ export function FormulaBloque({ f, textos, tr = true, es = true }: { f: Formula;
     <p className="guia-ar" lang="ar" dir="rtl">{t.ar}</p>
     {tr && t.tr && <p className="guia-tr">{t.tr}</p>}
     {es && t.es && <p className="guia-es">{t.es}</p>}
-    <p className="guia-fuente">{t.fuente} · revisó {t.reviso}</p>
   </div>;
 }
 
-const LECTURAS: Record<Lectura, { sura: number; aya?: number; nombre: string }> = {
+/** `desde`: en una aleya que no es toda súplica, la palabra (contada desde 0) donde empieza lo que se dice. */
+const LECTURAS: Record<Lectura, { sura: number; aya?: number; desde?: number; nombre: string }> = {
   fatiha: { sura: 1, nombre: "Al-Fatiha" },
   ikhlas: { sura: 112, nombre: "Al-Ikhlas (u otra sura)" },
-  "2:201": { sura: 2, aya: 201, nombre: "Rabbanā ātinā (Corán 2:201)" },
+  "2:201": { sura: 2, aya: 201, desde: 3, nombre: "Rabbanā ātinā (Corán 2:201)" },  // sin «wa minhum man yaqūlu»
 };
 /** De 2:201 solo se dice la súplica: en la traducción, lo que va entre comillas. */
 const soloSuplica = (texto: string) => texto.match(/«(.+)»/)?.[1] ?? texto;
@@ -65,10 +74,9 @@ export function CorpusBloque({ id, corpus, textos = {}, tr = true, es = true }: 
   return <div className="guia-formula corpus">
     <div className="guia-formula-meta"><span>{l.nombre}</span></div>
     {versos ? <>
-      <p className="guia-ar" lang="ar" dir="rtl">{versos.map(v => v.arabic).join(" ۝ ")}</p>
+      <p className="guia-ar" lang="ar" dir="rtl">{l.desde ? versos[0].arabic.split(" ").slice(l.desde).join(" ") : versos.map(v => v.arabic).join(" ۝ ")}</p>
       {tr && translit.length > 0 && <p className="guia-tr">{translit.join(" · ")}</p>}
       {es && <p className="guia-es">{l.aya ? soloSuplica(versos[0].translation) : versos.map(v => v.translation).join(" ")}</p>}
-      <p className="guia-fuente">Tanzil Uthmani 1.1 · traducción de Raúl González Bórnez (la del lector)</p>
     </> : <p className="guia-pendiente">Abriendo el texto del lector…</p>}
   </div>;
 }

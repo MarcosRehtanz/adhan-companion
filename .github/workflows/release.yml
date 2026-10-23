@@ -5,11 +5,21 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      guia:
+        description: "Versión de prueba con la guía del rezo visible (VITE_GUIA_REZO=1). Nunca para una versión oficial."
+        type: boolean
+        default: false
   pull_request:
     branches: [main]
 
 permissions:
   contents: read
+
+env:
+  # Solo una ejecución manual con «guia» marcada enciende la guía; los tags y los PR la dejan apagada
+  # y su código ni entra en el paquete.
+  VITE_GUIA_REZO: ${{ github.event_name == 'workflow_dispatch' && inputs.guia && '1' || '' }}
 
 jobs:
   build-linux:
