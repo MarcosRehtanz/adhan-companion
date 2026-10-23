@@ -27,7 +27,7 @@ import type { Schedule } from "../types";
 import { prayerReached } from "../lib/prayers";
 import { COMBINAR, ESCUELAS, pasosEnOrden, REZOS, visible, type Avance, type Escuela, type Paso, type Rezo, type RezoArmado, type TextoFormula } from "../lib/guia";
 
-import { CorpusBloque, FormulaBloque, PosturaIcono } from "./GuiaBloques";
+import { CorpusBloque, FormulaBloque, NotaOculta, PosturaIcono } from "./GuiaBloques";
 
 /** El rezo al que se une Asr o Isha (el mismo par que valida el core). */
 const UNIDO_A: Partial<Record<string, string>> = { Asr: "Dhuhr", Isha: "Maghrib" };
@@ -153,6 +153,7 @@ function Formulas({ p, completo, textos, corpus, debajo }: { p: Paso; completo: 
     {p.corpus?.map(id => <CorpusBloque key={id} id={id} corpus={corpus} textos={textos} tr={debajo.tr} es={debajo.es} />)}
     {ver(p.formulas.filter(f => !f.antes)).map((f, i) => <FormulaBloque key={"p" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
     {ver(p.formulasDespues ?? []).map((f, i) => <FormulaBloque key={"d" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
+    {p.notaOculta && <NotaOculta nota={p.notaOculta} textos={textos} tr={debajo.tr} es={debajo.es} />}
   </>;
 }
 

@@ -7,11 +7,11 @@ import { useEffect, useMemo, useState } from "react";
 import { loadQuran, type Corpus } from "../lib/quran";
 import {
   armarRezo, cargarFormulas, COMBINAR, ESCUELAS, ESCUELAS_VISIBLES, MENSTRUACION, MUJER, notaMujer, REZOS, VIAJE, visible,
-  type Avance, type Escuela, type Paso, type Perfil, type Postura, type Rezo, type TextoFormula,
+  type Avance, type Escuela, type Paso, type Perfil, type Postura, type Rezo, type RezoArmado, type TextoFormula,
 } from "../lib/guia";
 import type { Schedule } from "../types";
 import { AcompanarRezo, PrepararHoja, type Debajo } from "./AcompanarRezo";
-import { Aviso, ClaveTransliteracion, CorpusBloque, Estado, FormulaBloque, Fuente, guardado, NOMBRES_POSTURA, PosturaIcono } from "./GuiaBloques";
+import { Aviso, ClaveTransliteracion, CorpusBloque, Estado, FormulaBloque, guardado, NOMBRES_POSTURA, NotaOculta, PosturaIcono } from "./GuiaBloques";
 
 function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus, debajo }: { p: Paso; escuela: Escuela; rezo: Rezo; completo: boolean; mujer: boolean; textos: Record<string, TextoFormula>; corpus: Corpus | null; debajo: Debajo }) {
   const antes = p.formulas.filter(f => f.antes && visible(f.estatus, completo));
@@ -30,10 +30,30 @@ function PasoBloque({ p, escuela, rezo, completo, mujer, textos, corpus, debajo 
       {despues.map((f, i) => <FormulaBloque key={"d" + i} f={f} textos={textos} tr={debajo.tr} es={debajo.es} />)}
       {ocultas > 0 && <p className="guia-solo-completo">{ocultas === 1 ? "Hay una recitación recomendada" : `Hay ${ocultas} recitaciones recomendadas`} en el modo completo.</p>}
       {p.difiere && <p className="guia-difiere">{p.difiere}</p>}
-      {nota && <p className="guia-difiere guia-mujer"><b>Mujer (recomendado):</b> {nota.texto} <a href={nota.fuente.url} target="_blank" rel="noreferrer">{nota.fuente.etiqueta}</a></p>}
-      {p.fuente && <Fuente caso={{ fuente: p.fuente }} />}
+      {p.notaOculta && <NotaOculta nota={p.notaOculta} textos={textos} tr={debajo.tr} es={debajo.es} />}
+      {nota && <p className="guia-difiere guia-mujer"><b>Mujer (recomendado):</b> {nota.texto}</p>}
     </div>
   </article>;
+}
+
+const pasosDe = (a: RezoArmado) => [...a.antes, ...a.rakats.flatMap(k => k.pasos), ...a.despues];
+const unicos = <T,>(lista: T[], clave: (x: T) => string) => [...new Map(lista.map(x => [clave(x), x])).values()];
+
+/** Las fuentes, aparte de los pasos (decisión del usuario del 23/10/2026): de dónde sale cada paso, cada
+ *  texto y cada caso especial, y quién revisó cada fórmula. Cerrado hasta que se abre. */
+function FuentesGuia({ armado, completo, textos, casos }: { armado: RezoArmado; completo: boolean; textos: Record<string, TextoFormula>; casos: { titulo: string; fuente: { etiqueta: string; url: string } }[] }) {
+  const pasos = pasosDe(armado).filter(p => visible(p.estatus, completo));
+  const deLosPasos = unicos(pasos.filter(p => p.fuente).map(p => ({ nombre: p.nombre, fuente: p.fuente! })), x => x.nombre + x.fuente.etiqueta);
+  const ids = unicos(pasos.flatMap(p => [...p.formulas, ...(p.formulasDespues ?? []), ...(p.notaOculta?.formulas ?? [])])
+    .filter(f => visible(f.estatus, completo) && f.id && textos[f.id]).map(f => f.id!), x => x);
+  const lector = pasos.some(p => p.corpus?.length);
+  return <details className="guia-fuentes">
+    <summary>Fuentes y revisión</summary>
+    {deLosPasos.length > 0 && <><h3>Pasos</h3><ul>{deLosPasos.map(x => <li key={x.nombre + x.fuente.etiqueta}>{x.nombre}: <a href={x.fuente.url} target="_blank" rel="noreferrer">{x.fuente.etiqueta}</a></li>)}</ul></>}
+    {ids.length > 0 && <><h3>Textos</h3><ul>{ids.map(id => <li key={id}><i>{textos[id].tr || id}</i>: {textos[id].fuente} · revisó {textos[id].reviso}</li>)}</ul></>}
+    {casos.length > 0 && <><h3>Casos</h3><ul>{unicos(casos, c => c.titulo).map(c => <li key={c.titulo}>{c.titulo}: <a href={c.fuente.url} target="_blank" rel="noreferrer">{c.fuente.etiqueta}</a></li>)}</ul></>}
+    {lector && <p>Al-Fatiha, Al-Ikhlas y Rabbanā ātinā (2:201): texto Tanzil Uthmani 1.1 y traducción de Raúl González Bórnez, los del lector del Qur’an. La escritura árabe de las fórmulas sigue el mismo texto.</p>}
+  </details>;
 }
 
 /** `rezoInicial` (desde la tarjeta de Hoy): abre con ese rezo y directo en «Antes de empezar». */
@@ -92,7 +112,6 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
         <p>Duración máxima según {ESCUELAS[escuela].nombre}: menstruación, {m.hayd}; posparto, {m.nifas}. Para los casos de hábito, conviene consultar.</p>
         {m.extra && <p>{m.extra}</p>}
         <p>Los avisos se pueden pausar desde «Adhan y avisos»; la app no guarda el motivo.</p>
-        <Fuente caso={m} />
       </Aviso>
     </>}
     {combinar && <Aviso titulo={`Combinar con ${rezo === "dhuhr" ? "Asr" : "Isha"}`} caso={COMBINAR[escuela]} />}
@@ -109,6 +128,12 @@ export function GuiaRezo({ escuelaInicial, rezoInicial, schedule, scheduleError,
     {seccion("antes", combinado ? "Antes del rezo · unido al anterior" : "Antes del rezo", armado.antes)}
     {armado.rakats.map(k => seccion(`rakat-${k.rakat}`, `Rakʿa ${k.rakat} de ${armado.total}`, k.pasos))}
     {seccion("despues", "Después del rezo · taʿqībāt", armado.despues)}
+    <FuentesGuia armado={armado} completo={completo} textos={textos} casos={[
+      ...(viajero ? [{ titulo: "De viaje", fuente: VIAJE[escuela].fuente }] : []),
+      ...(mujer ? [{ titulo: "Para la mujer", fuente: MUJER[escuela].fuente }, { titulo: "Menstruación y posparto", fuente: m.fuente },
+        ...pasosDe(armado).flatMap(p => { const n = notaMujer(escuela, p, rezo); return n ? [{ titulo: `Mujer: ${p.nombre}`, fuente: n.fuente }] : []; })] : []),
+      ...(combinar ? [{ titulo: `Combinar con ${rezo === "dhuhr" ? "Asr" : "Isha"}`, fuente: COMBINAR[escuela].fuente }] : []),
+    ]} />
 
     {etapa === "preparar" && <PrepararHoja armado={armado} escuela={escuela} completo={completo} combinado={combinado} android={android} avance={avance} debajo={debajo}
       onAvance={setAvance} onDebajo={setDebajo} onCancelar={() => setEtapa("guia")} onEmpezar={() => setEtapa("acompanar")} />}

@@ -36,6 +36,17 @@ pone o quita `FLAG_KEEP_SCREEN_ON` y prende o suelta el sensor. La interfaz lee 
 decide qué es una postración. En el banco de pruebas, `tauri-mock.js` lo simula con `__acercar()`
 y `__alejar()`.
 
+## Presentación (decisiones del usuario del 23/10/2026)
+
+- **Perfil:** solo «Sistani completo», con sus nombres de pasos y sus estatus.
+- **Intención:** en el corazón, como dice Sistani. Lo que el usuario dice en voz alta (su niyya, una por rezo,
+  `m_niyya_<rezo>`) va en una **nota oculta** del paso («Si la decís en voz alta»), que se abre a pedido y no
+  avanza el acompañamiento al tocarla (`notaOculta` en `Paso`, `NotaOculta` en `GuiaBloques.tsx`).
+- **Recitación** en dos pasos en la 1.ª y la 2.ª rakʿa: «Qiyām: Al-Fatiha» y «Qiyām: sura», más cómoda de leer.
+- **Fuentes aparte:** los pasos y las fórmulas ya no muestran «Según…» ni «fuente · revisó». Todo va en
+  «Fuentes y revisión», un desplegable al final de la guía: la regla de cada paso, la fuente y quién revisó
+  cada texto, los casos especiales (viaje, mujer, combinar) y la atribución del lector (Tanzil y Bórnez).
+
 ## Escuelas y perfiles
 
 - Por ahora se muestra **solo ja'fari** (`ESCUELAS_VISIBLES` en `src/lib/guia.ts`). Las cuatro

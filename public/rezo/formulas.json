@@ -134,6 +134,41 @@
       "fuente": "Sistani, Islamic Laws, regla 904",
       "reviso": "Yaḥyā"
     },
+    "m_niyya_fajr": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلْفَجْرِ رَكْعَتَيْنِ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta l-fajri rakʿatayni qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo del fajr, dos rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_dhuhr": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلظُّهْرِ أَرْبَعَ رَكَعَاتٍ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta ẓ-ẓuhri arbaʿa rakaʿātin qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo del dhuhr, cuatro rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_asr": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلْعَصْرِ أَرْبَعَ رَكَعَاتٍ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta l-ʿaṣri arbaʿa rakaʿātin qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo del asr, cuatro rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_maghrib": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلْمَغْرِبِ ثَلَـٰثَ رَكَعَاتٍ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta l-maghribi thalātha rakaʿātin qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo del maghrib, tres rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
+    "m_niyya_isha": {
+      "ar": "نَوَيْتُ أَن أُصَلِّىَ صَلَوٰةَ ٱلْعِشَآءِ أَرْبَعَ رَكَعَاتٍ قُرْبَةً إِلَى ٱللَّهِ",
+      "tr": "Nawaytu an uṣalliya ṣalāta l-ʿishāʾi arbaʿa rakaʿātin qurbatan ilā llāh",
+      "es": "Tengo la intención de rezar el rezo de la isha, cuatro rakʿas, buscando acercarme a Allah.",
+      "fuente": "Tus notas; Sistani, Islamic Laws, reglas 929–930 (la intención no hace falta decirla)",
+      "reviso": "Yaḥyā"
+    },
     "m_hamd": {
       "ar": "ٱلْحَمْدُ لِلَّهِ",
       "tr": "Al-ḥamdu lillāh",

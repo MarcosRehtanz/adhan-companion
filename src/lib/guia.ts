@@ -39,6 +39,8 @@ export interface Paso {
   voz?: "alta" | "baja";
   difiere?: string;
   fuente?: Fuente;
+  /** Nota que se abre a pedido (por ejemplo, la niyya dicha en voz alta): no forma parte del paso. */
+  notaOculta?: { titulo: string; formulas: Formula[] };
 }
 export interface Opciones { completo: boolean; viajero: boolean; mujer: boolean; combinado?: boolean; perfil?: Perfil }
 /** `antes` (adhan e iqama) y `despues` (taʿqībāt) solo existen en ja'fari. */
@@ -72,18 +74,23 @@ const JZ = (p: number): Fuente => ({ etiqueta: `al-Jazīrī, al-Fiqh ʿalā al-m
 const ORDEN_SUNNI: Escuela[] = ["hanafi", "maliki", "shafii", "hanbali"];
 function porEscuela<T>(esc: Escuela, valores: [T, T, T, T]): T { return valores[ORDEN_SUNNI.indexOf(esc)]; }
 
+const NIYYA: Record<Rezo, string> = { fajr: "m_niyya_fajr", dhuhr: "m_niyya_dhuhr", asr: "m_niyya_asr", maghrib: "m_niyya_maghrib", isha: "m_niyya_isha" };
 function pasosJafari(rezo: Rezo, r: number, total: number): Paso[] {
   const p: Paso[] = [], primera = r === 1, segunda = r === 2, ultima = r === total, conTashahhud = segunda || ultima;
   const urlQ = "https://www.sistani.org/english/book/48/2233/";
   const tk = (nota: string): Formula => ({ id: "j_takbir", estatus: "recomendado", antes: true, nota });
   if (primera) {
-    p.push({ postura: "pie", nombre: "Intención", detalle: `En el corazón: rezar ${REZOS[rezo].nombre} por Allah. No hace falta decirla.`, estatus: "pilar", formulas: [], fuente: IL("929–930", "https://www.sistani.org/english/book/48/2230/") });
+    p.push({ postura: "pie", nombre: "Intención", detalle: `En el corazón: rezar ${REZOS[rezo].nombre} por Allah. No hace falta decirla.`, estatus: "pilar", formulas: [], fuente: IL("929–930", "https://www.sistani.org/english/book/48/2230/"),
+      notaOculta: { titulo: "Si la decís en voz alta", formulas: [{ id: NIYYA[rezo], estatus: null }] } });
     p.push({ postura: "pie", nombre: "Takbīrat al-iḥrām", detalle: "De pie y quieto. Levantar las manos hasta las orejas es recomendado.", formulas: [{ id: "j_ya_muhsin", estatus: "recomendado", antes: true }, { id: "j_takbir", estatus: "pilar" }], estatus: "pilar", fuente: IL("934–941", "https://www.sistani.org/english/book/48/2231/") });
   }
+  // En la 1.ª y la 2.ª rakʿa, la recitación va en dos pasos (Al-Fatiha y la sura): más cómoda de leer.
+  if (r <= 2) p.push({ postura: "pie", nombre: "Qiyām: Al-Fatiha", detalle: "Manos sueltas sobre los muslos.", estatus: "obligatorio", fuente: IL("964", urlQ), voz: REZOS[rezo].voz, corpus: ["fatiha"],
+    formulas: primera ? [{ id: "j_taawwudh", estatus: "recomendado", antes: true }] : [],
+    formulasDespues: [{ id: "j_hamd", estatus: "recomendado", nota: "tras Al-Fatiha" }] });
   const recitacion: Paso = r <= 2
-    ? { postura: "pie", nombre: "Qiyām: recitación", detalle: "Al-Fatiha y una sura completa. Manos sueltas sobre los muslos.", estatus: "obligatorio", fuente: IL("964", urlQ), voz: REZOS[rezo].voz, corpus: ["fatiha", "ikhlas"],
-        formulas: primera ? [{ id: "j_taawwudh", estatus: "recomendado", antes: true }] : [],
-        formulasDespues: [{ id: "j_hamd", estatus: "recomendado", nota: "tras Al-Fatiha" }, { id: "j_kadhalika", estatus: "recomendado", nota: "tras Al-Ikhlas" }] }
+    ? { postura: "pie", nombre: "Qiyām: sura", detalle: "Una sura completa: Al-Ikhlas u otra.", estatus: "obligatorio", fuente: IL("964", urlQ), voz: REZOS[rezo].voz, corpus: ["ikhlas"],
+        formulas: [], formulasDespues: [{ id: "j_kadhalika", estatus: "recomendado", nota: "tras Al-Ikhlas" }] }
     : { postura: "pie", nombre: "Qiyām: recitación", detalle: "Al-Fatiha o al-tasbīḥāt al-arbaʿa (una vez basta; mejor tres). Manos sueltas sobre los muslos.", estatus: "obligatorio", fuente: IL("991–993", urlQ), voz: "baja",
         formulas: [{ id: "j_tasbihat", estatus: "obligatorio", veces: "×1, mejor ×3" }, { id: "j_istighfar", estatus: "recomendado" }] };
   p.push(recitacion);
@@ -130,7 +137,6 @@ function despuesJafari(estatus: Estatus | null, completo: boolean): Paso[] {
 // El rezo en el orden con que se aprende, con lo recomendado que se acostumbra decir y sin estatus.
 // Lo que una nota de estudio resumiría («el segundo sujud, lo mismo») acá se repite, para acompañar.
 
-const NIYYA: Record<Rezo, string> = { fajr: "m_niyya_fajr", dhuhr: "m_niyya_dhuhr", asr: "m_niyya_asr", maghrib: "m_niyya_maghrib", isha: "m_niyya_isha" };
 function pasosPractica(rezo: Rezo, r: number, total: number): Paso[] {
   const p: Paso[] = [], primera = r === 1, segunda = r === 2, ultima = r === total, conTashahhud = segunda || ultima;
   const f = (id: string, extra: Partial<Formula> = {}): Formula => ({ id, estatus: null, ...extra });

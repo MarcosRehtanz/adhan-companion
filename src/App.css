@@ -834,3 +834,13 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .acompanar-sensor.lejos::before { background: var(--acento); }
 .acompanar-sensor.cerca::before { background: var(--lectura-ornamento); }
 .acompanar-sensor.cerca, .acompanar-sensor.error { color: var(--lectura-es); }
+/* Nota oculta de un paso (la niyya en voz alta) y las fuentes, aparte de los pasos. */
+.guia-nota { margin-top: 8px; font-size: 14px; }
+.guia-nota summary { display: flex; align-items: center; min-height: 36px; color: var(--acento); font-weight: 600; cursor: pointer; }
+.acompanar .guia-nota summary { justify-content: center; color: var(--lectura-tenue); }
+.guia-fuentes { margin: 24px 0 8px; padding: 10px 12px; border-radius: 12px; background: var(--tarjeta); font-size: 13px; color: var(--texto-suave); }
+.guia-fuentes summary { display: flex; align-items: center; min-height: 36px; color: var(--acento); font-size: 14px; font-weight: 600; cursor: pointer; }
+.guia-fuentes h3 { margin: 10px 0 4px; color: var(--texto); font-size: 13px; }
+.guia-fuentes ul { margin: 0; padding-left: 18px; }
+.guia-fuentes li + li { margin-top: 3px; }
+.guia-fuentes a { color: var(--acento); }

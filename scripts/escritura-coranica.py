@@ -5,7 +5,9 @@ palabras y el orden son los de sus notas; la escritura se ajusta al Corán de la
    (Tanzil Uthmani, public/quran/quran-uthmani.txt) se toma tal cual, con sus signos.
 2. Palabras sueltas: la forma del Corán con las mismas letras y vocales compatibles (las del usuario
    incluidas en las del Corán), la más frecuente; con «وَ»/«فَ» delante, se prueba sin ella.
-3. Lo que no está en el Corán queda como en las notas, con la alif del artículo como ٱ.
+3. Una palabra del Corán en otro caso (otra vocal final) toma su escritura con la vocal de las notas
+   (صَلَاةَ → صَلَوٰةَ, como «صَلَوٰةِ ٱلْفَجْرِ» de 24:58). Lo que no está en el Corán queda como en las notas,
+   con la alif del artículo como ٱ y la ya final sin puntos (ى), como en todo el texto.
 4. Signos que dependen de la palabra siguiente, con las reglas del mismo texto: madda de «lā» antes
    de hamza, alif pequeña sobre ى (ىٰ) salvo antes de ٱ, y marca del pronombre (هُۥ, هِۦ) salvo antes de ٱ.
 Nunca agrega ni cambia palabras: el resultado lo revisa y aprueba el usuario en la planilla.
@@ -84,6 +86,20 @@ def suelta(w):
             if compatible(n, letras(q, 0)) or compatible(n, letras(q, 1)): cands.append(q)
     return sorted(set(cands), key=lambda q: -FREC[q])
 
+FINALES = "\u064B\u064C\u064D\u064E\u064F\u0650"
+def con_otra_terminacion(w):
+    """La misma palabra en el Corán con otro caso (otra vocal final): su escritura, con la vocal de las notas."""
+    fin = re.search(f"[{FINALES}]+$", w)
+    if not fin: return None
+    raiz = w[:fin.start()]
+    n = letras(raiz, notas=True)
+    cands = []
+    for v in (0, 1):
+        for q in INDICE.get(clave(letras(raiz, v, notas=True)), ()):
+            qr = re.sub(f"[{FINALES}]+$", "", q)
+            if compatible(n, letras(qr, 0)) or compatible(n, letras(qr, 1)): cands.append((FREC[q], qr))
+    return max(cands)[1] + fin.group(0) if cands else None
+
 def ref(q):
     for v in VERSOS:
         if q in v[1]: return v[0]
@@ -105,8 +121,11 @@ def convertir(texto):
             for p in ("وَ", "فَ"):
                 if w.startswith(p) and (c := suelta(w[len(p):])):
                     salida.append(p + c[0]); detalle.append((w, p + c[0], f"«{p}» + palabra de {ref(c[0])}")); hecho = True; break
+            if not hecho and (f := con_otra_terminacion(w)):
+                salida.append(f); detalle.append((w, f, "otro caso de una palabra del Corán: su escritura, con tu vocal final")); hecho = True
             if not hecho:
                 f = re.sub(r"^(وَ|فَ|بِ)?ال", lambda m: (m.group(1) or "") + "ٱل", w)
+                f = re.sub("\u064A(?=[\u064B-\u0652]*$)", "\u0649", f)  # ya final sin puntos, como en todo el texto
                 salida.append(f); detalle.append((w, f, "no está en el Corán: tus palabras, con la escritura del Corán" if f != w else "no está en el Corán: queda como en tus notas"))
         i += 1
     # Signos que dependen de la palabra siguiente, con las reglas del mismo texto del Corán:
