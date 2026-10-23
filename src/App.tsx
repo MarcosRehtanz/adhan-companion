@@ -77,7 +77,9 @@ interface Config {
 
 const NARROW = "(max-width: 720px)";
 // La guía del rezo se ve solo en desarrollo hasta que haya fórmulas transcritas y revisadas.
-const GUIA_REZO = import.meta.env.DEV;
+// La guía del rezo está en desarrollo: se ve en `tauri dev` y en las compilaciones de prueba con
+// VITE_GUIA_REZO=1 (nunca en las oficiales, que no la definen).
+const GUIA_REZO = import.meta.env.DEV || import.meta.env.VITE_GUIA_REZO === "1";
 
 /// Ventana principal: dashboard diario y preferencias en modo lectura por defecto.
 /// El estado vive en Rust (core) y se actualiza por IPC/eventos.
