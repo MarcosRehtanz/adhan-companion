@@ -216,11 +216,13 @@ fn get_stats() -> Result<registro::Stats, String> {
     Ok(registro::stats())
 }
 
-// Contrato IPC del spec: marcar/desmarcar rezado por fecha (toggle, last-wins)
+// Contrato IPC del spec: marcar/desmarcar rezado por fecha (toggle, last-wins).
+// `combinado`: Asr o Isha rezado unido al anterior; se puede marcar desde el horario de ese rezo.
 #[tauri::command]
 async fn mark_prayed(
     date: String,
     prayer: String,
+    combinado: Option<bool>,
     sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
     state: tauri::State<'_, SharedConfig>,
 ) -> Result<String, String> {
@@ -236,7 +238,7 @@ async fn mark_prayed(
     #[cfg(mobile)]
     {
         let cfg = state.read().map_err(|e| format!("config: {e}"))?.clone();
-        mobile::mark_prayed(&date, &prayer, &cfg)?;
+        mobile::mark_prayed(&date, &prayer, &cfg, combinado.unwrap_or(false))?;
         let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
         return Ok(prayer);
     }
@@ -248,7 +250,7 @@ async fn mark_prayed(
         let name = prayer.clone();
         tauri::async_runtime::spawn_blocking(move || {
             let (reply, received) = mpsc::channel();
-            sender.send(scheduler::Trigger::Pray { date, prayer: name, reply: Some(reply) })
+            sender.send(scheduler::Trigger::Pray { date, prayer: name, combinado: combinado.unwrap_or(false), reply: Some(reply) })
                 .map_err(|e| format!("scheduler no disponible: {e}"))?;
             received.recv().map_err(|_| "El scheduler se cerró antes de confirmar el guardado.".to_string())?
         }).await.map_err(|e| e.to_string())??;
