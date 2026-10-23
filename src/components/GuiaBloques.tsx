@@ -6,11 +6,11 @@ import { esObligatorio, ETIQUETAS, type Caso, type Estatus, type Formula, type P
 
 const POSTURAS: Record<Postura, string> = {
   pie: "M12 7.5v8.5M12 16l-2.2 5.5M12 16l2.2 5.5M12 9.5l-2 5M12 9.5l2 5",
-  inclinado: "M7.5 9.5h8M15.5 9.5v11.5M8.5 10l5 5.5",
-  postrado: "M7 17.5c2.5-5 6-7 8.5-5.5l2 8M7.5 19.5l3.5 1",
+  inclinado: "M16.5 9.5h-8M8.5 9.5v11.5M15.5 10l-5 5.5",
+  postrado: "M17 17.5c-2.5-5-6-7-8.5-5.5l-2 8M16.5 19.5l-3.5 1",
   sentado: "M9 7.5V15l7 1.5-6.5 4M9 10l3 4",
 };
-const CABEZA: Record<Postura, [number, number]> = { pie: [12, 4.5], inclinado: [5, 8.5], postrado: [4.8, 18.5], sentado: [9, 4.5] };
+const CABEZA: Record<Postura, [number, number]> = { pie: [12, 4.5], inclinado: [19, 8.5], postrado: [19.2, 18.5], sentado: [9, 4.5] };
 export const NOMBRES_POSTURA: Record<Postura, string> = { pie: "de pie", inclinado: "inclinado", postrado: "postrado", sentado: "sentado" };
 /** Pictograma provisorio de la postura. */
 export function PosturaIcono({ postura, className = "" }: { postura: Postura; className?: string }) {
