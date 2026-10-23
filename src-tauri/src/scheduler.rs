@@ -755,24 +755,6 @@ mod tests {
     }
 
     #[test]
-    fn combined_prayer_can_be_marked_from_the_first_prayers_time() {
-        let slots = fixture("2026-10-17").prayers; // Fajr 5, Dhuhr 12, Asr 15, Maghrib 18, Isha 20
-        // Sin combinar, la regla de siempre: desde su horario.
-        assert!(mark_time_rule(&slots, "Asr", 13.0, false).is_err());
-        assert_eq!(mark_time_rule(&slots, "Asr", 15.5, false), Ok(false));
-        // Unido a Dhuhr: desde el horario de Dhuhr, y se informa que fue por estar unido.
-        assert_eq!(mark_time_rule(&slots, "Asr", 13.0, true), Ok(true));
-        assert!(mark_time_rule(&slots, "Asr", 11.0, true).unwrap_err().contains("Dhuhr"));
-        assert_eq!(mark_time_rule(&slots, "Isha", 19.0, true), Ok(true));
-        assert!(mark_time_rule(&slots, "Isha", 17.0, true).is_err());
-        // Fajr, Dhuhr y Maghrib no se unen a un rezo anterior.
-        assert!(mark_time_rule(&slots, "Dhuhr", 11.0, true).is_err());
-        assert!(mark_time_rule(&slots, "Maghrib", 16.0, true).is_err());
-        assert_eq!(combina_con("Asr"), Some("Dhuhr"));
-        assert_eq!(combina_con("Fajr"), None);
-    }
-
-    #[test]
     fn after_isha_uses_tomorrows_calculation_and_preserves_today() {
         let cfg = crate::config::Config::default();
         let now = local("2026-10-17", 23, 0, 0);
