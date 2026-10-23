@@ -2,7 +2,7 @@
 // las fórmulas (con su texto revisado o como pendientes) y las suras del lector.
 import type { ReactNode } from "react";
 import type { Corpus } from "../lib/quran";
-import { esObligatorio, ETIQUETAS, type Caso, type Estatus, type Formula, type Postura, type TextoFormula } from "../lib/guia";
+import { CLAVE_TRANSLITERACION, esObligatorio, ETIQUETAS, type Caso, type Estatus, type Formula, type Lectura, type Postura, type TextoFormula } from "../lib/guia";
 
 const POSTURAS: Record<Postura, string> = {
   pie: "M12 7.5v8.5M12 16l-2.2 5.5M12 16l2.2 5.5M12 9.5l-2 5M12 9.5l2 5",
@@ -37,10 +37,11 @@ export function Aviso({ titulo, caso, children }: { titulo: string; caso?: Caso;
 export function FormulaBloque({ f, textos, tr = true, es = true }: { f: Formula; textos: Record<string, TextoFormula>; tr?: boolean; es?: boolean }) {
   const t = f.id ? textos[f.id] : undefined;
   const meta = <div className="guia-formula-meta"><Estado estatus={f.estatus} />{f.veces && <span>{f.veces}</span>}{f.nota && <span>{f.nota}</span>}</div>;
-  if (!t) return <div className={"guia-formula pendiente" + (esObligatorio(f.estatus) ? "" : " recomendada")}>{meta}
+  const suave = f.estatus !== null && !esObligatorio(f.estatus);
+  if (!t) return <div className={"guia-formula pendiente" + (suave ? " recomendada" : "")}>{meta}
     <p className="guia-pendiente">{f.pendiente ?? "Fórmula pendiente de revisión: se muestra cuando esté transcrita y revisada."}</p>
   </div>;
-  return <div className={"guia-formula" + (esObligatorio(f.estatus) ? "" : " recomendada")}>{meta}
+  return <div className={"guia-formula" + (suave ? " recomendada" : "")}>{meta}
     <p className="guia-ar" lang="ar" dir="rtl">{t.ar}</p>
     {tr && t.tr && <p className="guia-tr">{t.tr}</p>}
     {es && t.es && <p className="guia-es">{t.es}</p>}
@@ -48,15 +49,32 @@ export function FormulaBloque({ f, textos, tr = true, es = true }: { f: Formula;
   </div>;
 }
 
-export function CorpusBloque({ id, corpus, es = true }: { id: "fatiha" | "ikhlas"; corpus: Corpus | null; es?: boolean }) {
-  const sura = id === "fatiha" ? 1 : 112;
-  const versos = corpus?.suras[sura - 1];
+const LECTURAS: Record<Lectura, { sura: number; aya?: number; nombre: string }> = {
+  fatiha: { sura: 1, nombre: "Al-Fatiha" },
+  ikhlas: { sura: 112, nombre: "Al-Ikhlas (u otra sura)" },
+  "2:201": { sura: 2, aya: 201, nombre: "Rabbanā ātinā (Corán 2:201)" },
+};
+/** De 2:201 solo se dice la súplica: en la traducción, lo que va entre comillas. */
+const soloSuplica = (texto: string) => texto.match(/«(.+)»/)?.[1] ?? texto;
+
+export function CorpusBloque({ id, corpus, es = true }: { id: Lectura; corpus: Corpus | null; es?: boolean }) {
+  const l = LECTURAS[id];
+  const sura = corpus?.suras[l.sura - 1];
+  const versos = sura && (l.aya ? sura.slice(l.aya - 1, l.aya) : sura);
   return <div className="guia-formula corpus">
-    <div className="guia-formula-meta"><span>{id === "fatiha" ? "Al-Fatiha" : "Al-Ikhlas (u otra sura)"}</span></div>
+    <div className="guia-formula-meta"><span>{l.nombre}</span></div>
     {versos ? <>
       <p className="guia-ar" lang="ar" dir="rtl">{versos.map(v => v.arabic).join(" ۝ ")}</p>
-      {es && <p className="guia-es">{versos.map(v => v.translation).join(" ")}</p>}
+      {es && <p className="guia-es">{l.aya ? soloSuplica(versos[0].translation) : versos.map(v => v.translation).join(" ")}</p>}
       <p className="guia-fuente">Tanzil Uthmani 1.1 · traducción de Raúl González Bórnez (la del lector)</p>
     </> : <p className="guia-pendiente">Abriendo el texto del lector…</p>}
   </div>;
+}
+
+/** Cómo leer la transliteración estricta: un desplegable, solo si la transliteración está visible. */
+export function ClaveTransliteracion() {
+  return <details className="guia-clave">
+    <summary>Cómo leer la transliteración</summary>
+    <dl>{CLAVE_TRANSLITERACION.map(([signo, como]) => <div key={signo}><dt>{signo}</dt><dd>{como}</dd></div>)}</dl>
+  </details>;
 }

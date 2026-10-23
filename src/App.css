@@ -716,6 +716,12 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .guia-opciones label { display: flex; align-items: center; gap: 6px; }
 .guia-opciones input { width: 18px; height: 18px; margin: 0; accent-color: var(--acento); }
 .guia-aviso-preparacion { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--chip); color: var(--texto-suave); font-size: 13px; }
+.guia-clave { margin: 0 0 12px; font-size: 14px; }
+.guia-clave summary { display: flex; align-items: center; min-height: 36px; color: var(--acento); font-weight: 600; cursor: pointer; }
+.guia-clave dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 6px 0; }
+.guia-clave dl > div { display: contents; }
+.guia-clave dt { font-style: italic; font-weight: 600; }
+.guia-clave dd { margin: 0; color: var(--texto-suave); }
 .guia-aviso { margin: 0 0 10px; padding: 10px 12px; border-left: 3px solid var(--oro); border-radius: 12px; background: var(--tarjeta); font-size: 13.5px; }
 .guia-aviso b { display: block; margin-bottom: 2px; font-size: 14px; }
 .guia-aviso p { margin: 0; color: var(--texto-suave); }
@@ -801,6 +807,11 @@ input[type="range"], input[type="checkbox"] { accent-color: var(--acento-solido)
 .acompanar-detalle { max-width: 34ch; margin: 4px auto 0; color: var(--lectura-tenue); font-size: 14px; }
 .acompanar-numero { margin: 0; color: var(--lectura-ar); font-size: 120px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
 .acompanar-de { margin: 4px 0 8px; color: var(--lectura-tenue); font-size: 16px; }
+.acompanar-fases { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 10px 0 18px; }
+.acompanar-fases span { padding: 6px 12px; border: 1px solid var(--lectura-borde); border-radius: 16px; color: var(--lectura-tenue); font-size: 14px; }
+.acompanar-fases b { font-variant-numeric: tabular-nums; }
+.acompanar-fases span.actual { border-color: var(--acento); color: var(--lectura-ar); }
+.acompanar-fases span.hecha { border-color: var(--lectura-ornamento); color: var(--lectura-ornamento); }
 .acompanar .guia-formula { margin: 14px 0 0; padding: 0; border: 0; background: transparent; text-align: center; }
 .acompanar .guia-formula-meta { justify-content: center; color: var(--lectura-tenue); }
 .acompanar .guia-ar { color: var(--lectura-ar); font-size: 30px; line-height: 2.1; text-align: center; }
