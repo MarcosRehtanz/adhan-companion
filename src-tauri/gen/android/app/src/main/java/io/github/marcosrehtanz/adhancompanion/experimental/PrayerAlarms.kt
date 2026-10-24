@@ -3,6 +3,7 @@ package io.github.marcosrehtanz.adhancompanion.experimental
 import android.app.*
 import android.content.*
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import org.json.JSONArray
@@ -34,6 +35,23 @@ object PrayerAlarms {
     private fun manager(c: Context) = c.getSystemService(AlarmManager::class.java)
     fun exact(c: Context) = Build.VERSION.SDK_INT < 31 || manager(c).canScheduleExactAlarms()
     fun notifications(c: Context) = NotificationManagerCompat.from(c).areNotificationsEnabled()
+    /** ¿Está exceptuada de la optimización de batería? Solo recomendación: la alarma exacta funciona con Doze. */
+    fun battery(c: Context) = (c.getSystemService(Context.POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(c.packageName)
+    fun setPendingEnable(c: Context, value: Boolean) { prefs(c).edit().putBoolean("pending_enable", value).commit() }
+
+    /**
+     * Completa la activación pendiente de la cadena «Activar avisos → permisos»: se llama desde
+     * MainActivity (onResume tras volver de Ajustes, o resultado del diálogo 7105). Sin los
+     * permisos otra vez no activa ni limpia nada (la intención queda para el próximo intento).
+     * Si ya estaba activa, solo cancela la intención; el llamador corre schedule() después.
+     */
+    @Synchronized fun completePendingEnable(c: Context) {
+        val p = prefs(c)
+        if (!p.getBoolean("pending_enable", false)) return
+        if (!exact(c) || !notifications(c)) return
+        p.edit().putBoolean("pending_enable", false).commit()
+        if (!p.getBoolean("enabled", false)) enable(c, true)
+    }
     private fun pending(c: Context, kind: Int, intent: Intent = Intent(c, PrayerAlarmReceiver::class.java)): PendingIntent =
         PendingIntent.getBroadcast(c, CODES[kind], intent.setAction(ACTIONS[kind]), FLAGS)
 
@@ -51,7 +69,9 @@ object PrayerAlarms {
     @Synchronized fun enable(c: Context, enabled: Boolean) {
         if (enabled) check(exact(c) && notifications(c)) { "Concedé los permisos antes de activar los avisos." }
         val p = prefs(c)
-        check(p.edit().putBoolean("enabled", enabled).putLong("generation", p.getLong("generation", 0) + 1).remove("error").commit())
+        val edit = p.edit().putBoolean("enabled", enabled).putLong("generation", p.getLong("generation", 0) + 1).remove("error")
+        if (!enabled) edit.putBoolean("pending_enable", false) // Desactivar a mano cancela la cadena pendiente.
+        check(edit.commit())
         if (!enabled) c.stopService(Intent(c, PrayerAudioService::class.java))
         schedule(c)
     }
@@ -135,7 +155,7 @@ object PrayerAlarms {
         channels(c)
         val p = prefs(c)
         return JSONObject().put("enabled", p.getBoolean("enabled", false)).put("exact", exact(c))
-            .put("notifications", notifications(c)).put("next", p.getLong("next", 0))
+            .put("notifications", notifications(c)).put("battery", battery(c)).put("next", p.getLong("next", 0))
             .put("next_pre", p.getLong("next_pre", 0)).put("next_reminder", p.getLong("next_reminder", 0)).put("error", p.getString("error", ""))
             .put("last_event", p.getString("last_event", ""))
             .put("playing", PrayerAudioService.active)
