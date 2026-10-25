@@ -151,7 +151,18 @@ Verificado contra la documentación oficial (`developers.google.com/workspace/dr
 1. **Spike (esta doc)**: probar el flujo completo con un `client_id` de desarrollo y el respaldo de un solo archivo en una máquina. Confirmar keyring en Linux.
 2. **v0.1.16**: login/logout, sincronización manual y al arrancar, resolución de conflictos con UI de elección.
 3. **v0.1.17**: subida diferida después de cambios y estado persistente de última sync.
-4. **Posterior**: Android (integración nativa con la misma carpeta) y, si algún día hay hardware del nodo, la misma estrategia de respaldo para la configuración del nodo.
+4. **Posterior**: si algún día hay hardware del nodo, la misma estrategia de respaldo para la configuración del nodo.
+
+## Fase Android (propuesta 25/10/2026, a aprobar con el usuario)
+
+Pedido del usuario: sincronizar **Dell Latitude + ThinkPad + Android**. Desktop cubre las dos computadoras con lo ya implementado; Android necesita:
+
+1. **Lógica compartida**: extraer de `sync_google.rs` la parte pura (reglas de unión del registro, tres vías del config/lector, parseo de `Respaldo`, `sync-estado.json`) a un módulo sin `cfg`, compilable también en móvil. El IO de escritorio (loopback, navegador, keyring) queda `cfg(desktop)`. Las dependencias ya son compatibles: `reqwest` va con `rustls` (compila para Android); `keyring` es la única desktop-only.
+2. **Auth en Android**: no hay loopback ni client secret en el APK. Client OAuth tipo **Android** (mismo proyecto de GCP, con SHA-1 del certificado de firma `aa4f3f6e…` + paquete) como cliente público, PKCE, redirección por **custom scheme** (`io.github.marcosrehtanz.adhancompanion.experimental:/oauth2`) y Custom Tabs (AndroidX AppAuth Kotlin). Scope igual: `drive.appdata`.
+3. **Token en móvil**: archivo en el directorio privado de datos de la app (equivalente móvil del keyring; nunca en `config.json`). Documentar el modelo de amenaza: app privada, no respaldada de fábrica.
+4. **Disparadores**: igual escritorio (manual + al abrir la app, diferida); sin servicio en background en la primera etapa.
+5. **Google-side**: crear el client Android en el mismo proyecto, publicar la pantalla de consentimiento en **producción** (en Testing los refresh tokens caducan a los 7 días) y una política de privacidad estática como URL.
+6. **La misma carpeta `appDataFolder`**: el archivo ya lo comparten las tres plataformas; `sync-estado.json` queda local por dispositivo, como en las dos computadoras.
 
 ## Decisiones (aprobadas por el usuario, 2026-10-21)
 
