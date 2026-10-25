@@ -302,12 +302,7 @@ async fn set_config(
     state: tauri::State<'_, SharedConfig>,
     sched_tx: tauri::State<'_, mpsc::Sender<scheduler::Trigger>>,
 ) -> Result<config::Config, String> {
-    location::Coordinates::validated(cfg.lat, cfg.lon)?;
-    cfg.audio.validate()?;
-    if !(-2..=2).contains(&cfg.calendar.adjustment_days) {
-        return Err("El ajuste del calendario debe estar entre -2 y +2 días.".into());
-    }
-    cfg.follow_up.validar()?;
+    config::validar(&cfg)?;
     log!("set_config: guardar + recalcular en caliente");
     config::save(&cfg)?;
     *state
@@ -512,6 +507,7 @@ pub fn run() {
         instalar_update,
         sync_google::sync_estado,
         sync_google::sync_login,
+        sync_google::sync_cancelar,
         sync_google::sync_logout,
         sync_google::sync_ahora,
         sync_google::sync_resolver,

@@ -410,6 +410,17 @@ pub fn read_saved() -> Result<Config, String> {
     Ok(cfg)
 }
 
+/// Las reglas de `set_config`: también las cumple un config que llega del respaldo de Google.
+pub fn validar(cfg: &Config) -> Result<(), String> {
+    crate::location::Coordinates::validated(cfg.lat, cfg.lon)?;
+    cfg.audio.validate()?;
+    if !(-2..=2).contains(&cfg.calendar.adjustment_days) {
+        return Err("El ajuste del calendario debe estar entre -2 y +2 días.".into());
+    }
+    cfg.follow_up.validar()?;
+    Ok(())
+}
+
 pub fn save(cfg: &Config) -> Result<(), String> {
     let path = config_path();
     if let Some(parent) = path.parent() {

@@ -22,7 +22,7 @@ La integración usa la **carpeta privada de app en Google Drive** (`appDataFolde
 
 ### Flujo OAuth (escritorio)
 
-- Tipo de cliente OAuth: **Desktop app** de Google (redirect a `127.0.0.1` con puerto efímero — Google lo permite para clientes de tipo desktop; no exige client secret).
+- Tipo de cliente OAuth: **Desktop app** de Google (redirect a `127.0.0.1` con puerto efímero — Google lo permite para clientes de tipo desktop). El canje del código sí pide el `client_secret`, que en un cliente Desktop no es secreto: Google lo considera público y va incrustado en la app.
 - Navegador del sistema (no WebView de la app) abre la pantalla de cuenta de Google; el callback lo recibe un servidor localhost temporal.
 - Plugin candidato: [`tauri-plugin-oauth` de FabianLars](https://github.com/FabianLars/tauri-plugin-oauth) (v2, minimalista: solo levanta el servidor localhost y devuelve la URL de callback). PKCE (`S256`) y el intercambio `code → token` se implementan en Rust con `reqwest`, en el core, como el resto de la lógica.
 - Alcance pedido: **solo `https://www.googleapis.com/auth/drive.appdata`**. Es un scope **no sensible**: no exige verificación ni auditoría de Google, y sin datos de perfil (ni `email`, ni `profile`) la pantalla de consentimiento no requiere ninguna marca de verificación.
@@ -67,11 +67,11 @@ Escenario: dos computadoras usan la app sin sincronizarse entre sí (una offline
 
 | Dato | Estrategia |
 |---|---|
-| `registro.jsonl` | **Unión por evento**: cada línea tiene fecha/rezo/timestamp únicos; el merge conserva ambas y deduplica por clave. Nunca se pierde un rezo marcado. |
-| `config.json` | **Última escritura gana** (LWW por `actualizado`), con aviso al usuario si el respaldo es más nuevo que lo local y difiere en campos que cambian de comportamiento (ubicación, método, avisos). |
-| `quran-reader.json` | **LWW** con los mismos avisos; la última lectura y los marcadores son de una sola cabeza. |
+| `registro.jsonl` | Por cada (fecha, rezo) gana la **última acción del usuario** (`rezado` / `desmarcado`) según su hora (`ts`, desde v0.1.16). Si gana la del respaldo, se agrega ese evento al final del archivo con su hora original: el log sigue siendo append-only y last-wins. Sin hora (eventos anteriores) gana la marca. Los eventos automáticos (`adhan`, `perdido`) son de cada máquina y no viajan. |
+| `config.json` | **Tres vías** contra la base del último sync (`sync-estado.json`, local): por grupo (la ubicación son ciudad, coordenadas y zona horaria juntas; el resto, cada clave), lo que cambió de un solo lado se toma solo. Si el mismo grupo cambió en las dos computadoras y quedó distinto, se consulta. |
+| `quran-reader.json` | **Tres vías** igual: el punto de lectura y las preferencias (idioma y tamaño) se consultan solo si cambiaron en las dos. Los **marcadores** se unen: se suman las altas y se aplican las bajas de cada lado, sin consulta. |
 
-En conflicto real, la app muestra **qué cambió** y el usuario elige (local / Drive) antes de sobrescribir nada. Nunca se destruyen datos sin confirmación.
+En conflicto real, la app muestra **qué cambió en las dos** («preaviso: acá 5 min, en Drive 15 min») y el usuario elige local o Drive para eso. Lo demás ya quedó mezclado. Nunca se destruyen datos sin confirmación. Sin base (primer sync en una máquina que ya tiene datos), cualquier diferencia se consulta una vez.
 
 ## Ciclo de sincronización
 
@@ -107,18 +107,18 @@ Módulo `src-tauri/src/sync_google.rs` (desktop-only) con el ciclo completo del 
 
 | Pieza | Implementación |
 |---|---|
-| OAuth PKCE + loopback | `TcpListener` efímero propio (no plugin); callback con `state` (CSRF) y página de cierre; timeout 5 min; URL copiable si `xdg-open` no abre |
+| OAuth PKCE + loopback | `TcpListener` efímero propio (no plugin), **no bloqueante**: el límite de 5 min se cumple aunque nadie responda, y «Cancelar» (`sync_cancelar`) corta la espera. Callback con `state` (CSRF); las conexiones que no son el callback (favicon, conexiones adelantadas del navegador) reciben 404 y no traban la espera. Un segundo «Conectar» no abre otra espera. URL copiable si `xdg-open` no abre |
 | Refresh token | keyring del sistema (`keyring` 4: libsecret Linux, Credential Manager Windows), servicio `adhan-companion-google-refresh`; access sólo en memoria |
 | Renovación + errores | `reqwest` (0.13, rustls) en el core; `invalid_grant` → sesión limpia + "conectá de nuevo"; 403 `access_denied` → instructivo explícito |
 | Drive | list/create(PATCH+POST multipart)/download sobre `appDataFolder`; sobrescripción PATCH (formato exacto del spike) |
 | Respaldo | un archivo `adhan-companion-backup.json` (schema 1): config raw, lector raw, registro completo |
-| Registro | **unión por evento** con append-only intacto; orden conservador: `rezado` queda último en cada (fecha, rezo) — last-wins del log nunca pierde una marca |
-| Config / lector | LWW **con consulta**: si difieren, sync detenido en `conflicto` hasta elección local/Drive; el config remoto se adopta con el contrato íntegro de `set_config` (validación + estado compartido + reprogramación del scheduler) |
+| Registro | gana la última acción del usuario por (fecha, rezo) según `ts`; se agrega solo el evento ganador, con su hora (`registro::append_entry`). Al agregar, el scheduler recalcula los marcados de hoy |
+| Config / lector | **tres vías** contra `sync-estado.json` (config y lector tal como quedaron iguales en el último sync; se guarda después de cada subida y se borra al cerrar sesión). Solo los grupos que cambiaron en las dos detienen el sync en `conflicto`; `sync_resolver` aplica la salida elegida, ya mezclada con lo demás. El config que llega se adopta con `config::validar` (las mismas reglas de `set_config`), estado compartido y scheduler, y la ventana recibe `sync_aplicado` para releer |
 | Restauración | registro local vacío + historial remoto → oferta explícita; "descartar" no re-oferta en la ejecución |
-| Estados UI | Panel nuevo **Configuración → Respaldo y sincronización** (`GoogleSync.tsx`) con los estados del módulo: sin sesión/conectando/activa, operación en curso, error con reintento, conflicto y restauración con elección |
+| Estados UI | Panel **Configuración → Respaldo y sincronización** (`GoogleSync.tsx`): sin sesión, conectando (con la dirección para copiar y Cancelar), activa, operación en curso, error con reintento (todos los errores quedan en `ultimo_error`), aviso de lo que se trajo, conflicto con el detalle y restauración con elección |
 | Credencial | `build.rs` exporta `GOOGLE_OAUTH_CLIENT_ID[/_SECRET]` desde `.oauth.local` (fuera de Git); builds sin credencial compilan con marcador y, desde v0.1.15, no muestran el panel ni consultan el keyring al arrancar (`runtime_info.google_sync`). Las dependencias del sync van en la sección de escritorio de `Cargo.toml`: Android no las compila |
 
-Tests nuevos: 6 de unidad (`sync_google`): unión/deduplica del registro, orden conservador, formato multipart Drive, traducción de errores de token, fechas civiles ISO sin deps. Suite: **36 verdes**. Android queda para fase posterior (Posterior: integración nativa con Play Services), el módulo es `cfg(desktop)`.
+Tests de unidad (`sync_google`, 6): el registro agrega solo lo que falta, gana la acción más reciente, sin hora gana la marca, formato multipart de Drive, errores de token y fechas ISO. Suite: **36 verdes**. Los arreglos del 22/10 (hora por evento, tres vías, login cancelable, errores visibles) se hicieron después de la revisión del código, que encontró que cualquier cambio local terminaba en conflicto y que volver a marcar un rezo no se propagaba. Android queda para fase posterior (Posterior: integración nativa con Play Services), el módulo es `cfg(desktop)`.
 
 Pendientes para liberar el sync (v0.1.16 en release):
 1. **Cliente de producción en Google Cloud** (ahora hay credencial dev en Testing: refresh caduca a 7 días): proyecto propio, Drive API, consentimiento "En producción" + Client ID Desktop incrustado.
@@ -151,7 +151,18 @@ Verificado contra la documentación oficial (`developers.google.com/workspace/dr
 1. **Spike (esta doc)**: probar el flujo completo con un `client_id` de desarrollo y el respaldo de un solo archivo en una máquina. Confirmar keyring en Linux.
 2. **v0.1.16**: login/logout, sincronización manual y al arrancar, resolución de conflictos con UI de elección.
 3. **v0.1.17**: subida diferida después de cambios y estado persistente de última sync.
-4. **Posterior**: Android (integración nativa con la misma carpeta) y, si algún día hay hardware del nodo, la misma estrategia de respaldo para la configuración del nodo.
+4. **Posterior**: si algún día hay hardware del nodo, la misma estrategia de respaldo para la configuración del nodo.
+
+## Fase Android (propuesta 25/10/2026, a aprobar con el usuario)
+
+Pedido del usuario: sincronizar **Dell Latitude + ThinkPad + Android**. Desktop cubre las dos computadoras con lo ya implementado; Android necesita:
+
+1. **Lógica compartida**: extraer de `sync_google.rs` la parte pura (reglas de unión del registro, tres vías del config/lector, parseo de `Respaldo`, `sync-estado.json`) a un módulo sin `cfg`, compilable también en móvil. El IO de escritorio (loopback, navegador, keyring) queda `cfg(desktop)`. Las dependencias ya son compatibles: `reqwest` va con `rustls` (compila para Android); `keyring` es la única desktop-only.
+2. **Auth en Android**: no hay loopback ni client secret en el APK. Client OAuth tipo **Android** (mismo proyecto de GCP, con SHA-1 del certificado de firma `aa4f3f6e…` + paquete) como cliente público, PKCE, redirección por **custom scheme** (`io.github.marcosrehtanz.adhancompanion.experimental:/oauth2`) y Custom Tabs (AndroidX AppAuth Kotlin). Scope igual: `drive.appdata`.
+3. **Token en móvil**: archivo en el directorio privado de datos de la app (equivalente móvil del keyring; nunca en `config.json`). Documentar el modelo de amenaza: app privada, no respaldada de fábrica.
+4. **Disparadores**: igual escritorio (manual + al abrir la app, diferida); sin servicio en background en la primera etapa.
+5. **Google-side**: crear el client Android en el mismo proyecto, publicar la pantalla de consentimiento en **producción** (en Testing los refresh tokens caducan a los 7 días) y una política de privacidad estática como URL.
+6. **La misma carpeta `appDataFolder`**: el archivo ya lo comparten las tres plataformas; `sync-estado.json` queda local por dispositivo, como en las dos computadoras.
 
 ## Decisiones (aprobadas por el usuario, 2026-10-21)
 
