@@ -149,8 +149,36 @@ Verificado contra la documentación oficial (`developers.google.com/workspace/dr
 ## Fases de implementación
 
 1. **Spike (esta doc)**: probar el flujo completo con un `client_id` de desarrollo y el respaldo de un solo archivo en una máquina. Confirmar keyring en Linux.
-2. **v0.1.16**: login/logout, sincronización manual y al arrancar, resolución de conflictos con UI de elección.
-3. **v0.1.17**: subida diferida después de cambios y estado persistente de última sync.
+2. **v0.1.16**: login/logout, sincronización manual y al arrancar, resolución de conflictos con UI de elección. ✅
+3. **v0.1.17**: subida diferida después de cambios ✅ (26/10, `feat/sync-diferido`: debounce de 90 s, guard único de `sync_core`, reintentos con tope cuando hay otro sync en vuelo; hooks en `mark_prayed`, `set_config`/`set_pause` y `update_quran_reader`) y el estado persistente de última sync ✅ (`ultima_sync` en `sync-estado.json`, se ve al abrir el panel aunque no hayan syncs en la ejecución).
+
+## Subida diferida (v0.1.17)
+
+**Qué dispara una subida** (`sync_google::avisar_cambio`): marcar/desmarcar un rezo (`mark_prayed`, en las dos plataformas), guardar config (`set_config` y `set_pause`) y guardar el estado del lector (`update_quran_reader`). Varios avisos seguidos se **debouncean 90 s**: el último silencio manda, no hay subida por cada cambio.
+
+**Estados del worker** (un solo hilo `sync-diferido`, arranca con la app en escritorio):
+
+| Estado | Transición |
+|---|---|
+| Dormida | sin agenda: espera avisos (timeout de 10 min para re-chequear) |
+| Agendada | aviso entra → `vence = ahora + 90 s`; cada aviso nuevo resetea el reloj |
+| Vencida | al vencer: si no hay sesión, suelta (queda para el próximo aviso/arranque); si hay otro sync en vuelo (manual/al arrancar/login), re-intenta en 60 s con tope de 3; si libró, corre el `sync_core` y vuelve a Dormida |
+| Con sesión cerrada (`sync_logout`) | los avisos siguen llegando pero son no-op: `disponible()` falso no corre ni agenda |
+
+**Guard único**: `sync_core` exige EN_VUELO atomico (`swap`) y baja en exit (RAII `EnVuelo`); nadie corre dos veces contra Drive, ni manual vs diferido, ni arranque vs diferido. Si un manual encuentra el guard tomado, responde «Ya hay una sincronización en curso.» y el worker re-agenda.
+
+**Qué NO se pierde**: la subida diferida no es mensajería: si la app se cierra antes de subir, el evento ya estaba en `registro.jsonl` local y sube en el próximo arranque o la próxima sync.
+
+## Instalación con sync activo en las máquinas propias (Wave 1)
+
+Las builds oficiales de la CI van **sin credencial** (`GOOGLE_OAUTH_CLIENT_ID` ausente → `runtime_info.google_sync = false` y el panel oculto). Para tener el sync allí se arma y se instala una build propia:
+
+1. `.oauth.local` en la raíz del repo (`GOOGLE_OAUTH_CLIENT_ID=…` / `GOOGLE_OAUTH_CLIENT_SECRET=…`, fuera de Git).
+2. `pnpm tauri build` → `src-tauri/target/release/bundle/{deb,appimage}/`.
+3. Verificar que la credencial quedó embebida: `strings src-tauri/target/release/adhan-companion | grep -c apps.googleusercontent.com` ≥ 1 (la fruta no se imprime).
+4. `sudo dpkg -i "…deb"` (o el AppImage con `chmod +x`); los datos de `~/.config/adhan-companion/` no se tocan.
+5. Abrir la app → Configuración → **Respaldo y sincronización** → Conectar Google → **Sincronizar**. La misma cuenta en todas las máquinas va al mismo `adhan-companion-backup.json` de `appDataFolder`; `sync-estado.json` es local por máquina.
+6. ⚠️ El updater oficial pisa esta build con una sin credencial (la 0.1.17): mantener el sync vivo entre releases requiere la fase **producción** del client OAuth (ver «Fases de implementación» del plan A acordado en el vault).
 4. **Posterior**: si algún día hay hardware del nodo, la misma estrategia de respaldo para la configuración del nodo.
 
 ## Fase Android (propuesta 25/10/2026, a aprobar con el usuario)

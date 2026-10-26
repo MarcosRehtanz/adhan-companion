@@ -43,7 +43,8 @@ use std::collections::HashMap;
 use std::io::Read as _;
 use std::io::Write as _;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Condvar, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tauri::{Emitter as _, Manager as _};
 
 use crate::config::{self, Config, SharedConfig};
@@ -692,6 +693,9 @@ struct Base {
     #[serde(default)]
     lector: Option<serde_json::Value>,
     fecha: String,
+    /// ISO de la última sync completada por ESTA máquina (persiste entre reinicios)
+    #[serde(default)]
+    ultima_sync: Option<String>,
 }
 
 fn base_path() -> std::path::PathBuf {
@@ -703,7 +707,7 @@ fn leer_base() -> Option<Base> {
 }
 
 fn guardar_base(r: &Respaldo) -> Result<(), String> {
-    let base = Base { config: r.datos.config.clone(), lector: r.datos.lector.clone(), fecha: r.actualizado.clone() };
+    let base = Base { config: r.datos.config.clone(), lector: r.datos.lector.clone(), fecha: r.actualizado.clone(), ultima_sync: Some(ahora_iso()) };
     let path = base_path();
     let tmp = path.with_extension("json.tmp");
     let data = serde_json::to_vec_pretty(&base).map_err(|e| e.to_string())?;
@@ -987,6 +991,13 @@ fn resumen_traido(dispositivo: &str, cambios: &[&str], eventos: usize) -> Option
 // --------------------------------------------------------------- flujos IPC ---
 
 /// Arma el `EstadoIpc`: sesión por keyring real + pendientes en memoria.
+/// Último sync persistido de esta máquina (de `sync-estado.json`); se muestra
+/// cuando el panel abre sin haber sincronizado todavía en esta ejecución.
+fn ultima_persistida() -> Option<String> {
+    let v = leer_json(&base_path())?;
+    v.get("ultima_sync")?.as_str().map(|s| s.to_owned())
+}
+
 async fn snapshot() -> EstadoIpc {
     let hay_token = tauri::async_runtime::spawn_blocking(|| token_del_keyring().is_ok())
         .await
@@ -1007,7 +1018,7 @@ async fn snapshot() -> EstadoIpc {
         url_autorizacion: e.url_autorizacion,
         ultimo_error: e.ultimo_error,
         aviso: e.aviso,
-        ultima_sync: e.ultima_sync,
+        ultima_sync: e.ultima_sync.or_else(ultima_persistida),
     }
 }
 
@@ -1191,7 +1202,125 @@ pub async fn al_arrancar(app: tauri::AppHandle) {
     }
 }
 
+// --------------------------------------------------- subida diferida (26/10) ---
+// Los cambios locales (marcar un rezo, configuración, estado del lector) avisan
+// y un worker sube el respaldo después de los segundos de silencio del debounce.
+// Reglas de estados: sin sesión o sin credencial, los avisos son no-op (no hay
+// worker arriba); con otro sync en vuelo, el intento se re-agenda algunas veces
+// y si nada queda para el próximo aviso, arranque o botón — nada se pierde,
+// porque los cambios ya están en el registro local. Todo sync (manual, al
+// arrancar o diferido) pasa por el mismo guard de `sync_core`, así que no
+// corren dos contra Drive y el panel ve el estado de siempre.
+const DEBOUNCE_SECS: u64 = 90;
+const REINTENTO_SECS: u64 = 60;
+const MAX_REINTENTOS: usize = 3;
+
+#[derive(Debug, Default)]
+struct Agendado {
+    vence: Option<Instant>,
+    reintento: usize,
+}
+
+static DIFERIDA: OnceLock<Mutex<Agendado>> = OnceLock::new();
+static DIFERIDA_COND: OnceLock<Condvar> = OnceLock::new();
+static EN_VUELO: AtomicBool = AtomicBool::new(false);
+static HANDLE_DIFERIDO: OnceLock<tauri::AppHandle> = OnceLock::new();
+
+/// Baja EN_VUELO aun con return/panic en cualquier punto del sync.
+struct EnVuelo;
+impl Drop for EnVuelo {
+    fn drop(&mut self) {
+        EN_VUELO.store(false, Ordering::SeqCst);
+    }
+}
+
+/// Un cambio local (marcar/config/lector) agenda o resetea la subida diferida.
+pub fn avisar_cambio() {
+    if !disponible() {
+        return;
+    }
+    let mut l = DIFERIDA
+        .get_or_init(|| Mutex::new(Agendado::default()))
+        .lock()
+        .unwrap();
+    l.vence = Some(Instant::now() + Duration::from_secs(DEBOUNCE_SECS));
+    l.reintento = 0;
+    DIFERIDA_COND.get_or_init(Condvar::new).notify_all();
+}
+
+/// Arranca el worker de la subida diferida (solo escritorio; el handle va del setup).
+pub fn iniciar_diferido(handle: tauri::AppHandle) {
+    let _ = HANDLE_DIFERIDO.set(handle);
+    if let Err(e) = std::thread::Builder::new()
+        .name("sync-diferido".into())
+        .spawn(ciclo_diferido)
+    {
+        log!("sync diferido: no arrancó el worker: {e}");
+    }
+}
+
+fn ciclo_diferido() {
+    let agenda = DIFERIDA.get_or_init(|| Mutex::new(Agendado::default()));
+    let cond = DIFERIDA_COND.get_or_init(Condvar::new);
+    loop {
+        // Espera: sin agenda, dormida con timeout largo; con agenda, hasta vencer
+        // (y si entra un aviso nuevo, se re-agenda: el debounce es del último).
+        let mut l = agenda.lock().unwrap();
+        loop {
+            let Some(vence) = l.vence else {
+                let (g, _) = cond
+                    .wait_timeout(l, Duration::from_secs(600))
+                    .unwrap_or_else(|e| e.into_inner());
+                l = g;
+                continue;
+            };
+            match vence.checked_duration_since(Instant::now()) {
+                Some(d) => {
+                    let (g, aviso) = cond
+                        .wait_timeout(l, d)
+                        .unwrap_or_else(|e| e.into_inner());
+                    l = g;
+                    if !aviso.timed_out() {
+                        continue; // reseteo del debounce: volver a esperar el silencio
+                    }
+                }
+                None => break,
+            }
+        }
+        // Venció el silencio: cierro la agenda antes de decidir.
+        l.vence = None;
+        let reintento = l.reintento;
+        drop(l);
+        if !disponible() {
+            continue; // sin sesión todavía: la subida queda para el próximo aviso/arranque
+        }
+        if EN_VUELO.load(Ordering::SeqCst) {
+            // Otro sync corre (manual/arranque/login): re-agendar, con tope.
+            if reintento >= MAX_REINTENTOS {
+                continue;
+            }
+            let mut l = agenda.lock().unwrap();
+            l.reintento = reintento + 1;
+            l.vence = Some(Instant::now() + Duration::from_secs(REINTENTO_SECS));
+            continue;
+        }
+        let Some(app) = HANDLE_DIFERIDO.get() else { continue };
+        match tauri::async_runtime::block_on(sync_core(app)) {
+            Ok(_) => log!("sync diferido: respaldo actualizado"),
+            // Sin tocar el estado de nuevo: sync_core ya dejó último_error para el panel.
+            Err(e) => log!("sync diferido: {e}"),
+        }
+    }
+}
+
 async fn sync_core(app: &tauri::AppHandle) -> Result<EstadoIpc, String> {
+    // Guard único de concurrencia: ningún otro sync (manual, al arrancar o
+    // diferido) corre mientras este esté arriba; el guard baja al salir,
+    // también por error o panic.
+    if EN_VUELO.swap(true, Ordering::SeqCst) {
+        return Err("Ya hay una sincronización en curso.".into());
+    }
+    let _vuelo = EnVuelo;
     set_estado(|st| {
         st.ultimo_error = None;
         st.aviso = None;

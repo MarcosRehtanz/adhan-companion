@@ -240,6 +240,9 @@ async fn mark_prayed(
         let cfg = state.read().map_err(|e| format!("config: {e}"))?.clone();
         mobile::mark_prayed(&date, &prayer, &cfg, combinado.unwrap_or(false))?;
         let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
+        // El sync diferido es desktop; Android tendrá el suyo en la Wave 2.
+        #[cfg(desktop)]
+        crate::sync_google::avisar_cambio();
         return Ok(prayer);
     }
     #[cfg(desktop)]
@@ -254,6 +257,7 @@ async fn mark_prayed(
                 .map_err(|e| format!("scheduler no disponible: {e}"))?;
             received.recv().map_err(|_| "El scheduler se cerró antes de confirmar el guardado.".to_string())?
         }).await.map_err(|e| e.to_string())??;
+        crate::sync_google::avisar_cambio();
         Ok(prayer)
     }
 }
@@ -311,6 +315,10 @@ async fn set_config(
     let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
     #[cfg(target_os = "android")]
     android_alerts::sync(&cfg)?;
+    // La configuración es parte del respaldo: agenda la subida diferida (desktop;
+    // Android compiló sin sync hasta la Wave 2).
+    #[cfg(desktop)]
+    crate::sync_google::avisar_cambio();
     Ok(cfg)
 }
 
@@ -337,6 +345,10 @@ async fn set_pause(
     let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
     #[cfg(target_os = "android")]
     android_alerts::sync(&cfg)?;
+    // La configuración es parte del respaldo: agenda la subida diferida (desktop;
+    // Android compiló sin sync hasta la Wave 2).
+    #[cfg(desktop)]
+    crate::sync_google::avisar_cambio();
     Ok(cfg)
 }
 

@@ -85,6 +85,10 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         tauri::async_runtime::block_on(crate::sync_google::al_arrancar(sync_handle));
     });
 
+    // Worker de la subida diferida: marca/config/lector avisan y los sube el
+    // mismo con debounce (docs/sincronizacion-google.md, fase v0.1.17).
+    crate::sync_google::iniciar_diferido(app.handle().clone());
+
     // Menú según el spec: countdown arriba, los 5 horarios (clic = marcar rezado),
     // test de audio, configuración y salir
     let countdown = MenuItem::with_id(
