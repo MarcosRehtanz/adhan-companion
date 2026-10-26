@@ -105,6 +105,7 @@ pub fn update_quran_reader(action: ReaderAction) -> Result<ReaderState, String> 
         format!("No se pudo reemplazar el estado del lector: {e}")
     })?;
     // El estado del lector viaja en el respaldo: agenda la subida diferida.
+    #[cfg(desktop)]
     crate::sync_google::avisar_cambio();
     Ok(state)
 }
