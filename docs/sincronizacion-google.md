@@ -178,7 +178,7 @@ Las builds oficiales de la CI van **sin credencial** (`GOOGLE_OAUTH_CLIENT_ID` a
 3. Verificar que la credencial quedó embebida: `strings src-tauri/target/release/adhan-companion | grep -c apps.googleusercontent.com` ≥ 1 (la fruta no se imprime).
 4. `sudo dpkg -i "…deb"` (o el AppImage con `chmod +x`); los datos de `~/.config/adhan-companion/` no se tocan.
 5. Abrir la app → Configuración → **Respaldo y sincronización** → Conectar Google → **Sincronizar**. La misma cuenta en todas las máquinas va al mismo `adhan-companion-backup.json` de `appDataFolder`; `sync-estado.json` es local por máquina.
-6. ⚠️ El updater oficial pisa esta build con una sin credencial (la 0.1.17): mantener el sync vivo entre releases requiere la fase **producción** del client OAuth (ver «Fases de implementación» del plan A acordado en el vault).
+6. Con los secrets `GOOGLE_OAUTH_CLIENT_ID[/_SECRET]` en el repo (desde `feat/oauth-cicd`), el workflow de release escribe `.oauth.local` durante el build: **las builds oficiales ya traen el sync**. Aviso operativo: si la Google Cloud sigue en «Prueba», los refresh tokens caducan en 7 días — hay que volver a conectar en el panel; publicarla en «Producción» elimina la caducidad.
 4. **Posterior**: si algún día hay hardware del nodo, la misma estrategia de respaldo para la configuración del nodo.
 
 ## Fase Android (propuesta 25/10/2026, a aprobar con el usuario)
