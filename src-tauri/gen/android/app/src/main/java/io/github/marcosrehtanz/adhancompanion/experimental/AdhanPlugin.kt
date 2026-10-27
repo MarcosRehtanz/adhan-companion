@@ -2,6 +2,7 @@ package io.github.marcosrehtanz.adhancompanion.experimental
 
 import android.Manifest
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -55,24 +56,50 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
         val action = invoke.parseArgs(ControlArgs::class.java).action
         when (action) {
             "notifications" -> {
-                val prefs = activity.getSharedPreferences("native-prayer-alarms", android.content.Context.MODE_PRIVATE)
-                if (Build.VERSION.SDK_INT >= 33 && !PrayerAlarms.notifications(activity) &&
-                    (!prefs.getBoolean("notification_requested", false) || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS))) {
-                    prefs.edit().putBoolean("notification_requested", true).apply()
-                    ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7105)
-                } else activity.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName))
+                launchNotifications()
                 invoke.resolve(JSObject(PrayerAlarms.status(activity).toString()))
             }
             "exact" -> {
                 if (Build.VERSION.SDK_INT >= 31) activity.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${activity.packageName}")))
                 invoke.resolve(JSObject(PrayerAlarms.status(activity).toString()))
             }
-            "enable", "disable", "status", "reschedule" -> background(invoke) {
+            "battery" -> {
+                // Pantalla del sistema «Uso optimizado de batería»: sin permiso declarado y válida de Play.
+                try {
+                    activity.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                } catch (e: ActivityNotFoundException) {
+                    activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${activity.packageName}")))
+                }
+                invoke.resolve(JSObject(PrayerAlarms.status(activity).toString()))
+            }
+            "enable" -> {
+                // Cadena de activación: anota la intención y va por el primer permiso que falta
+                // (diálogo de notificaciones o pantalla de alarmas exactas). Al volver a la app,
+                // MainActivity llama completePendingEnable: si los permisos ya están, activa y programa.
+                val sinNotificaciones = !PrayerAlarms.notifications(activity)
+                if (sinNotificaciones || !PrayerAlarms.exact(activity)) {
+                    PrayerAlarms.setPendingEnable(activity, true)
+                    if (sinNotificaciones) launchNotifications()
+                    else if (Build.VERSION.SDK_INT >= 31) activity.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${activity.packageName}")))
+                    invoke.resolve(JSObject(PrayerAlarms.status(activity).toString()))
+                } else background(invoke) { PrayerAlarms.enable(activity, true) }
+            }
+            "disable", "status", "reschedule" -> background(invoke) {
                 if (action == "reschedule") PrayerAlarms.reschedule(activity)
-                else if (action != "status") PrayerAlarms.enable(activity, action == "enable")
+                else if (action != "status") PrayerAlarms.enable(activity, false)
             }
             else -> invoke.reject("Acción desconocida")
         }
+    }
+
+    /** Diálogo runtime de notificaciones (Android 13+); si ya fue negado, la pantalla de ajustes. */
+    private fun launchNotifications() {
+        val prefs = activity.getSharedPreferences("native-prayer-alarms", android.content.Context.MODE_PRIVATE)
+        if (Build.VERSION.SDK_INT >= 33 && !PrayerAlarms.notifications(activity) &&
+            (!prefs.getBoolean("notification_requested", false) || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS))) {
+            prefs.edit().putBoolean("notification_requested", true).apply()
+            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7105)
+        } else activity.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName))
     }
     @Command fun preview(invoke: Invoke) {
         val args = invoke.parseArgs(PreviewArgs::class.java)
