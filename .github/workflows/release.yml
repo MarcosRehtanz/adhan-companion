@@ -49,6 +49,17 @@ jobs:
       - name: Test Linux core
         run: cargo test --locked --all-targets --manifest-path src-tauri/Cargo.toml
 
+      - name: Escribir credencial OAuth (embebida en la build)
+        run: |
+          if [ -n "$GOOGLE_OAUTH_CLIENT_ID" ] && [ -n "$GOOGLE_OAUTH_CLIENT_SECRET" ]; then
+            printf 'GOOGLE_OAUTH_CLIENT_ID=%s\nGOOGLE_OAUTH_CLIENT_SECRET=%s\n' "$GOOGLE_OAUTH_CLIENT_ID" "$GOOGLE_OAUTH_CLIENT_SECRET" > .oauth.local
+          else
+            echo "Sin secrets OAuth: la build sale sin panel de sync (como siempre)."
+          fi
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+
       - name: Build Linux bundles
         run: |
           pnpm tauri build --ci --bundles deb,appimage -- --locked
@@ -91,6 +102,18 @@ jobs:
 
       - name: Test Windows core
         run: cargo test --locked --all-targets --manifest-path src-tauri/Cargo.toml
+
+      - name: Escribir credencial OAuth (embebida en la build)
+        shell: pwsh
+        run: |
+          if ($env:GOOGLE_OAUTH_CLIENT_ID -and $env:GOOGLE_OAUTH_CLIENT_SECRET) {
+            Set-Content -Path .oauth.local -Value "GOOGLE_OAUTH_CLIENT_ID=$env:GOOGLE_OAUTH_CLIENT_ID","GOOGLE_OAUTH_CLIENT_SECRET=$env:GOOGLE_OAUTH_CLIENT_SECRET"
+          } else {
+            Write-Output "Sin secrets OAuth: la build sale sin panel de sync (como siempre)."
+          }
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
 
       - name: Build Windows installer
         run: |
