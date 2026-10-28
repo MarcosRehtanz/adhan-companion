@@ -23,6 +23,9 @@ pub mod scheduler;
 pub mod updater;
 #[cfg(desktop)]
 pub mod sync_google;
+#[cfg(target_os = "android")]
+pub mod sync_android;
+pub mod sync_core;
 
 use std::sync::mpsc;
 
