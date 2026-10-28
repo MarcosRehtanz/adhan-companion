@@ -34,7 +34,7 @@ const SYNC_ESTADO: &str = "sync-estado.json";
 /// Evento para la ventana: el sync cambió config o lector y hay que releerlos.
 pub const EVENTO_APLICADO: &str = "sync_aplicado";
 
-/// `client_id` de la credencial OAuth (público por diseño). En desarrollo lo
+/// `client_id` de la credencial OAuth Desktop (público por diseño). En desarrollo lo
 /// exporta `build.rs` desde `.oauth.local` (fuera de Git); una build sin
 /// credencial compila igual y lo informa en claro.
 pub fn client_id() -> &'static str {
@@ -45,8 +45,44 @@ pub fn client_secret() -> Option<&'static str> {
     option_env!("GOOGLE_OAUTH_CLIENT_SECRET").filter(|s| !s.is_empty())
 }
 
+/// `client_id` de la credencial OAuth Android. Usa el mismo mecanismo que desktop
+/// pero con variables de entorno separadas (`ANDROID_GOOGLE_CLIENT_ID`).
+pub fn android_client_id() -> &'static str {
+    option_env!("ANDROID_GOOGLE_CLIENT_ID").unwrap_or(CLIENT_ID_FALLBACK)
+}
+
+pub fn android_sin_credencial() -> bool {
+    android_client_id() == CLIENT_ID_FALLBACK
+}
+
+/// Devuelve el client_id correcto según la plataforma actual.
+/// Desktop usa `GOOGLE_OAUTH_CLIENT_ID`, Android usa `ANDROID_GOOGLE_CLIENT_ID`.
+pub fn platform_client_id() -> &'static str {
+    #[cfg(target_os = "android")]
+    {
+        android_client_id()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        client_id()
+    }
+}
+
+/// Devuelve el client_secret correcto según la plataforma actual.
+/// Desktop usa `GOOGLE_OAUTH_CLIENT_SECRET`, Android no usa secret.
+pub fn platform_client_secret() -> Option<&'static str> {
+    #[cfg(target_os = "android")]
+    {
+        None // Android no usa client_secret
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        client_secret()
+    }
+}
+
 pub fn sin_credencial() -> bool {
-    client_id() == CLIENT_ID_FALLBACK
+    platform_client_id() == CLIENT_ID_FALLBACK
 }
 
 /// Una build sin credencial OAuth (como las de la CI) no ofrece el respaldo:
@@ -237,11 +273,11 @@ pub struct Access {
 
 pub async fn refresh_access(refresh: &str) -> Result<Access, String> {
     let mut pares: Vec<(&str, String)> = vec![
-        ("client_id", client_id().to_string()),
+        ("client_id", platform_client_id().to_string()),
         ("refresh_token", refresh.to_string()),
         ("grant_type", "refresh_token".to_string()),
     ];
-    if let Some(sec) = client_secret() {
+    if let Some(sec) = platform_client_secret() {
         pares.push(("client_secret", sec.to_string()));
     }
     let resp = cliente_http()
@@ -297,7 +333,7 @@ pub fn urlencode(s: &str) -> String {
 pub fn auth_url(challenge: &str, state: &str, redirect: &str) -> String {
     format!(
         "{AUTH_URL}?client_id={}&redirect_uri={}&response_type=code&scope={}&access_type=offline&prompt=consent&state={}&code_challenge={}&code_challenge_method=S256",
-        urlencode(client_id()),
+        urlencode(platform_client_id()),
         urlencode(redirect),
         urlencode(SCOPE),
         urlencode(state),
