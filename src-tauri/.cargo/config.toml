@@ -1,0 +1,3 @@
+# Limita los rustc en paralelo para evitar picos de RAM al compilar.
+[build]
+jobs = 4

@@ -57,3 +57,10 @@ strip = true
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
+
+# Builds de desarrollo livianas: menos espacio en target/ y enlazado más rápido.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

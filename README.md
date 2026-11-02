@@ -4,13 +4,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.16 para Linux, Windows y Android** — seguimiento de los rezos (recordatorio si no marcaste y pausa de avisos) y guía del rezo con acompañamiento, sobre la interfaz nueva, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el calendario de seguimiento, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.16.md).
+✅ **v0.1.17 para Linux, Windows y Android** — consentimiento de permisos guiado y comprobación de optimización de batería en Android, sobre el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.17.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.16_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.17_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -36,6 +36,12 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
+
+## Novedades de v0.1.17
+
+- Consentimiento de permisos guiado en Android: «Activar avisos» guía paso a paso los permisos faltantes (notificaciones en Android 13+ o alarmas exactas en Android 12+) y completa la activación al volver.
+- Estado y optimización de batería en Android: detección y acceso directo a los ajustes del sistema para evitar que el ahorro de batería retrase los avisos en dispositivos con gestión agresiva de energía.
+- Preparación del sync en Android y credenciales OAuth embebidas en CI.
 
 ## Novedades de v0.1.16
 

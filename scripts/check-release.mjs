@@ -8,6 +8,8 @@ assert.match(version, /^\d+\.\d+\.\d+$/, "La release requiere una versión estab
 assert.equal(JSON.parse(read("src-tauri/tauri.conf.json")).version, version, "Versión de Tauri desincronizada");
 assert.equal(read("src-tauri/Cargo.toml").match(/^version = "([^"]+)"/m)?.[1], version, "Versión de Cargo desincronizada");
 assert.equal(read("src-tauri/Cargo.lock").match(/name = "adhan-companion"\r?\nversion = "([^"]+)"/)?.[1], version, "Versión de Cargo.lock desincronizada");
+assert.ok(read("README.md").includes(`v${version}`), `Versión de README.md desincronizada (debe mencionar v${version})`);
+assert.ok(read("AGENTS.md").includes(`v${version}`), `Versión de AGENTS.md desincronizada (debe mencionar v${version})`);
 if (process.env.RELEASE_TAG) {
   assert.equal(process.env.RELEASE_TAG, `v${version}`, "El tag no coincide con la versión del proyecto");
 }
