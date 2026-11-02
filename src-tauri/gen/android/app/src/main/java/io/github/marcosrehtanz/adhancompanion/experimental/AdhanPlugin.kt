@@ -22,6 +22,7 @@ import org.json.JSONObject
 @InvokeArg class PreviewArgs { lateinit var audio: String; lateinit var prayer: String }
 @InvokeArg class MapsLinkArgs { lateinit var url: String }
 @InvokeArg class AcompanarArgs { var action: String = "status"; var sensor: Boolean = false }
+@InvokeArg class OauthStartArgs { lateinit var url: String }
 @InvokeArg class QuranArgs {
     var action: String = "state"; var sura: Int = 0; var aya: Int = 0; var count: Int = 0
     var volume: Int = 70; var keep: Boolean = false; var url: String = ""; var path: String = ""; var max: Long = 0
@@ -166,6 +167,35 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
                 invoke.resolve(JSObject(Proximidad.state(activity).toString()))
             } catch (e: Throwable) { invoke.reject(e.message ?: "No se pudo acompañar el rezo.") }
         }
+    }
+
+    /**
+     * OAuth Google (sync_android.rs): abre la pantalla de autorización con el
+     * navegador del sistema (intent VIEW). La vuelta del navegador llega por
+     * custom scheme a esta actividad (OauthLogin.SCHEME ↔ sync_android.rs) y se
+     * entrega por polling con oauthConsume. No se bloquea: el Rust espera.
+     */
+    @Command fun oauthStart(invoke: Invoke) {
+        val url = invoke.parseArgs(OauthStartArgs::class.java).url
+        try {
+            activity.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(url)))
+            invoke.resolve()
+        } catch (e: ActivityNotFoundException) {
+            invoke.reject("No hay navegador en el dispositivo. La URL de autorización queda en el panel para copiarla.")
+        } catch (e: Throwable) {
+            invoke.reject(e.message ?: "No se pudo abrir la autorización de Google.")
+        }
+    }
+
+    /**
+     * Consulta/consume el callback pendiente (MainActivity lo dejó en
+     * OauthLogin): devuelve {"callback": "<uri>"} o un objeto vacío.
+     */
+    @Command fun oauthConsume(invoke: Invoke) {
+        val r = JSObject()
+        OauthLogin.pendiente?.let { r.put("callback", it.toString()) }
+        OauthLogin.pendiente = null
+        invoke.resolve(r)
     }
 
 }

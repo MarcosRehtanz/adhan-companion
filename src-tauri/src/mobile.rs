@@ -21,6 +21,17 @@ pub fn mark_prayed(date: &str, prayer: &str, cfg: &config::Config, combinado: bo
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     config::init_mobile_dir(app.path().app_data_dir()?)?;
     let cfg = config::load_or_init();
+    // Respaldo y sincronización: los hooks (marca/config/lector) ya agendan la
+    // subida diferida; este worker la completa cuando la sesión está activa.
+    crate::sync_core::iniciar_diferido(app.handle().clone());
+    // Igual que desktop (desktop.rs): un chequeo deferido al arrancar une el
+    // respaldo si hubo cambios en otro dispositivo mientras la app estaba muerta.
+    // Sin sesión sale al instante; un fallo de red solo deja log.
+    let arranque_sync = app.handle().clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(14));
+        tauri::async_runtime::block_on(crate::sync_core::al_arrancar(arranque_sync));
+    });
     #[cfg(target_os = "android")]
     {
         let initial = cfg.clone();

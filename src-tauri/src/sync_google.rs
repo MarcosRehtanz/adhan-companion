@@ -155,6 +155,7 @@ pub fn esperar_callback(listener: TcpListener, state_esperado: &str) -> Result<C
             return Ok(Callback {
                 code: None,
                 error: Some(error),
+                state: None, // el state ya se validó y descartó arriba
             });
         }
         responder(
@@ -162,7 +163,7 @@ pub fn esperar_callback(listener: TcpListener, state_esperado: &str) -> Result<C
             "200 OK",
             "Autorización recibida. Podés cerrar esta pestaña y volver a la app.",
         );
-        return Ok(Callback { code, error: None });
+        return Ok(Callback { code, error: None, state: None });
     }
 }
 
@@ -297,18 +298,6 @@ async fn crear_sesion() -> Result<(), String> {
     Ok(())
 }
 
-/// Chequeo al arrancar (deferrado; invocado por desktop.rs). Mismo flujo que el
-/// botón: restauración/conflicto quedan detenidos en el estado — la UI los consulta.
-pub async fn al_arrancar(app: tauri::AppHandle) {
-    use self::sync_core::{con_registro, sync_core, disponible};
-    
-    if !disponible() {
-        return;
-    }
-    if let Err(e) = con_registro(sync_core(&app).await) {
-        crate::log!("sync al arrancar: {e}");
-    }
-}
 
 // Comandos de Tauri (wrappers que llaman a sync_core)
 #[tauri::command]
@@ -338,5 +327,5 @@ pub async fn sync_restaurar(acepta: bool, app: tauri::AppHandle) -> Result<self:
 
 // Re-exportar funciones públicas de sync_core para que otros módulos las usen
 pub use self::sync_core::{
-    avisar_cambio, disponible, iniciar_diferido,
+    al_arrancar, avisar_cambio, disponible, iniciar_diferido,
 };

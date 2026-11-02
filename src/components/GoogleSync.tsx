@@ -1,5 +1,5 @@
-// Respaldo y sincronización con Google Drive (escritorio).
-// Renderiza los ESTADOS del sync definidos en sync_google.rs:
+// Respaldo y sincronización con Google Drive (escritorio y Android).
+// Renderiza los ESTADOS del sync definidos en sync_core.rs:
 //   sin sesión → conectando (cancelable) → activa, más las consultas pendientes
 //   de elección del usuario (conflicto y oferta de restauración).
 // Reglas de producto aplicadas acá:

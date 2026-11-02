@@ -366,6 +366,55 @@ pub fn urldecode(s: &str) -> String {
 pub struct Callback {
     pub code: Option<String>,
     pub error: Option<String>,
+    /// El state de la consulta: el escritorio valida/y descarta dentro de
+    /// `esperar_callback` (lo deja en None); Android lo devuelve al caller.
+    pub state: Option<String>,
+}
+
+/// redirect_uri para el cliente Google de tipo «Android».
+///
+/// Google bloqueó los custom schemes elegidos por el developer en Android
+/// («Custom URI scheme is not supported on Android or Chrome apps»): lo único
+/// válidos es el scheme que la propia Google auto-registra con el client ID —
+/// `com.googleusercontent.apps.<client-id>:/<path>`. Por eso el scheme sale del
+/// ANDROID client, no es constante. El mismo valor tiene que llegar al
+/// intent-filter del manifest (placeholder `oauthScheme` de build.gradle.kts).
+pub fn redirect_android() -> Result<String, String> {
+    let clid = android_client_id();
+    if clid == CLIENT_ID_FALLBACK {
+        return Err("la credencial de Google no está configurada en esta build".into());
+    }
+    Ok(format!("{}:/oauth2redirect", scheme_reversa(clid)))
+}
+
+/// `123-abc.apps.googleusercontent.com` → `com.googleusercontent.apps.123-abc`.
+/// La forma inversa del dominio es la que Google administra como scheme (RFC
+/// 3986 admite puntos y guiones en el scheme, como especifíca la doc nativa).
+pub fn scheme_reversa(client_id: &str) -> String {
+    let sin_sufijo = client_id.strip_suffix(".apps.googleusercontent.com").unwrap_or(client_id);
+    format!("com.googleusercontent.apps.{sin_sufijo}")
+}
+
+/// `pkg:/oauth2redirect?code=...&state=...` → Callback con code/error/state.
+/// Compartido: escritorio usa su listener loopback y Android el custom scheme.
+pub fn parsear_callback(uri: &str) -> Result<Callback, String> {
+    let query = uri.split('?').nth(1).unwrap_or("");
+    let mut code = None;
+    let mut error = None;
+    let mut state = None;
+    for par in query.split('&') {
+        let (k, v) = par.split_once('=').unwrap_or((par, ""));
+        match k {
+            "code" => code = Some(urldecode(v)),
+            "error" => error = Some(urldecode(v)),
+            "state" => state = Some(urldecode(v)),
+            _ => {}
+        }
+    }
+    if code.is_none() && error.is_none() {
+        return Err("la vuelta del navegador no trae ni código ni error".into());
+    }
+    Ok(Callback { code, error, state })
 }
 
 /// «Cancelar» del panel mientras se espera la autorización.
@@ -1133,6 +1182,18 @@ pub async fn sync_ahora(app: tauri::AppHandle) -> Result<EstadoIpc, String> {
     con_registro(sync_core(&app).await)
 }
 
+/// Chequeo al arrancar (deferido: el setup de cada plataforma lo lanza con 14 s
+/// de delay, tras el updater en desktop). Mismo flujo que el botón: la
+/// restauración y el conflicto quedan detenidos en el estado — la UI los consulta.
+pub async fn al_arrancar(app: tauri::AppHandle) {
+    if !disponible() {
+        return;
+    }
+    if let Err(e) = con_registro(sync_core(&app).await) {
+        log!("sync al arrancar: {e}");
+    }
+}
+
 /// Resolución del conflicto: "local" deja lo de esta computadora y "remota" lo
 /// del respaldo, solo en lo que cambió en las dos; lo demás ya quedó mezclado.
 pub async fn sync_resolver(eleccion: String, app: tauri::AppHandle) -> Result<EstadoIpc, String> {
@@ -1371,5 +1432,45 @@ mod tests {
         assert_eq!(dias_civiles_iso(0), "1970-01-01T00:00:00Z");
         // 2026-01-01 00:00:00 UTC = 1767225600
         assert_eq!(dias_civiles_iso(1_767_225_600), "2026-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn callback_con_codigo_y_state() {
+        let cb = parsear_callback("com.googleusercontent.apps.123-abc:/oauth2redirect?code=abc%2Bdef&state=xyz&scope=a").unwrap();
+        assert_eq!(cb.code.as_deref(), Some("abc+def"));
+        assert_eq!(cb.state.as_deref(), Some("xyz"));
+        assert!(cb.error.is_none());
+    }
+
+    #[test]
+    fn callback_con_error_no_falla() {
+        let cb = parsear_callback("com.googleusercontent.apps.123-abc:/oauth2redirect?error=access_denied&state=s").unwrap();
+        assert_eq!(cb.error.as_deref(), Some("access_denied"));
+        assert!(cb.code.is_none());
+    }
+
+    #[test]
+    fn callback_generico_rechazado() {
+        assert!(parsear_callback("https://example.com/nada").is_err());
+    }
+
+    #[test]
+    fn scheme_reversa_del_client_id() {
+        // El scheme que Google auto-registra para clientes de tipo «Android»
+        // es la notación inversa del client ID (sin el sufijo de dominio).
+        assert_eq!(
+            scheme_reversa("111111111111-abcdeadbeef.apps.googleusercontent.com"),
+            "com.googleusercontent.apps.111111111111-abcdeadbeef"
+        );
+        // Sin el sufijo completo queda tal cual (defense-in-depth: nunca rompe).
+        assert_eq!(scheme_reversa("otra-forma"), "com.googleusercontent.apps.otra-forma");
+    }
+
+    #[test]
+    fn redirect_android_termina_con_el_path() {
+        if let Ok(redirect) = redirect_android() {
+            assert!(redirect.starts_with("com.googleusercontent.apps."));
+            assert!(redirect.ends_with(":/oauth2redirect"));
+        }
     }
 }
