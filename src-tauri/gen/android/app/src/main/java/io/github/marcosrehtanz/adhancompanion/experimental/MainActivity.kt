@@ -1,5 +1,6 @@
 package io.github.marcosrehtanz.adhancompanion.experimental
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 
@@ -20,8 +21,15 @@ class MainActivity : TauriActivity() {
       PrayerAlarms.schedule(applicationContext)
     }
   }
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    // Vuelta del navegador tras la autorización OAuth (custom scheme, app ya viva).
+    OauthLogin.registrar(intent.data, packageName)
+  }
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    // Redirect OAuth con la app muerta (cold start directo al callback).
+    OauthLogin.registrar(intent.data, packageName)
   }
 }

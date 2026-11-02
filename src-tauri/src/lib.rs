@@ -23,6 +23,9 @@ pub mod scheduler;
 pub mod updater;
 #[cfg(desktop)]
 pub mod sync_google;
+#[cfg(target_os = "android")]
+pub mod sync_android;
+pub mod sync_core;
 
 use std::sync::mpsc;
 
@@ -240,9 +243,8 @@ async fn mark_prayed(
         let cfg = state.read().map_err(|e| format!("config: {e}"))?.clone();
         mobile::mark_prayed(&date, &prayer, &cfg, combinado.unwrap_or(false))?;
         let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
-        // El sync diferido es desktop; Android tendrá el suyo en la Wave 2.
-        #[cfg(desktop)]
-        crate::sync_google::avisar_cambio();
+        // La marca es parte del respaldo: agenda o resetea la subida diferida.
+        crate::sync_core::avisar_cambio();
         return Ok(prayer);
     }
     #[cfg(desktop)]
@@ -315,10 +317,8 @@ async fn set_config(
     let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
     #[cfg(target_os = "android")]
     android_alerts::sync(&cfg)?;
-    // La configuración es parte del respaldo: agenda la subida diferida (desktop;
-    // Android compiló sin sync hasta la Wave 2).
-    #[cfg(desktop)]
-    crate::sync_google::avisar_cambio();
+    // La configuración es parte del respaldo: agenda la subida diferida.
+    crate::sync_core::avisar_cambio();
     Ok(cfg)
 }
 
@@ -345,10 +345,8 @@ async fn set_pause(
     let _ = sched_tx.send(scheduler::Trigger::ConfigChanged);
     #[cfg(target_os = "android")]
     android_alerts::sync(&cfg)?;
-    // La configuración es parte del respaldo: agenda la subida diferida (desktop;
-    // Android compiló sin sync hasta la Wave 2).
-    #[cfg(desktop)]
-    crate::sync_google::avisar_cambio();
+    // La configuración es parte del respaldo: agenda la subida diferida.
+    crate::sync_core::avisar_cambio();
     Ok(cfg)
 }
 
@@ -359,7 +357,8 @@ struct RuntimeInfo {
     background_alerts: bool,
     audio_preview: bool,
     quran_audio: bool,
-    /// El respaldo con Google existe solo en escritorio y con la credencial OAuth en la build.
+    /// El respaldo con Google se ofrece cuando la build lleva la credencial
+    /// OAuth de la plataforma (desktop: desktop client; Android: Android client).
     google_sync: bool,
 }
 
@@ -371,10 +370,8 @@ fn runtime_info() -> RuntimeInfo {
         background_alerts: cfg!(any(desktop, target_os = "android")),
         audio_preview: cfg!(any(desktop, target_os = "android")),
         quran_audio: cfg!(any(desktop, target_os = "android")),
-        #[cfg(desktop)]
-        google_sync: sync_google::disponible(),
-        #[cfg(not(desktop))]
-        google_sync: false,
+        // disponible() resuelve la credencial según la plataforma (sync_core).
+        google_sync: crate::sync_core::disponible(),
     }
 }
 
@@ -560,6 +557,14 @@ pub fn run() {
         check_update,
         desktop_update_status,
         instalar_update,
+        // Respaldo y sincronización (sync_android::*, misma contract que desktop)
+        sync_android::sync_estado,
+        sync_android::sync_login,
+        sync_android::sync_cancelar,
+        sync_android::sync_logout,
+        sync_android::sync_ahora,
+        sync_android::sync_resolver,
+        sync_android::sync_restaurar,
     ]);
     #[cfg(desktop)]
     let builder = builder

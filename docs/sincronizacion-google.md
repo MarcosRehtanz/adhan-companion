@@ -181,16 +181,36 @@ Las builds oficiales de la CI van **sin credencial** (`GOOGLE_OAUTH_CLIENT_ID` a
 6. Con los secrets `GOOGLE_OAUTH_CLIENT_ID[/_SECRET]` en el repo (desde `feat/oauth-cicd`), el workflow de release escribe `.oauth.local` durante el build: **las builds oficiales ya traen el sync**. Aviso operativo: si la Google Cloud sigue en «Prueba», los refresh tokens caducan en 7 días — hay que volver a conectar en el panel; publicarla en «Producción» elimina la caducidad.
 4. **Posterior**: si algún día hay hardware del nodo, la misma estrategia de respaldo para la configuración del nodo.
 
-## Fase Android (propuesta 25/10/2026, a aprobar con el usuario)
+## Fase 2: Sincronización en Android y Refactorización Core (Implementada en `feat/sync-android`, 2026-10-28)
 
-Pedido del usuario: sincronizar **Dell Latitude + ThinkPad + Android**. Desktop cubre las dos computadoras con lo ya implementado; Android necesita:
+Para cumplir el objetivo de sincronizar **Linux (Dell Latitude) + Windows (ThinkPad) + Android**, se refactorizó la arquitectura del sync separando la lógica pura de negocio de las particularidades de plataforma:
 
-1. **Lógica compartida**: extraer de `sync_google.rs` la parte pura (reglas de unión del registro, tres vías del config/lector, parseo de `Respaldo`, `sync-estado.json`) a un módulo sin `cfg`, compilable también en móvil. El IO de escritorio (loopback, navegador, keyring) queda `cfg(desktop)`. Las dependencias ya son compatibles: `reqwest` va con `rustls` (compila para Android); `keyring` es la única desktop-only.
-2. **Auth en Android**: no hay loopback ni client secret en el APK. Client OAuth tipo **Android** (mismo proyecto de GCP, con SHA-1 del certificado de firma `aa4f3f6e…` + paquete) como cliente público, PKCE, redirección por **custom scheme** (`io.github.marcosrehtanz.adhancompanion.experimental:/oauth2`) y Custom Tabs (AndroidX AppAuth Kotlin). Scope igual: `drive.appdata`.
-3. **Token en móvil**: archivo en el directorio privado de datos de la app (equivalente móvil del keyring; nunca en `config.json`). Documentar el modelo de amenaza: app privada, no respaldada de fábrica.
-4. **Disparadores**: igual escritorio (manual + al abrir la app, diferida); sin servicio en background en la primera etapa.
-5. **Google-side**: crear el client Android en el mismo proyecto, publicar la pantalla de consentimiento en **producción** (en Testing los refresh tokens caducan a los 7 días) y una política de privacidad estática como URL.
-6. **La misma carpeta `appDataFolder`**: el archivo ya lo comparten las tres plataformas; `sync-estado.json` queda local por dispositivo, como en las dos computadoras.
+1. **`src-tauri/src/sync_core.rs` (Platform-Agnostic, 1.375 líneas):**
+   - Módulo puro compilable en todas las plataformas (desktop y móvil).
+   - Implementa llamadas HTTP directas a Google Drive API REST v3 (`appDataFolder`, multipart `POST`/`PATCH`, descarga y metadatos).
+   - **Merge en tres vías** para `config.json` y `quran-reader.json` contra `sync-estado.json` local.
+   - **Merge cronológico del registro:** resolución *last-wins* por timestamp ISO `ts` para cada evento `(fecha, rezo)` en `registro.jsonl`.
+   - **Subida diferida (`sync-diferido`):** debounce de 90 s coordinado con un guard atómico `EnVuelo` (`sync_core::EN_VUELO`) que previene carreras entre sincronización manual, al arranque y diferida.
+   - Estado y tipos compartidos (`Sesion`, `EstadoSync`, `ConflictoDetalle`, `Respaldo`).
+
+2. **`src-tauri/src/sync_google.rs` (Exclusivo Escritorio):**
+   - Flujo OAuth PKCE con `TcpListener` loopback efímero local (`127.0.0.1:<puerto>`).
+   - Almacenamiento seguro del `refresh_token` en el keyring del sistema operativo (`keyring` crate: libsecret en Linux, Credential Manager en Windows).
+   - Comandos IPC de escritorio expuestos a la ventana.
+
+3. **`src-tauri/src/sync_android.rs` (Exclusivo Android):**
+   - Gestión de tokens en almacenamiento privado de la aplicación (Android sandbox).
+   - Compatible con cliente OAuth tipo Android (sin `client_secret`, validado por SHA-1 de firma + nombre de paquete).
+
+4. **Soporte Dual de Credenciales en `build.rs`:**
+   - Lee `.oauth.local` en tiempo de compilación y exporta variables separadas para desktop y Android:
+     * `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` (Desktop).
+     * `ANDROID_GOOGLE_CLIENT_ID` / `ANDROID_GOOGLE_CLIENT_SECRET` (Android).
+   - Helpers `sync_core::platform_client_id()` y `sync_core::platform_client_secret()` seleccionan dinámicamente la credencial según el target de compilación (`cfg(target_os = "android")`).
+
+5. **Carpeta compartida `appDataFolder`:**
+   - Las tres plataformas leen y escriben en el mismo archivo `adhan-companion-backup.json`.
+   - Cada dispositivo mantiene su propio `sync-estado.json` local como base para detectar cambios y resolver conflictos.
 
 ## Decisiones (aprobadas por el usuario, 2026-10-21)
 

@@ -14,12 +14,35 @@ val tauriProperties = Properties().apply {
     }
 }
 
+// Scheme del redirect OAuth de Google: notación invertida del ANDROID client ID
+// (com.googleusercontent.apps.<client-id>) — Google bloqueó los custom schemes
+// propios en Android y solo acepta el auto-registrado. La misma derivación existe
+// en Rust (sync_core::redirect_android); tienen que coincidir.
+val oauthClientId: String = run {
+    val deEnv = System.getenv("ANDROID_GOOGLE_CLIENT_ID")
+    if (!deEnv.isNullOrBlank()) return@run deEnv.trim()
+    val oauthLocal = rootProject.projectDir.parentFile.resolve("../../.oauth.local")
+    if (oauthLocal.exists()) {
+        oauthLocal.readLines().firstOrNull { it.startsWith("ANDROID_GOOGLE_CLIENT_ID=") }
+            ?.removePrefix("ANDROID_GOOGLE_CLIENT_ID=")?.trim().orEmpty()
+    } else ""
+}
+val oauthScheme: String = if (oauthClientId.endsWith(".apps.googleusercontent.com")) {
+    "com.googleusercontent.apps.${oauthClientId.removeSuffix(".apps.googleusercontent.com")}"
+} else {
+    // Sin credencial Android (build local sin .oauth.local): un scheme marcador
+    // que Google rechazaría, pero no rompe la inflación del manifest (el panel
+    // de sync se oculta igual con disponible() == false).
+    "com.googleusercontent.apps.sin-credencial"
+}
+
 android {
     compileSdk = 36
     ndkVersion = "27.2.12479018"
     namespace = "io.github.marcosrehtanz.adhancompanion.experimental"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
+        manifestPlaceholders["oauthScheme"] = oauthScheme
         applicationId = "io.github.marcosrehtanz.adhancompanion.experimental"
         minSdk = 24
         targetSdk = 36

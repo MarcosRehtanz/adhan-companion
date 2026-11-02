@@ -175,6 +175,15 @@ jobs:
           echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Escribir credencial OAuth Android (embebida en la build)
+        run: |
+          if [ -n "$ANDROID_GOOGLE_CLIENT_ID" ]; then
+            printf 'ANDROID_GOOGLE_CLIENT_ID=%s\n' "$ANDROID_GOOGLE_CLIENT_ID" > .oauth.local
+          else
+            echo "Sin secret OAuth Android: la build sale sin panel de sync."
+          fi
+        env:
+          ANDROID_GOOGLE_CLIENT_ID: ${{ secrets.ANDROID_GOOGLE_CLIENT_ID }}
       - name: Fetch locked Android dependencies
         run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml --target ${{ matrix.rust_target }}
       - name: Set official version code

@@ -53,9 +53,13 @@ Los datos no se sincronizan automáticamente con la instalación de escritorio. 
 
 Requisitos: JDK 21, Android SDK, NDK 27.2.12479018, plataforma Android 36, build tools 36.0.0 y el target Rust de la arquitectura elegida. La configuración inicial requiere acceso a Internet para descargar herramientas y dependencias. Ver [requisitos de Tauri](https://v2.tauri.app/start/prerequisites/).
 
-Definir `JAVA_HOME`, `ANDROID_HOME` y `NDK_HOME` con las rutas de la instalación local y agregar Java y Cargo al `PATH`.
+Definir `JAVA_HOME`, `ANDROID_HOME` y `NDK_HOME` con las rutas de la instalación local y agregar Java y Cargo al `PATH`. Ojo con el JDK: el `java-21-openjdk-amd64` de `/usr/lib/jvm` puede ser solo JRE (sin `javac`) y gradle falla en `:buildSrc:compileJava` con «does not provide the required capabilities: [JAVA_COMPILER]». El JDK completo está en `.android-toolchain.local/jdk-ubuntu/usr/lib/jvm/java-21-openjdk-amd64`; eso y el SDK son las rutas correctas:
 
 ```bash
+export JAVA_HOME=$PWD/.android-toolchain.local/jdk-ubuntu/usr/lib/jvm/java-21-openjdk-amd64
+export ANDROID_HOME=$PWD/.android-toolchain.local/sdk
+export NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018
+export PATH="$JAVA_HOME/bin:$HOME/.cargo/bin:$PATH"
 rustup target add aarch64-linux-android
 pnpm install --frozen-lockfile
 pnpm tauri android build --debug --apk --target aarch64 --ci

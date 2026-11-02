@@ -20,9 +20,13 @@ fn main() {
         .warnings(false)
         .compile("praytimes");
 
-    // Credencial OAuth de Google (Desktop): .oauth.local en la raíz del repo
+    // Credenciales OAuth de Google: .oauth.local en la raíz del repo
     // (fuera de Git por *.local). En CI/botella sin credencial la build sigue
     // y la app avisa en claro que falta configuración (client_id marcador).
+    //
+    // Soporta dos clientes:
+    // - Desktop: GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET
+    // - Android: ANDROID_GOOGLE_CLIENT_ID / ANDROID_GOOGLE_CLIENT_SECRET
     let mut ruta = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     ruta.pop();
     let oauth_local = ruta.join(".oauth.local");
@@ -30,8 +34,14 @@ fn main() {
         for linea in texto.lines() {
             if let Some((k, v)) = linea.split_once('=') {
                 let (k, v) = (k.trim(), v.trim());
-                if (k == "GOOGLE_OAUTH_CLIENT_ID" || k == "GOOGLE_OAUTH_CLIENT_SECRET") && !v.is_empty() {
-                    println!("cargo:rustc-env={k}={v}");
+                if !v.is_empty() {
+                    match k {
+                        "GOOGLE_OAUTH_CLIENT_ID" | "GOOGLE_OAUTH_CLIENT_SECRET"
+                        | "ANDROID_GOOGLE_CLIENT_ID" | "ANDROID_GOOGLE_CLIENT_SECRET" => {
+                            println!("cargo:rustc-env={k}={v}");
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
