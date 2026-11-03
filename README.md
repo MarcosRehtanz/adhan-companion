@@ -4,13 +4,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.18 para Linux, Windows y Android** — respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, sobre los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.18.md).
+✅ **v0.1.19 para Linux, Windows y Android** — respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, sobre los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.19.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.18_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.19_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -36,6 +36,11 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
+
+## Novedades de v0.1.19
+
+- Unificación de credenciales OAuth de Google Drive: Android y escritorio comparten el mismo proyecto (`adhan-nurhan`), permitiendo sincronizar la misma copia de seguridad privada en `appDataFolder` sin errores de autorización.
+- Sincronización multi-dispositivo fluida entre teléfono y computadora.
 
 ## Novedades de v0.1.18
 
