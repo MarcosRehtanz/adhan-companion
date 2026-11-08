@@ -520,7 +520,9 @@ pub fn run() {
         sync_google::sync_logout,
         sync_google::sync_ahora,
         sync_google::sync_resolver,
-        sync_google::sync_restaurar
+        sync_google::sync_restaurar,
+        sync_google::sync_fondo,
+        sync_google::sync_flush
     ]);
     #[cfg(not(desktop))]
     let builder = builder.invoke_handler(tauri::generate_handler![
@@ -565,6 +567,8 @@ pub fn run() {
         sync_android::sync_ahora,
         sync_android::sync_resolver,
         sync_android::sync_restaurar,
+        sync_android::sync_fondo,
+        sync_android::sync_flush,
     ]);
     #[cfg(desktop)]
     let builder = builder

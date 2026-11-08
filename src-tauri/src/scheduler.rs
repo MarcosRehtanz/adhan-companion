@@ -588,6 +588,9 @@ pub fn run(s: SchedulerLoop) {
             date = schedule.date.clone();
             refresh_prayer_items(&s, &schedule);
             publish_schedule(&s, &schedule);
+            if via == "resume" {
+                crate::sync_google::disparar_sync_fondo();
+            }
         }
         for (date_arg, name, combinado, reply) in prayers {
             if PRAYERS.contains(&name.as_str()) {

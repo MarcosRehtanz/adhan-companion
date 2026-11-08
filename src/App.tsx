@@ -218,6 +218,31 @@ export default function App() {
     return () => { void un.then((f) => f()).catch(() => {}); };
   }, [runtime?.google_sync, recargadoDeSync]);
 
+  // Consulta automática en segundo plano: al enfocar o volver a la app (con throttle en core),
+  // y subida inmediata al pasar a segundo plano si había cambios pendientes.
+  useEffect(() => {
+    if (!runtime?.google_sync) return;
+    const alCambiarVisibilidad = () => {
+      if (document.hidden) {
+        void invoke("sync_flush").catch(() => {});
+      } else {
+        void invoke("sync_fondo").catch(() => {});
+      }
+    };
+    const alEnfocar = () => {
+      if (!document.hidden) {
+        void invoke("sync_fondo").catch(() => {});
+      }
+    };
+    void invoke("sync_fondo").catch(() => {});
+    window.addEventListener("focus", alEnfocar);
+    document.addEventListener("visibilitychange", alCambiarVisibilidad);
+    return () => {
+      window.removeEventListener("focus", alEnfocar);
+      document.removeEventListener("visibilitychange", alCambiarVisibilidad);
+    };
+  }, [runtime?.google_sync]);
+
   // Sugerencia de ubicación por IP (única pieza de red del spec)
   // Cadena de proveedores: si uno falla o no trae ciudad, se prueba el próximo.
   // Nota de precisión: la geolocalización de IP es a nivel subnet del ISP —

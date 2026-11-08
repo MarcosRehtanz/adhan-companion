@@ -325,7 +325,18 @@ pub async fn sync_restaurar(acepta: bool, app: tauri::AppHandle) -> Result<self:
     self::sync_core::sync_restaurar(acepta, app).await
 }
 
+#[tauri::command]
+pub async fn sync_fondo(app: tauri::AppHandle) -> Result<(), String> {
+    self::sync_core::sync_fondo(&app).await
+}
+
+#[tauri::command]
+pub async fn sync_flush() -> Result<(), String> {
+    self::sync_core::flush_diferida();
+    Ok(())
+}
+
 // Re-exportar funciones públicas de sync_core para que otros módulos las usen
 pub use self::sync_core::{
-    al_arrancar, avisar_cambio, disponible, iniciar_diferido,
+    al_arrancar, avisar_cambio, disponible, disparar_sync_fondo, flush_diferida, iniciar_diferido,
 };

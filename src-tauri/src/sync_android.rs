@@ -261,3 +261,16 @@ pub async fn sync_resolver(eleccion: String, app: tauri::AppHandle) -> Result<Es
 pub async fn sync_restaurar(acepta: bool, app: tauri::AppHandle) -> Result<EstadoIpc, String> {
     crate::sync_core::con_registro(crate::sync_core::sync_restaurar(acepta, app).await)
 }
+
+/// Comprobación en segundo plano (al reanudar o enfocar la app, con throttle de 5 min).
+#[tauri::command]
+pub async fn sync_fondo(app: tauri::AppHandle) -> Result<(), String> {
+    crate::sync_core::sync_fondo(&app).await
+}
+
+/// Flush de subida diferida (al pasar a segundo plano o cerrar la app).
+#[tauri::command]
+pub async fn sync_flush() -> Result<(), String> {
+    crate::sync_core::flush_diferida();
+    Ok(())
+}

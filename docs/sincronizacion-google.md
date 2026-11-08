@@ -152,16 +152,21 @@ Verificado contra la documentación oficial (`developers.google.com/workspace/dr
 2. **v0.1.16**: login/logout, sincronización manual y al arrancar, resolución de conflictos con UI de elección. ✅
 3. **v0.1.17**: subida diferida después de cambios ✅ (26/10, `feat/sync-diferido`: debounce de 90 s, guard único de `sync_core`, reintentos con tope cuando hay otro sync en vuelo; hooks en `mark_prayed`, `set_config`/`set_pause` y `update_quran_reader`) y el estado persistente de última sync ✅ (`ultima_sync` en `sync-estado.json`, se ve al abrir el panel aunque no hayan syncs en la ejecución).
 
-## Subida diferida (v0.1.17)
+## Subida diferida y sincronización automática (v0.1.17 - v0.1.19)
 
-**Qué dispara una subida** (`sync_google::avisar_cambio`): marcar/desmarcar un rezo (`mark_prayed`, en las dos plataformas), guardar config (`set_config` y `set_pause`) y guardar el estado del lector (`update_quran_reader`). Varios avisos seguidos se **debouncean 90 s**: el último silencio manda, no hay subida por cada cambio.
+**Qué dispara una subida** (`sync_google::avisar_cambio` / `sync_core::avisar_cambio`): marcar/desmarcar un rezo (`mark_prayed`, en las dos plataformas), guardar config (`set_config` y `set_pause`) y guardar el estado del lector (`update_quran_reader`). Varios avisos seguidos se **debouncean 15 s**: el último silencio manda, no hay subida por cada cambio. Al minimizar o pasar a segundo plano (`document.hidden`), `sync_flush` adelanta inmediatamente la subida pendiente sin esperar el temporizador.
 
-**Estados del worker** (un solo hilo `sync-diferido`, arranca con la app en escritorio):
+**Sincronización automática de fondo:**
+1. **Periódico:** Cada 15 minutos, el worker `sync-diferido` comprueba silenciosamente Google Drive si la sesión está activa y no hay operaciones en curso.
+2. **Al reanudar (Resume):** En escritorio, al despertar del sleep/suspensión (detectado por el scheduler), se lanza una comprobación de fondo para traer los rezos marcados en el celular.
+3. **Al enfocar/abrir:** Al abrir o volver al primer plano de la app (en escritorio o Android), se comprueba Drive con un límite de frecuencia (throttle de 5 min entre chequeos).
+
+**Estados del worker** (un solo hilo `sync-diferido`, arranca con la app en escritorio y Android):
 
 | Estado | Transición |
 |---|---|
-| Dormida | sin agenda: espera avisos (timeout de 10 min para re-chequear) |
-| Agendada | aviso entra → `vence = ahora + 90 s`; cada aviso nuevo resetea el reloj |
+| Dormida | sin agenda: espera avisos o el vencimiento del sondeo periódico (15 min) |
+| Agendada | aviso entra → `vence = ahora + 15 s`; cada aviso nuevo resetea el reloj; `sync_flush` adelanta a 0 s |
 | Vencida | al vencer: si no hay sesión, suelta (queda para el próximo aviso/arranque); si hay otro sync en vuelo (manual/al arrancar/login), re-intenta en 60 s con tope de 3; si libró, corre el `sync_core` y vuelve a Dormida |
 | Con sesión cerrada (`sync_logout`) | los avisos siguen llegando pero son no-op: `disponible()` falso no corre ni agenda |
 

@@ -955,8 +955,10 @@ pub fn aplicar(app: &tauri::AppHandle, config_nueva: &serde_json::Value, lector_
     }
     if let Some(cfg) = cfg {
         config::save(&cfg)?;
-        *app.state::<SharedConfig>().write().map_err(|e| format!("config envenenado: {e}"))? = cfg;
+        *app.state::<SharedConfig>().write().map_err(|e| format!("config envenenado: {e}"))? = cfg.clone();
         let _ = app.state::<std::sync::mpsc::Sender<scheduler::Trigger>>().send(scheduler::Trigger::ConfigChanged);
+        #[cfg(target_os = "android")]
+        let _ = crate::android_alerts::sync(&cfg);
         cambios.push("configuración");
     }
     if !cambios.is_empty() {
@@ -1073,6 +1075,7 @@ pub async fn subir_respaldo_actual(token: &str, id_previo: Option<&str>) -> Resu
         e.ultimo_error = None;
         e.ultima_sync = Some(respaldo.actualizado.clone());
     });
+    registrar_sync_exitoso();
     log!("sync: respaldo actualizado ({})", id.chars().take(10).collect::<String>());
     Ok(())
 }
@@ -1189,8 +1192,13 @@ pub async fn al_arrancar(app: tauri::AppHandle) {
     if !disponible() {
         return;
     }
-    if let Err(e) = con_registro(sync_core(&app).await) {
-        log!("sync al arrancar: {e}");
+    match con_registro(sync_core(&app).await) {
+        Ok(_) => {
+            registrar_sync_exitoso();
+        }
+        Err(e) => {
+            log!("sync al arrancar: {e}");
+        }
     }
 }
 
@@ -1257,9 +1265,11 @@ pub async fn restaurar(app: &tauri::AppHandle) -> Result<EstadoIpc, String> {
     Ok(snapshot().await)
 }
 
-// --------------------------------------------------- subida diferida ---
+// --------------------------------------------------- subida diferida y sondeo ---
 
-const DEBOUNCE_SECS: u64 = 90;
+const DEBOUNCE_SECS: u64 = 15;
+const SONDEO_PERIODICO_SECS: u64 = 15 * 60; // 15 minutos de sondeo automático en segundo plano
+const MIN_INTERVALO_FONDO_SECS: u64 = 5 * 60; // 5 minutos de intervalo mínimo para chequeos al enfocar/despertar
 const REINTENTO_SECS: u64 = 60;
 const MAX_REINTENTOS: usize = 3;
 
@@ -1273,6 +1283,73 @@ pub static DIFERIDA: OnceLock<Mutex<Agendado>> = OnceLock::new();
 pub static DIFERIDA_COND: OnceLock<Condvar> = OnceLock::new();
 pub static EN_VUELO: AtomicBool = AtomicBool::new(false);
 pub static HANDLE_DIFERIDO: OnceLock<tauri::AppHandle> = OnceLock::new();
+pub static ULTIMO_SYNC_INSTANT: OnceLock<Mutex<Instant>> = OnceLock::new();
+
+pub fn registrar_sync_exitoso() {
+    let lock = ULTIMO_SYNC_INSTANT.get_or_init(|| Mutex::new(Instant::now()));
+    if let Ok(mut g) = lock.lock() {
+        *g = Instant::now();
+    }
+}
+
+/// Adelanta la subida diferida inmediatamente si había cambios pendientes (p. ej. al salir o minimizar).
+pub fn flush_diferida() {
+    if !disponible() {
+        return;
+    }
+    let agenda = DIFERIDA.get_or_init(|| Mutex::new(Agendado::default()));
+    let mut l = agenda.lock().unwrap();
+    if l.vence.is_some() {
+        l.vence = Some(Instant::now());
+        DIFERIDA_COND.get_or_init(Condvar::new).notify_all();
+    }
+}
+
+/// Dispara un chequeo de sincronización en segundo plano si hay sesión activa,
+/// no hay otro sync en curso y pasaron al menos 5 minutos desde el último chequeo.
+pub fn disparar_sync_fondo() {
+    if !disponible() || token_load().is_err() || EN_VUELO.load(Ordering::SeqCst) {
+        return;
+    }
+    let Some(handle) = HANDLE_DIFERIDO.get() else {
+        return;
+    };
+    let h = handle.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = sync_fondo(&h).await;
+    });
+}
+
+/// Comprobación en segundo plano (usada por IPC de foco/visibilidad y resume).
+pub async fn sync_fondo(app: &tauri::AppHandle) -> Result<(), String> {
+    if !disponible() || token_load().is_err() || EN_VUELO.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+    let debe_ejecutar = {
+        let lock = ULTIMO_SYNC_INSTANT.get_or_init(|| {
+            Mutex::new(Instant::now() - Duration::from_secs(MIN_INTERVALO_FONDO_SECS + 1))
+        });
+        match lock.lock() {
+            Ok(g) => g.elapsed() >= Duration::from_secs(MIN_INTERVALO_FONDO_SECS),
+            Err(_) => false,
+        }
+    };
+    if !debe_ejecutar {
+        return Ok(());
+    }
+
+    log!("sync fondo: comprobando respaldo en segundo plano");
+    match sync_core(app).await {
+        Ok(_) => {
+            registrar_sync_exitoso();
+            Ok(())
+        }
+        Err(e) => {
+            log!("sync fondo: {e}");
+            Ok(())
+        }
+    }
+}
 
 /// Baja EN_VUELO aun con return/panic en cualquier punto del sync.
 pub struct EnVuelo;
@@ -1310,53 +1387,71 @@ pub fn iniciar_diferido(handle: tauri::AppHandle) {
 pub fn ciclo_diferido() {
     let agenda = DIFERIDA.get_or_init(|| Mutex::new(Agendado::default()));
     let cond = DIFERIDA_COND.get_or_init(Condvar::new);
+    let mut ultimo_sondeo = Instant::now();
     loop {
-        // Espera: sin agenda, dormida con timeout largo; con agenda, hasta vencer
-        // (y si entra un aviso nuevo, se re-agenda: el debounce es del último).
         let mut l = agenda.lock().unwrap();
+        let mut es_sondeo_periodico = false;
         loop {
             let Some(vence) = l.vence else {
+                let tiempo_espera = match (ultimo_sondeo + Duration::from_secs(SONDEO_PERIODICO_SECS)).checked_duration_since(Instant::now()) {
+                    Some(d) => d.max(Duration::from_secs(1)),
+                    None => Duration::ZERO,
+                };
+                if tiempo_espera == Duration::ZERO {
+                    es_sondeo_periodico = true;
+                    break;
+                }
                 let (g, _) = cond
-                    .wait_timeout(l, Duration::from_secs(600))
+                    .wait_timeout(l, tiempo_espera.min(Duration::from_secs(60)))
                     .unwrap_or_else(|e| e.into_inner());
                 l = g;
                 continue;
             };
             match vence.checked_duration_since(Instant::now()) {
-                Some(d) => {
+                Some(d) if d > Duration::ZERO => {
                     let (g, aviso) = cond
                         .wait_timeout(l, d)
                         .unwrap_or_else(|e| e.into_inner());
                     l = g;
                     if !aviso.timed_out() {
-                        continue; // reseteo del debounce: volver a esperar el silencio
+                        continue;
                     }
                 }
-                None => break,
+                _ => break,
             }
         }
-        // Venció el silencio: cierro la agenda antes de decidir.
-        l.vence = None;
+        if !es_sondeo_periodico {
+            l.vence = None;
+        }
         let reintento = l.reintento;
         drop(l);
-        if !disponible() {
-            continue; // sin sesión todavía: la subida queda para el próximo aviso/arranque
+
+        ultimo_sondeo = Instant::now();
+
+        if !disponible() || token_load().is_err() {
+            continue;
         }
         if EN_VUELO.load(Ordering::SeqCst) {
-            // Otro sync corre (manual/arranque/login): re-agendar, con tope.
-            if reintento >= MAX_REINTENTOS {
-                continue;
+            if !es_sondeo_periodico && reintento < MAX_REINTENTOS {
+                let mut l = agenda.lock().unwrap();
+                l.reintento = reintento + 1;
+                l.vence = Some(Instant::now() + Duration::from_secs(REINTENTO_SECS));
             }
-            let mut l = agenda.lock().unwrap();
-            l.reintento = reintento + 1;
-            l.vence = Some(Instant::now() + Duration::from_secs(REINTENTO_SECS));
             continue;
         }
         let Some(app) = HANDLE_DIFERIDO.get() else { continue };
         match tauri::async_runtime::block_on(sync_core(app)) {
-            Ok(_) => log!("sync diferido: respaldo actualizado"),
-            // Sin tocar el estado de nuevo: sync_core ya dejó último_error para el panel.
-            Err(e) => log!("sync diferido: {e}"),
+            Ok(_) => {
+                registrar_sync_exitoso();
+                log!(
+                    "sync {}: respaldo actualizado",
+                    if es_sondeo_periodico { "periódico" } else { "diferido" }
+                );
+            }
+            Err(e) => log!(
+                "sync {}: {e}",
+                if es_sondeo_periodico { "periódico" } else { "diferido" }
+            ),
         }
     }
 }

@@ -175,7 +175,7 @@ export function GoogleSync({ recargado }: { recargado: () => void }) {
           <RefreshCw size={14} />{enCurso === "sync" ? "Sincronizando…" : "Sincronizar ahora"}
         </button>
       </div>
-      <p className="nota">Al abrir la app se compara con el respaldo: los rezos se unen y lo que cambió en una sola computadora se toma solo. Solo se consulta si algo cambió en las dos.</p>
+      <p className="nota">La app sincroniza automáticamente de fondo cada 15 minutos, al abrirla o reanudar del reposo. Los rezos se unen y lo que cambió en un solo dispositivo se toma solo. Solo se consulta si algo cambió en los dos.</p>
     </>}
   </section>;
 }

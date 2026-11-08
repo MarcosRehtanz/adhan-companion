@@ -37,8 +37,13 @@ export function PrayerRegister({ schedule }: { schedule: Schedule | null }) {
   useEffect(() => { void reload(); return () => { seq.current++; }; }, [reload]);
   useEffect(() => {
     let active = true;
-    const un = listen("schedule_changed", () => { if (active) void reload(true); });
-    return () => { active = false; void un.then(f => f()).catch(() => {}); };
+    const un1 = listen("schedule_changed", () => { if (active) void reload(true); });
+    const un2 = listen("sync_aplicado", () => { if (active) void reload(true); });
+    return () => {
+      active = false;
+      void un1.then(f => f()).catch(() => {});
+      void un2.then(f => f()).catch(() => {});
+    };
   }, [reload]);
   useEffect(() => {
     if (selected === schedule?.date) { setHours(null); setHoursError(""); return; }
