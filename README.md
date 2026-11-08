@@ -4,13 +4,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.19 para Linux, Windows y Android** — respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, sobre los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.19.md).
+✅ **v0.1.20 para Linux, Windows y Android** — respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, sobre los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.20.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.19_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.20_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -36,6 +36,13 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
+
+## Novedades de v0.1.20
+
+- Sincronización automática frecuente en segundo plano: sondeo periódico cada 15 minutos en segundo plano si la sesión está activa, tanto en escritorio como en Android.
+- Sincronización al despertar y al enfocar: comprobación automática al reanudar del reposo (abrir la tapa de la laptop) y al enfocar la app en el teléfono, con protección contra consultas redundantes (mínimo 5 min).
+- Subida rápida con *flush* inmediato: tiempo diferido de subida reducido de 90s a 15s tras marcar un rezo, con vaciado inmediato al minimizar o pasar la app a segundo plano.
+- Refresco en vivo del calendario de rezos: actualización automática del historial en pantalla ante eventos de sincronización externa sin requerir intervención manual.
 
 ## Novedades de v0.1.19
 
