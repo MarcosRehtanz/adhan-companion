@@ -81,10 +81,18 @@ fn abrir_autorizacion(url: &str) -> Result<(), String> {
         .map_err(|e| format!("abriendo el navegador: {e} — la URL queda en el panel para copiarla"))
 }
 
-/// Espera la vuelta del navegador: consulta el plugin cada POLL_MS hasta que
-/// MainActivity registró el URI del redirect (o venció el plazo / se canceló).
+/// Limpia cualquier callback residual acumulado en OauthLogin.
 #[cfg(target_os = "android")]
-fn esperar_callback() -> Result<String, String> {
+fn limpiar_callback_residual() {
+    let _ = crate::android_alerts::call("oauthConsume", serde_json::json!({}));
+}
+
+/// Espera la vuelta del navegador: consulta el plugin cada POLL_MS hasta que
+/// MainActivity registró el URI del redirect con el state correspondiente al pedido actual.
+/// Si llega un callback con un state obsoleto (de un intento anterior), se descarta y
+/// se continúa esperando sin abortar la sesión activa.
+#[cfg(target_os = "android")]
+fn esperar_callback(state_esperado: String) -> Result<crate::sync_core::Callback, String> {
     let límite = Instant::now() + Duration::from_secs(crate::sync_core::OAUTH_TIMEOUT_SECS);
     loop {
         if crate::sync_core::CANCELADO.load(std::sync::atomic::Ordering::SeqCst) {
@@ -98,7 +106,27 @@ fn esperar_callback() -> Result<String, String> {
             .and_then(|c| c.as_str())
             .map(str::to_string)
         {
-            return Ok(uri); // MainActivity rellena el hueco; consumirlo lo limpia
+            crate::log!("sync: recibido callback OAuth Android");
+            match crate::sync_core::parsear_callback(&uri) {
+                Ok(cb) => {
+                    if let Some(err) = &cb.error {
+                        return Err(format!("Google rechazó: {err} — podés reintentar"));
+                    }
+                    if cb.state.as_deref() == Some(state_esperado.as_str()) {
+                        return Ok(cb);
+                    } else {
+                        crate::log!(
+                            "sync: descartando callback OAuth desfasado/obsoleto (recibido: {:?}, esperado: {})",
+                            cb.state,
+                            state_esperado
+                        );
+                        // Continúa el loop: era un callback de un intento anterior
+                    }
+                }
+                Err(e) => {
+                    crate::log!("sync: URI de callback no parseable ({e}): {uri}");
+                }
+            }
         }
         std::thread::sleep(Duration::from_millis(POLL_MS));
     }
@@ -110,7 +138,7 @@ fn abrir_autorizacion(_url: &str) -> Result<(), String> {
 }
 
 #[cfg(not(target_os = "android"))]
-fn esperar_callback() -> Result<String, String> {
+fn esperar_callback(_state_esperado: String) -> Result<crate::sync_core::Callback, String> {
     Err("El flujo OAuth de Android no está disponible fuera de Android.".into())
 }
 
@@ -123,9 +151,12 @@ async fn crear_sesion() -> Result<(), String> {
     use sha2::{Digest, Sha256};
 
     use crate::sync_core::{
-        auth_url, azar, b64url, error_token, parsear_callback, platform_client_id, redirect_android,
+        auth_url, azar, b64url, error_token, platform_client_id, redirect_android,
         set_estado,
     };
+
+    // Limpiar residuos de intentos o callbacks previos antes de lanzar el nuevo.
+    limpiar_callback_residual();
 
     // PRIMERO la URL en el panel: si el navegador no abre, queda para copiar.
     // redirect: com.googleusercontent.apps.<client>:/oauth2redirect (auto-registrado).
@@ -139,18 +170,11 @@ async fn crear_sesion() -> Result<(), String> {
     abrir_autorizacion(&url)?;
 
     // La espera es bloqueante (polling cada 500 ms): fuera del runtime async.
-    let uri = tauri::async_runtime::spawn_blocking(esperar_callback)
+    let state_esperado = state.clone();
+    let cb = tauri::async_runtime::spawn_blocking(move || esperar_callback(state_esperado))
         .await
         .map_err(|_| "espera de autorización cancelada".to_string())??;
 
-    // El state tiene que ser el mismo que fue en la petición original.
-    let cb = parsear_callback(&uri)?;
-    if cb.state.as_deref() != Some(state.as_str()) {
-        return Err("la respuesta de Google no coincide con el pedido (state) y se descartó".into());
-    }
-    if let Some(err) = &cb.error {
-        return Err(format!("Google rechazó: {err} — podés reintentar"));
-    }
     let code = cb.code.ok_or_else(|| "callback sin código de autorización".to_string())?;
 
     // Canje del código por tokens (sin client_secret: cliente tipo «Android»).

@@ -23,13 +23,17 @@ class MainActivity : TauriActivity() {
   }
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
+    setIntent(intent)
     // Vuelta del navegador tras la autorización OAuth (custom scheme, app ya viva).
     OauthLogin.registrar(intent.data, packageName)
+    // Limpiar data para que giros de pantalla o recents no re-inyecten el URI consumido
+    intent.data = null
   }
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     // Redirect OAuth con la app muerta (cold start directo al callback).
     OauthLogin.registrar(intent.data, packageName)
+    intent.data = null
   }
 }

@@ -397,17 +397,23 @@ pub fn scheme_reversa(client_id: &str) -> String {
 
 /// `pkg:/oauth2redirect?code=...&state=...` → Callback con code/error/state.
 /// Compartido: escritorio usa su listener loopback y Android el custom scheme.
+/// Maneja fragmentos '#' añadidos por navegadores (ej: '?state=x&code=y#' o '#_=_')
+/// y parámetros entregados en fragmentos.
 pub fn parsear_callback(uri: &str) -> Result<Callback, String> {
-    let query = uri.split('?').nth(1).unwrap_or("");
+    let query_parte = uri.split('?').nth(1)
+        .map(|q| q.split('#').next().unwrap_or(""))
+        .unwrap_or_else(|| uri.split('#').nth(1).unwrap_or(""));
+
     let mut code = None;
     let mut error = None;
     let mut state = None;
-    for par in query.split('&') {
+    for par in query_parte.split('&') {
         let (k, v) = par.split_once('=').unwrap_or((par, ""));
-        match k {
-            "code" => code = Some(urldecode(v)),
-            "error" => error = Some(urldecode(v)),
-            "state" => state = Some(urldecode(v)),
+        let v_limpio = urldecode(v).trim().to_string();
+        match k.trim() {
+            "code" => code = Some(v_limpio),
+            "error" => error = Some(v_limpio),
+            "state" => state = Some(v_limpio),
             _ => {}
         }
     }
