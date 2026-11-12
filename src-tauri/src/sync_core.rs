@@ -251,8 +251,17 @@ pub fn token_delete() -> Result<(), String> {
 pub fn cliente_http() -> &'static reqwest::Client {
     static CLIENTE: OnceLock<reqwest::Client> = OnceLock::new();
     CLIENTE.get_or_init(|| {
-        reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS))
+        #[allow(unused_mut)]
+        let mut builder = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS));
+        #[cfg(target_os = "android")]
+        {
+            let certs = webpki_root_certs::TLS_SERVER_ROOT_CERTS
+                .iter()
+                .filter_map(|c| reqwest::Certificate::from_der(c.as_ref()).ok());
+            builder = builder.tls_certs_only(certs);
+        }
+        builder
             .build()
             .expect("cliente HTTP válido")
     })

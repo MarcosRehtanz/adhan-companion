@@ -418,7 +418,7 @@ export default function App() {
     ...(!isAndroid ? [{ id: "inicio" as Page, label: "Inicio de sesión", value: "Abrir Adhan Companion en la bandeja al iniciar sesión" }] : []),
     // Solo builds con credencial OAuth; las publicadas por la CI todavía no la tienen.
     ...(runtime?.google_sync ? [{ id: "respaldo" as Page, label: "Respaldo y sincronización", value: "Configuración, rezos y lectura en tu cuenta de Google" }] : []),
-    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.21"}` },
+    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.22"}` },
     { id: "acerca", label: "Acerca de", value: "Archivo de configuración y fuentes" },
   ]];
 
@@ -455,7 +455,7 @@ export default function App() {
     {page === "actualizaciones" && <div className="page-stack">{isAndroid ? <AndroidUpdates /> : <DesktopUpdates />}</div>}
     {page === "acerca" && <div className="page-stack">
       <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
-      <p className="nota">Adhan Companion {verActual || "0.1.21"}{isAndroid ? " para Android" : ""}. Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
+      <p className="nota">Adhan Companion {verActual || "0.1.22"}{isAndroid ? " para Android" : ""}. Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
     </div>}
   </>;
 
@@ -498,7 +498,7 @@ export default function App() {
           <button className={"nav-item " + (section === "mas" ? "activa" : "")} aria-label="Configuración" aria-current={section === "mas" ? "page" : undefined} disabled={saving} onClick={() => go("mas")}>
             <Settings size={17} strokeWidth={2} /><span>Configuración</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.21"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.22"}</span>
         </div>
       </aside>}
       <div className="workspace">

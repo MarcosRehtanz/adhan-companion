@@ -6,13 +6,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.21 para Linux, Windows y Android** — respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, sobre los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.21.md).
+✅ **v0.1.22 para Linux, Windows y Android** — respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, sobre los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.22.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.21_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.22_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -38,6 +38,12 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
+
+## Novedades de v0.1.22
+
+- Corrección crítica de TLS / certificados en Android: integración de `webpki-root-certs` para llamadas HTTPS seguras y autónomas en el cliente HTTP de Android, evitando el colapso de Tokio al contactar a Google tras el login.
+- Eliminación del estado colgado y del bucle con el navegador: el canje y almacenamiento del token ocurren de inmediato sin bloquearse en la espera.
+- Sincronización y restauración verificadas en Android: compatibilidad y restauración total del historial y configuración desde Google Drive.
 
 ## Novedades de v0.1.21
 
