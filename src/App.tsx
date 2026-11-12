@@ -26,6 +26,7 @@ import { GoogleSync } from "./components/GoogleSync";
 import { hijriLabel } from "./lib/hijri";
 import { cardinal } from "./lib/prayers";
 import { AppearanceSettings, useAppearance, DEFAULT_APPEARANCE, themes, palettes, type Appearance } from "./components/AppearanceSettings";
+import { RamadanSettings, DEFAULT_RAMADAN, type RamadanConfig } from "./components/RamadanSettings";
 import QuranReader from "./components/QuranReader";
 import logo from "./assets/logo.png";
 import "./App.css";
@@ -38,8 +39,8 @@ const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 // Las mismas páginas en el celular y en escritorio; cambia el marco de navegación.
 // Celular (Android y ventanas de hasta 720 px): barra inferior con Hoy, Registro, Qur’an y Más.
 // Escritorio: barra lateral con Hoy, Registro, Calendario islámico, Qur’an y Configuración.
-type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "respaldo" | "actualizaciones" | "acerca" | "guia";
-type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | null;
+type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "respaldo" | "actualizaciones" | "acerca" | "guia" | "ramadan";
+type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | "ramadan" | null;
 const TABS: { id: Page; label: string; Icon: LucideIcon }[] = [
   { id: "hoy", label: "Hoy", Icon: Sun },
   { id: "registro", label: "Registro", Icon: ListChecks },
@@ -54,7 +55,7 @@ const SIDEBAR: { id: Page; label: string; Icon: LucideIcon }[] = [
 ];
 const SUBPAGE_TITLES: Partial<Record<Page, string>> = {
   calendario: "Calendario islámico", qibla: "Qibla", horarios: "Ubicación y cálculo", avisos: "Adhan y avisos",
-  apariencia: "Apariencia", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", guia: "Guía del rezo", actualizaciones: "Actualizaciones", acerca: "Acerca de",
+  ramadan: "Modo Ramadán", apariencia: "Apariencia", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", guia: "Guía del rezo", actualizaciones: "Actualizaciones", acerca: "Acerca de",
 };
 
 interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean; quran_audio: boolean; google_sync: boolean }
@@ -75,6 +76,7 @@ interface Config {
   notice: { minutes_before: number };
   agent: { mqtt: boolean; broker: string };
   follow_up: { reminder: boolean; minutes: number; paused_until?: string | null };
+  ramadan: RamadanConfig;
 }
 
 const NARROW = "(max-width: 720px)";
@@ -331,6 +333,7 @@ export default function App() {
       setCfg((actual) => {
         if (!actual) return actual;
         if (editando === "apariencia") return { ...actual, appearance: snapshotEdicion.appearance ?? DEFAULT_APPEARANCE };
+        if (editando === "ramadan") return { ...actual, ramadan: snapshotEdicion.ramadan ?? DEFAULT_RAMADAN };
         if (editando === "ubicacion") return { ...actual, city: snapshotEdicion.city, lat: snapshotEdicion.lat, lon: snapshotEdicion.lon, tz: snapshotEdicion.tz };
         if (editando === "calendario") return { ...actual, calendar: snapshotEdicion.calendar };
         if (editando === "calculo") return { ...actual, method: snapshotEdicion.method, madhab: snapshotEdicion.madhab, highLatRule: snapshotEdicion.highLatRule, offsets: snapshotEdicion.offsets };
@@ -350,7 +353,7 @@ export default function App() {
   };
   const back = () => { if (mobile && window.history.state?.sub) window.history.back(); else setPage("mas"); };
 
-  const editingPage: Page | null = !editando ? null : editando === "ubicacion" || editando === "calculo" ? "horarios" : editando === "calendario" ? "calendario" : editando === "adhan" ? "avisos" : "apariencia";
+  const editingPage: Page | null = !editando ? null : editando === "ubicacion" || editando === "calculo" ? "horarios" : editando === "calendario" ? "calendario" : editando === "adhan" ? "avisos" : editando === "ramadan" ? "ramadan" : "apariencia";
   const calendar = cfg.calendar ?? { adjustment_days: 0 };
   const hoy = schedule?.date ?? "";
   const appearance = cfg.appearance ?? DEFAULT_APPEARANCE;
@@ -406,6 +409,7 @@ export default function App() {
   const opciones: { id: Page; label: string; value: string }[][] = [[
     ...(GUIA_REZO ? [{ id: "guia" as Page, label: "Guía del rezo", value: "Aprender y repasar cada rezo, paso a paso" }] : []),
     ...(mobile ? [{ id: "calendario" as Page, label: "Calendario islámico", value: hoy ? hijriLabel(hoy, calendar.adjustment_days) : "Cargando fecha…" }] : []),
+    { id: "ramadan", label: "Modo Ramadán", value: cfg.ramadan?.enabled ? `Activo: imsak -${cfg.ramadan.imsak_minutes} min, iftar al Maghrib` : "Desactivado" },
     { id: "qibla", label: "Qibla", value: qibla == null ? "Calculando…" : `${Math.round(qibla)}° desde el norte` },
     { id: "horarios", label: "Ubicación y cálculo", value: `${cfg.city || "Sin ubicación"}, método ${cfg.method}, Asr ${cfg.madhab}` },
     { id: "avisos", label: "Adhan y avisos", value: enPausa(cfg.follow_up.paused_until, hoy) ? `En pausa; vuelven el ${fechaVuelta(cfg.follow_up.paused_until!)}` : cfg.notice.minutes_before === 0 ? "Sonido por rezo, sin preaviso" : `Sonido por rezo, preaviso de ${cfg.notice.minutes_before} min` },
@@ -443,6 +447,7 @@ export default function App() {
     </section>}
     {page === "horarios" && <div className="page-stack">{ubicacionYCalculo}</div>}
     {page === "avisos" && <div className="page-stack">{avisos}</div>}
+    {page === "ramadan" && <div className="page-stack"><RamadanSettings disabled={!!editando && editando !== "ramadan"} value={cfg.ramadan ?? DEFAULT_RAMADAN} editing={editando === "ramadan"} onEdit={() => iniciarEdicion("ramadan")} onCancel={cancelarEdicion} onChange={(ramadan) => upd({ ramadan })} /></div>}
     {page === "apariencia" && <div className="page-stack"><AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={appearance} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} /></div>}
     {page === "inicio" && <div className="page-stack"><section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section></div>}
     {page === "guia" && GUIA_REZO && <div className="page-stack"><GuiaRezo key={guiaPedido?.n ?? 0} rezoInicial={guiaPedido?.rezo} escuelaInicial={cfg?.method === "Jafari" || cfg?.method === "Tehran" ? "jafari" : cfg?.madhab === "Hanafi" ? "hanafi" : "shafii"} schedule={schedule} scheduleError={scheduleError} android={isAndroid} onMarked={() => { void loadSchedule(); void loadStats(); }} /></div>}

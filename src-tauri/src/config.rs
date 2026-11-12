@@ -291,6 +291,46 @@ pub struct CalendarConfig {
     pub adjustment_days: i8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RamadanConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_imsak_minutes")]
+    pub imsak_minutes: u16,
+    #[serde(default = "default_true")]
+    pub imsak_alert: bool,
+    #[serde(default = "default_true")]
+    pub iftar_alert: bool,
+}
+
+fn default_imsak_minutes() -> u16 {
+    10
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for RamadanConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            imsak_minutes: 10,
+            imsak_alert: true,
+            iftar_alert: true,
+        }
+    }
+}
+
+impl RamadanConfig {
+    pub fn validar(&self) -> Result<(), String> {
+        if !(5..=60).contains(&self.imsak_minutes) {
+            return Err("El adelanto de imsak debe estar entre 5 y 60 minutos.".into());
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
@@ -325,6 +365,8 @@ pub struct Config {
     pub appearance: Appearance,
     #[serde(default)]
     pub follow_up: FollowUp,
+    #[serde(default)]
+    pub ramadan: RamadanConfig,
 }
 
 fn default_method() -> Method { Method::Mwl }
@@ -346,6 +388,7 @@ impl Default for Config {
             appearance: Appearance::default(),
             notice: Notice { minutes_before: 10 },
             follow_up: FollowUp::default(),
+            ramadan: RamadanConfig::default(),
             agent: AgentConfig { mqtt: false, broker: String::new() },
         }
     }
@@ -418,6 +461,7 @@ pub fn validar(cfg: &Config) -> Result<(), String> {
         return Err("El ajuste del calendario debe estar entre -2 y +2 días.".into());
     }
     cfg.follow_up.validar()?;
+    cfg.ramadan.validar()?;
     Ok(())
 }
 

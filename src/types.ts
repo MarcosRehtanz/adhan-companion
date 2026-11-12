@@ -15,6 +15,19 @@ export interface NextPrayer {
   timestamp: number;
 }
 
+export interface RamadanInfo {
+  enabled: boolean;
+  imsak_hhmm: string;
+  imsak_timestamp: number;
+  fajr_hhmm: string;
+  fajr_timestamp: number;
+  iftar_hhmm: string;
+  iftar_timestamp: number;
+  is_fasting_now: boolean;
+  countdown_label: string;
+  countdown_secs: number;
+}
+
 export interface Schedule {
   date: string;
   prayers: PrayerSlot[];
@@ -26,6 +39,7 @@ export interface Schedule {
   /** Salida y puesta del sol en horas decimales locales; null en latitudes extremas. */
   sunrise: number | null;
   sunset: number | null;
+  ramadan?: RamadanInfo | null;
 }
 
 export interface MarkedDay {

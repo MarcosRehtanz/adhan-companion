@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 
 use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 #[cfg(desktop)]
 use tauri::Emitter;
 
@@ -47,6 +47,20 @@ pub struct NextPrayer {
     pub timestamp: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RamadanInfo {
+    pub enabled: bool,
+    pub imsak_hhmm: String,
+    pub imsak_timestamp: i64,
+    pub fajr_hhmm: String,
+    pub fajr_timestamp: i64,
+    pub iftar_hhmm: String,
+    pub iftar_timestamp: i64,
+    pub is_fasting_now: bool,
+    pub countdown_label: String,
+    pub countdown_secs: i64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Schedule {
     pub date: String,
@@ -61,6 +75,8 @@ pub struct Schedule {
     /// `None` si no se pueden calcular (latitudes extremas).
     pub sunrise: Option<f64>,
     pub sunset: Option<f64>,
+    #[serde(default)]
+    pub ramadan: Option<RamadanInfo>,
 }
 
 /// Estado compartido con el mundo IPC (`get_schedule` / `schedule_changed`)
@@ -167,7 +183,76 @@ fn refresh_next(
     });
     schedule.countdown_secs = next.as_ref().map(|event| event.timestamp - now.timestamp());
     schedule.next = next;
+    schedule.ramadan = compute_ramadan_info(today, &schedule.prayers, &cfg.ramadan, now);
     previous != schedule.next
+}
+
+/// Información de ayuno (Imsak / Iftar) para el modo Ramadán.
+/// Reutiliza los horarios oficiales calculados para Fajr y Maghrib.
+pub fn compute_ramadan_info<Tz: TimeZone>(
+    date: NaiveDate,
+    prayers: &[PrayerSlot],
+    cfg: &crate::config::RamadanConfig,
+    now: &DateTime<Tz>,
+) -> Option<RamadanInfo> {
+    if !cfg.enabled {
+        return None;
+    }
+    let fajr_slot = prayers.iter().find(|s| s.name == "Fajr")?;
+    let maghrib_slot = prayers.iter().find(|s| s.name == "Maghrib")?;
+    if !fajr_slot.dec.is_finite() || !(0.0..24.0).contains(&fajr_slot.dec) {
+        return None;
+    }
+    if !maghrib_slot.dec.is_finite() || !(0.0..24.0).contains(&maghrib_slot.dec) {
+        return None;
+    }
+    let fajr_civil = date
+        .and_hms_opt(0, 0, 0)?
+        .checked_add_signed(chrono::Duration::seconds((fajr_slot.dec * 3600.0) as i64))?;
+    let fajr_at = now.timezone().from_local_datetime(&fajr_civil).earliest()?;
+    let fajr_timestamp = fajr_at.timestamp();
+
+    let imsak_secs_before = (cfg.imsak_minutes as i64) * 60;
+    let imsak_civil = fajr_civil.checked_sub_signed(chrono::Duration::seconds(imsak_secs_before))?;
+    let imsak_at = now.timezone().from_local_datetime(&imsak_civil).earliest()?;
+    let imsak_timestamp = imsak_at.timestamp();
+    let imsak_hhmm = format!("{:02}:{:02}", imsak_at.hour(), imsak_at.minute());
+
+    let maghrib_civil = date
+        .and_hms_opt(0, 0, 0)?
+        .checked_add_signed(chrono::Duration::seconds((maghrib_slot.dec * 3600.0) as i64))?;
+    let maghrib_at = now.timezone().from_local_datetime(&maghrib_civil).earliest()?;
+    let iftar_timestamp = maghrib_at.timestamp();
+    let iftar_hhmm = maghrib_slot.hhmm.clone();
+
+    let now_ts = now.timestamp();
+    let is_fasting_now = now_ts >= fajr_timestamp && now_ts < iftar_timestamp;
+
+    let (countdown_label, countdown_secs) = if now_ts < imsak_timestamp {
+        let diff = imsak_timestamp - now_ts;
+        ("Fin del suhur (Imsak)".to_string(), diff)
+    } else if now_ts < fajr_timestamp {
+        let diff = fajr_timestamp - now_ts;
+        ("Comienzo del ayuno (Fajr)".to_string(), diff)
+    } else if now_ts < iftar_timestamp {
+        let diff = iftar_timestamp - now_ts;
+        ("Iftar (ruptura del ayuno)".to_string(), diff)
+    } else {
+        ("Ayuno de hoy cumplido".to_string(), 0)
+    };
+
+    Some(RamadanInfo {
+        enabled: true,
+        imsak_hhmm,
+        imsak_timestamp,
+        fajr_hhmm: fajr_slot.hhmm.clone(),
+        fajr_timestamp,
+        iftar_hhmm,
+        iftar_timestamp,
+        is_fasting_now,
+        countdown_label,
+        countdown_secs,
+    })
 }
 
 /// Snapshot seguro del config (panics en poison nunca deben pisar el tray)
@@ -306,6 +391,7 @@ fn schedule_at(cfg: &crate::config::Config, now: &DateTime<chrono::Local>) -> Sc
         marked: Vec::new(),
         sunrise: Some(times7[1]).filter(|h| h.is_finite()),
         sunset: Some(times7[4]).filter(|h| h.is_finite()),
+        ramadan: None,
     };
     refresh_next(&mut schedule, cfg, now);
     schedule
@@ -542,6 +628,7 @@ pub fn run(s: SchedulerLoop) {
     // Recordatorio por rezo de hoy (follow_up): una sola vez, se reinicia al cambiar el día
     let mut reminded = [false; 5];
     let mut reminded_date = schedule.date.clone();
+    let mut imsak_announced = false;
     refresh_prayer_items(&s, &schedule);
     publish_schedule(&s, &schedule);
     refresh_tray(&s, &schedule, None);
@@ -585,6 +672,7 @@ pub fn run(s: SchedulerLoop) {
             );
             adhan_announced = false;
             notice_announced = false;
+            imsak_announced = false;
             date = schedule.date.clone();
             refresh_prayer_items(&s, &schedule);
             publish_schedule(&s, &schedule);
@@ -645,6 +733,7 @@ pub fn run(s: SchedulerLoop) {
             );
             adhan_announced = false;
             notice_announced = false;
+            imsak_announced = false;
             date = schedule.date.clone();
             last_local_offset = local_offset;
             refresh_prayer_items(&s, &schedule);
@@ -661,6 +750,7 @@ pub fn run(s: SchedulerLoop) {
             );
             adhan_announced = false;
             notice_announced = false;
+            imsak_announced = false;
             date = today;
             refresh_prayer_items(&s, &schedule);
             publish_schedule(&s, &schedule);
@@ -693,6 +783,27 @@ pub fn run(s: SchedulerLoop) {
                 if !crate::registro::is_prayer_marked(&schedule.date, PRAYERS[i]) {
                     notify(&s.app, &format!("¿Ya rezaste {}?", PRAYERS[i]), "Marcalo desde la bandeja o en Hoy.");
                 }
+            }
+        }
+
+        // Modo Ramadán: aviso de Imsak (fin del suhur)
+        let ramadan = snapshot(&s.config).ramadan;
+        if ramadan.enabled && ramadan.imsak_alert && !paused {
+            if let Some(r) = &schedule.ramadan {
+                let now_ts = now.timestamp();
+                if now_ts >= r.imsak_timestamp && now_ts < r.fajr_timestamp && !imsak_announced {
+                    imsak_announced = true;
+                    notify(
+                        &s.app,
+                        "Imsak — Fin del suhur",
+                        format!("Faltan {} min para el comienzo del ayuno (Fajr a las {}).", ramadan.imsak_minutes, r.fajr_hhmm).as_str(),
+                    );
+                }
+            }
+        }
+        if let Some(r) = &schedule.ramadan {
+            if now.timestamp() >= r.fajr_timestamp {
+                imsak_announced = true;
             }
         }
 
@@ -736,13 +847,18 @@ pub fn run(s: SchedulerLoop) {
                 if let Err(e) = crate::registro::append(&schedule.date, PRAYERS[fired], "adhan") {
                     crate::log!("registro del disparo falló: {e}");
                 }
+                let ramadan = snapshot(&s.config).ramadan;
+                let es_iftar = ramadan.enabled && ramadan.iftar_alert && PRAYERS[fired] == "Maghrib";
+                let titulo = if es_iftar { "Hora de orar — Iftar" } else { "Hora de orar" };
+                let detalle_rezo = if es_iftar {
+                    format!("{} ({}) — Iftar (ruptura del ayuno)", PRAYERS[fired], schedule.prayers[fired].hhmm)
+                } else {
+                    format!("{} ({})", PRAYERS[fired], schedule.prayers[fired].hhmm)
+                };
                 notify(
                     &s.app,
-                    "Hora de orar",
-                    format!(
-                        "{} ({}) — tocá el menú del tray para confirmar (ya recé) o Silenciar para detener",
-                        PRAYERS[fired], schedule.prayers[fired].hhmm
-                    ).as_str(),
+                    titulo,
+                    format!("{detalle_rezo} — tocá el menú del tray para confirmar (ya recé) o Silenciar para detener").as_str(),
                 );
                 let cfg = snapshot(&s.config);
                 if let Err(e) = crate::audio::play_alert(&cfg.audio, &PRAYERS[fired].to_lowercase()) {
@@ -801,6 +917,7 @@ mod tests {
             marked: vec!["Isha".into()],
             sunrise: Some(6.5),
             sunset: Some(18.0),
+            ramadan: None,
         }
     }
 

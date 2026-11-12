@@ -782,6 +782,8 @@ pub const GRUPOS_CONFIG: &[&[&str]] = &[
     &["notice"],
     &["calendar"],
     &["appearance"],
+    &["follow_up"],
+    &["ramadan"],
 ];
 /// En el lector, la posición y las preferencias; los marcadores se unen aparte.
 pub const GRUPOS_LECTOR: &[&[&str]] = &[&["last"], &["arabic_size", "translation_size", "show_translation"]];

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Check, ChevronRight, Compass } from "lucide-react";
-import type { PrayerSlot, Schedule } from "../types";
+import { Check, ChevronRight, Compass, Moon } from "lucide-react";
+import type { PrayerSlot, RamadanInfo, Schedule } from "../types";
 import { ARABIC_NAMES, PRAYER_NAMES, cardinal, hoursOf, prayerReached, remaining } from "../lib/prayers";
 
 type AlertStatus = { enabled: boolean; exact: boolean; notifications: boolean; error: string };
@@ -20,7 +20,7 @@ function rezoPendiente(schedule: Schedule, now: Date): string | null {
 export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, android, onOpen, onMarked, onGuia }: {
   schedule: Schedule | null; scheduleError: string; onRetry: () => Promise<void>;
   qibla: number | null; qiblaError: string; android: boolean;
-  onOpen: (page: "avisos" | "qibla" | "registro") => void; onMarked: () => void; onGuia?: (prayer: string) => void;
+  onOpen: (page: "avisos" | "qibla" | "registro" | "ramadan") => void; onMarked: () => void; onGuia?: (prayer: string) => void;
 }) {
   const [alerts, setAlerts] = useState<AlertStatus | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -70,6 +70,10 @@ export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, and
           {schedule.sunrise != null && schedule.sunset != null && <SunPath prayers={schedule.prayers} sunrise={schedule.sunrise} sunset={schedule.sunset} now={hoursOf(now)} next={nextToday ? next.name : null} />}
         </>}
     </section>
+
+    {schedule?.ramadan?.enabled && (
+      <RamadanCard ramadan={schedule.ramadan} now={now} onOpen={onOpen} />
+    )}
 
     {pendiente && onGuia && <section className="rezo-ahora" aria-label={`Rezar ${pendiente} con guía`}>
       <p>Ya es la hora de <b>{pendiente}</b> ({schedule?.prayers.find(s => s.name === pendiente)?.hhmm}) y todavía no lo marcaste.</p>
@@ -138,4 +142,70 @@ function SunPath({ prayers, sunrise, sunset, now, next }: { prayers: PrayerSlot[
     </svg>
     <div className="arco-extremos" aria-hidden="true"><span>{valid[0].name} {valid[0].hhmm}</span><span>{valid[valid.length - 1].name} {valid[valid.length - 1].hhmm}</span></div>
   </>;
+}
+
+function RamadanCard({
+  ramadan,
+  now,
+  onOpen,
+}: {
+  ramadan: RamadanInfo;
+  now: Date;
+  onOpen: (page: "avisos" | "qibla" | "registro" | "ramadan") => void;
+}) {
+  const nowTs = Math.floor(now.getTime() / 1000);
+  const isFasting = ramadan.is_fasting_now;
+
+  let tiempoFalta = "";
+  if (nowTs < ramadan.imsak_timestamp) {
+    tiempoFalta = remaining(Math.max(0, ramadan.imsak_timestamp - nowTs));
+  } else if (nowTs < ramadan.fajr_timestamp) {
+    tiempoFalta = remaining(Math.max(0, ramadan.fajr_timestamp - nowTs));
+  } else if (nowTs < ramadan.iftar_timestamp) {
+    tiempoFalta = remaining(Math.max(0, ramadan.iftar_timestamp - nowTs));
+  }
+
+  return (
+    <section className="tarjeta-ramadan" aria-label="Horarios de Ramadán">
+      <div className="ramadan-cabecera">
+        <div className="ramadan-tit-linea">
+          <Moon size={18} className="ramadan-luna" />
+          <h2 className="ramadan-titulo">Ramadán</h2>
+          <span className={`ramadan-badge ${isFasting ? "ayunando" : "pausa"}`}>
+            {isFasting ? "Ayunando" : nowTs >= ramadan.iftar_timestamp ? "Ayuno completado" : "Noche / Suhur"}
+          </span>
+        </div>
+        <button className="link-button" onClick={() => onOpen("ramadan")}>
+          Ajustes
+        </button>
+      </div>
+
+      <div className="ramadan-cuenta">
+        <p className="ramadan-cuenta-rotulo">{ramadan.countdown_label}</p>
+        {tiempoFalta && (
+          <p className="ramadan-cuenta-valor">
+            Faltan <b>{tiempoFalta}</b>
+          </p>
+        )}
+      </div>
+
+      <div className="ramadan-horarios-grid">
+        <div className="ramadan-hito">
+          <span className="hito-nombre">Imsak</span>
+          <b className="hito-hora">{ramadan.imsak_hhmm}</b>
+          <small className="hito-desc">Fin suhur</small>
+        </div>
+        <div className="ramadan-hito">
+          <span className="hito-nombre">Fajr</span>
+          <b className="hito-hora">{ramadan.fajr_hhmm}</b>
+          <small className="hito-desc">Inicio ayuno</small>
+        </div>
+        <div className="ramadan-hito iftar">
+          <span className="hito-nombre">Iftar</span>
+          <b className="hito-hora">{ramadan.iftar_hhmm}</b>
+          <small className="hito-desc">Maghrib</small>
+        </div>
+      </div>
+    </section>
+  );
 }
