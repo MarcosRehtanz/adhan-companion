@@ -1,5 +1,7 @@
 # Adhan Companion
 
+Sitio web oficial: [marcosrehtanz.github.io/adhan-companion](https://marcosrehtanz.github.io/adhan-companion/) • [Política de Privacidad](https://marcosrehtanz.github.io/adhan-companion/privacidad)
+
 App de escritorio **tray-first** para Linux y Windows: el tray es la app — horarios de los 5 rezos, preaviso + adhan asignado a cada rezo y marcado de rezos del día. Cálculo 100% local, sin backend.
 
 ## Estado

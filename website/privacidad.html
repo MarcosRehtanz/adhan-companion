@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidad — Adhan Companion</title>
+  <meta name="description" content="Política de privacidad de Adhan Companion: software de código abierto, local-first, sin recopilación de datos personales ni servidores intermediarios.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand">
+        <img src="assets/icon.png" alt="Adhan Companion Logo">
+        <span>Adhan Companion</span>
+      </a>
+      <nav>
+        <ul class="nav-links">
+          <li><a href="index.html" class="nav-link">Inicio</a></li>
+          <li><a href="index.html#descargas" class="nav-link">Descargas</a></li>
+          <li><a href="https://github.com/MarcosRehtanz/adhan-companion" target="_blank" rel="noopener noreferrer" class="btn-github">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="privacy-page">
+    <div class="container">
+      <article class="privacy-paper">
+        <h1>Política de Privacidad</h1>
+        <p class="doc-meta">Última actualización: 12 de noviembre de 2026 • Aplicable a Adhan Companion en Linux, Windows y Android</p>
+
+        <section>
+          <h2>1. Principio fundamental: Local-First</h2>
+          <p>
+            <strong>Adhan Companion</strong> es una aplicación de código abierto desarrollada por <strong>Marcos Rehtanz</strong> concebida bajo la filosofía <em>local-first</em>. Esto significa que todo el funcionamiento primordial de la aplicación —incluido el cálculo de los horarios de rezo, la reproducción del adhan, el registro de oraciones y la lectura del Sagrado Qur’an— se ejecuta de forma 100% autónoma y local en el dispositivo del usuario.
+          </p>
+          <p>
+            No contamos con servidores propios de recolección de datos, no incluimos telemetría ni analíticas, y no comercializamos ni compartimos ningún tipo de información con terceros.
+          </p>
+        </section>
+
+        <section>
+          <h2>2. Datos de Ubicación y Horarios de Oración</h2>
+          <p>
+            Para calcular con exactitud los cinco horarios diarios de oración (Fajr, Dhuhr, Asr, Maghrib e Isha), la aplicación requiere conocer la latitud, longitud y zona horaria de la ciudad o localidad del usuario.
+          </p>
+          <ul>
+            <li><strong>Cálculo astronómico local:</strong> El cálculo de los horarios de salat se realiza enteramente en el procesador de tu dispositivo a través del algoritmo en C de <em>PrayTimes</em> compilado dentro del núcleo de la aplicación. No se envía tu posición geográfica a ningún servidor para obtener los horarios.</li>
+            <li><strong>Determinación de la ubicación:</strong> La ubicación se configura manualmente introduciendo coordenadas o seleccionando una ciudad. Si el usuario solicita voluntariamente la sugerencia automática de ubicación, se consulta una cadena de servicios de geolocalización por IP pública (sin rastreo de GPS en segundo plano).</li>
+            <li><strong>Sin seguimiento en tiempo real:</strong> La aplicación no monitoriza tus desplazamientos ni almacena un historial de tus ubicaciones geográficas.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>3. Sincronización y Uso de la API de Google Drive</h2>
+          <p>
+            Adhan Companion incluye una función opcional que permite al usuario sincronizar su configuración personal, el historial de oraciones marcadas y el punto de lectura del Qur’an entre múltiples dispositivos (computadoras y celulares) vinculando su cuenta personal de Google.
+          </p>
+          <p>
+            Al conectar voluntariamente tu cuenta de Google, la aplicación solicita el alcance de acceso (OAuth Scope):<br>
+            <code>https://www.googleapis.com/auth/drive.appdata</code> (acceso a la carpeta privada de datos de aplicación).
+          </p>
+          <p><strong>Garantías de uso del alcance de Google Drive:</strong></p>
+          <ul>
+            <li><strong>Aislamiento estricto (Application Data Folder):</strong> La aplicación accede única y exclusivamente al espacio oculto y privado <em>appDataFolder</em> asignado por Google a Adhan Companion. La aplicación <strong>NO TIENE ACCESO</strong> a tus archivos personales, carpetas, documentos, hojas de cálculo, fotos ni ningún otro dato almacenado en tu unidad de Google Drive.</li>
+            <li><strong>Finalidad exclusiva:</strong> El acceso se utiliza únicamente para almacenar y actualizar un único archivo estructurado (<code>adhan-companion-backup.json</code>) que contiene tus preferencias, el registro de oraciones rezadas y los marcadores del lector.</li>
+            <li><strong>Conexión directa sin intermediarios:</strong> El flujo de autorización OAuth y las transferencias de sincronización se efectúan directamente mediante HTTPS cifrado entre tu dispositivo y los servidores oficiales de Google. Ninguna credencial, token de acceso o archivo de datos pasa a través de servidores administrados por nosotros ni por terceros.</li>
+            <li><strong>Cumplimiento de la Política de Google:</strong> El uso y la transferencia que hace Adhan Companion de la información recibida a través de las APIs de Google se apegan rigurosamente a la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Política de Datos de Usuario de los Servicios de las APIs de Google</a>, incluidos los requisitos de Uso Limitado (<em>Limited Use Requirements</em>).</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>4. Publicidad, Rastreadores y Telemetría</h2>
+          <ul>
+            <li><strong>Cero publicidad:</strong> Adhan Companion no contiene anuncios publicitarios de ningún tipo.</li>
+            <li><strong>Cero rastreadores:</strong> No incorporamos bibliotecas de seguimiento publicitario (ad-trackers), cookies de perfilado ni SDKs analíticos de terceros.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>5. Control, Retención y Eliminación de Datos</h2>
+          <p>
+            Tus datos son siempre de tu exclusiva propiedad y control:
+          </p>
+          <ul>
+            <li><strong>Eliminación local:</strong> Puedes eliminar todas tus preferencias y tu registro de rezos en cualquier momento desinstalando la aplicación o borrando la carpeta de configuración local (<code>~/.config/adhan-companion</code> en Linux, <code>%APPDATA%\Adhan Companion</code> en Windows o borrando los datos de la app en los ajustes de Android).</li>
+            <li><strong>Eliminación de la copia en la nube:</strong> Si activaste la sincronización con Google Drive, puedes desvincular tu cuenta pulsando «Cerrar sesión» en la app. Para eliminar permanentemente el archivo de respaldo de tu nube, puedes hacerlo desde Google Drive en la web ingresando a <em>Configuración → Administrar aplicaciones → Adhan Companion → Opciones → Eliminar datos de aplicación ocultos</em>.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>6. Permisos del Sistema</h2>
+          <p>
+            En plataformas móviles (Android), la aplicación puede requerir:
+          </p>
+          <ul>
+            <li><strong>Alarmas exactas (SCHEDULE_EXACT_ALARM):</strong> Requerido a partir de Android 12 para que los recordatorios y el adhan suenen en el instante astronómico preciso sin retrasos ocasionados por el ahorro de energía del sistema operativo.</li>
+            <li><strong>Notificaciones (POST_NOTIFICATIONS):</strong> Requerido a partir de Android 13 para mostrar las alertas de horario y los controles de reproducción de audio.</li>
+            <li><strong>Servicio en primer plano (FOREGROUND_SERVICE_MEDIA_PLAYBACK):</strong> Permite que la recitación del Qur’an continúe sonando cuando la pantalla se apaga o se utiliza otra aplicación.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>7. Modificaciones a esta Política</h2>
+          <p>
+            Cualquier modificación futura a esta política de privacidad será publicada en esta misma página web, reflejando la fecha de última actualización al comienzo del documento.
+          </p>
+        </section>
+
+        <section>
+          <h2>8. Código Abierto y Contacto</h2>
+          <p>
+            La totalidad del código fuente de Adhan Companion es público y auditable bajo licencia de código abierto en GitHub:
+          </p>
+          <p>
+            Repositorio oficial: <a href="https://github.com/MarcosRehtanz/adhan-companion" target="_blank" rel="noopener noreferrer">https://github.com/MarcosRehtanz/adhan-companion</a><br>
+            Contacto del desarrollador: <a href="mailto:marcos.rehtanz@gmail.com">marcos.rehtanz@gmail.com</a>
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="brand">
+          <img src="assets/icon.png" alt="Adhan Companion Logo">
+          <span>Adhan Companion</span>
+        </div>
+        <ul class="footer-links">
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="index.html#descargas">Descargas</a></li>
+          <li><a href="https://github.com/MarcosRehtanz/adhan-companion" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+        </ul>
+      </div>
+      <div class="footer-bottom">
+        <p>Desarrollado por Marcos Rehtanz. Licencia MIT.</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
