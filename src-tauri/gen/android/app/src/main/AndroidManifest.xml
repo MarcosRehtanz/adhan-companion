@@ -44,14 +44,33 @@
 
         <service android:name=".PrayerAudioService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <service android:name=".QuranAudioService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
-        <receiver android:name=".PrayerAlarmReceiver" android:exported="false">
+        <receiver android:name=".PrayerAlarmReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+                <action android:name="io.github.marcosrehtanz.adhancompanion.PIN_WIDGET" />
             </intent-filter>
+        </receiver>
+
+        <receiver android:name=".PrayerSolarWidgetProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/prayer_widget_solar_info" />
+        </receiver>
+
+        <receiver android:name=".PrayerCompactWidgetProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/prayer_widget_compact_info" />
         </receiver>
         <provider
           android:name="androidx.core.content.FileProvider"

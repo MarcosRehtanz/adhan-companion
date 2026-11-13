@@ -418,7 +418,7 @@ export default function App() {
     ...(!isAndroid ? [{ id: "inicio" as Page, label: "Inicio de sesión", value: "Abrir Adhan Companion en la bandeja al iniciar sesión" }] : []),
     // Solo builds con credencial OAuth; las publicadas por la CI todavía no la tienen.
     ...(runtime?.google_sync ? [{ id: "respaldo" as Page, label: "Respaldo y sincronización", value: "Configuración, rezos y lectura en tu cuenta de Google" }] : []),
-    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.22"}` },
+    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.23"}` },
     { id: "acerca", label: "Acerca de", value: "Archivo de configuración y fuentes" },
   ]];
 
@@ -435,7 +435,15 @@ export default function App() {
       </div>}
       <section className="panel"><PrayerRegister schedule={schedule} /></section>
     </div>}
-    {page === "mas" && <div className="opciones">{opciones.map((grupo, i) => <div key={i}>
+    {page === "mas" && <div className="opciones">
+      {mobile && <div className="marca-mas">
+        <img src={logo} className="logo-mas" alt="" />
+        <div className="marca-mas-texto">
+          <h2>Adhan Companion</h2>
+          <span className="version-mas">v{verActual || "0.1.23"}</span>
+        </div>
+      </div>}
+      {opciones.map((grupo, i) => <div key={i}>
       <h2 className="grupo-opciones">{i === 0 ? "Rezo" : "Aplicación"}</h2>
       <ul className="lista-opciones">{grupo.map(o => <li key={o.id}><button onClick={() => go(o.id)}><span className="fila-texto"><b>{o.label}</b><span>{o.value}</span></span><ChevronRight size={20} className="chevron" /></button></li>)}</ul>
     </div>)}</div>}
@@ -454,15 +462,29 @@ export default function App() {
     {page === "respaldo" && runtime?.google_sync && <div className="page-stack"><GoogleSync recargado={recargadoDeSync} /></div>}
     {page === "actualizaciones" && <div className="page-stack">{isAndroid ? <AndroidUpdates /> : <DesktopUpdates />}</div>}
     {page === "acerca" && <div className="page-stack">
+      <div className="acerca-branding">
+        <img src={logo} className="logo-acerca" alt="Adhan Companion" />
+        <h2>Adhan Companion</h2>
+        <span className="version-acerca">v{verActual || "0.1.23"}{isAndroid ? " para Android" : ""}</span>
+      </div>
       <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
-      <p className="nota">Adhan Companion {verActual || "0.1.22"}{isAndroid ? " para Android" : ""}. Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
+      <p className="nota">Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
     </div>}
   </>;
 
   const header = <header className={page === "quran" ? "topbar topbar-quran" : "topbar barra-app" + (isSubpage(page) ? " barra-sub" : "") + (page === "hoy" ? " barra-hoy" : "")}>
     {/* En el Qur’an, la barra del lector ocupa el lugar del título (portal desde QuranReader). */}
     {page === "quran" ? <><h1 className="visually-hidden">{pageTitle}</h1><div id="quran-topbar-slot" className="quran-topbar-slot" /></>
-      : page === "hoy" ? <><div className="encabezado-hoy"><h1 className="fecha-civil">{hoy ? fechaLarga(hoy) : "Hoy"}</h1>{hoy && <p className="fecha-hijri">{hijriLabel(hoy, calendar.adjustment_days)}</p>}</div><span className="ciudad">{cfg.city}</span></>
+      : page === "hoy" ? <>
+          <div className="marca-hoy">
+            {mobile && <img src={logo} className="logo-topbar" alt="" />}
+            <div className="encabezado-hoy">
+              <h1 className="fecha-civil">{hoy ? fechaLarga(hoy) : "Hoy"}</h1>
+              {hoy && <p className="fecha-hijri">{hijriLabel(hoy, calendar.adjustment_days)}</p>}
+            </div>
+          </div>
+          <span className="ciudad">{cfg.city}</span>
+        </>
       : isSubpage(page) ? <><button className="boton-volver" aria-label={`Volver a ${masLabel}`} disabled={saving} onClick={back}><ChevronLeft size={26} /></button><h1>{pageTitle}</h1></>
       : <h1>{pageTitle}</h1>}
   </header>;
@@ -498,7 +520,7 @@ export default function App() {
           <button className={"nav-item " + (section === "mas" ? "activa" : "")} aria-label="Configuración" aria-current={section === "mas" ? "page" : undefined} disabled={saving} onClick={() => go("mas")}>
             <Settings size={17} strokeWidth={2} /><span>Configuración</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.22"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.23"}</span>
         </div>
       </aside>}
       <div className="workspace">

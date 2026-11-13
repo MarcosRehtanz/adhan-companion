@@ -95,6 +95,7 @@ object PrayerAlarms {
      */
     @Synchronized fun schedule(c: Context) {
         val p = prefs(c)
+        try { BasePrayerWidgetProvider.updateAllWidgets(c) } catch (_: Throwable) {}
         for (kind in CODES.indices) manager(c).cancel(pending(c, kind))
         p.edit().remove(KEYS[0]).remove(KEYS[1]).remove(KEYS[2]).apply()
         if (!p.getBoolean("enabled", false) || !exact(c) || !notifications(c)) return
@@ -146,6 +147,7 @@ object PrayerAlarms {
                 else manager(c).setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, e.at, operation)
                 p.edit().putLong(KEYS[kind], e.at).apply()
             }
+            try { BasePrayerWidgetProvider.updateAllWidgets(c) } catch (_: Throwable) {}
         } catch (e: Throwable) { failure(c, e) }
     }
     fun failure(c: Context, e: Throwable) {
@@ -232,11 +234,23 @@ object PrayerAlarms {
 
 class PrayerAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val action = intent.action
+        if (action == "io.github.marcosrehtanz.adhancompanion.PIN_WIDGET") {
+            if (Build.VERSION.SDK_INT >= 26) {
+                val manager = context.getSystemService(android.appwidget.AppWidgetManager::class.java)
+                if (manager != null && manager.isRequestPinAppWidgetSupported) {
+                    val kind = intent.getStringExtra("kind") ?: "solar"
+                    val cls = if (kind == "compact") PrayerCompactWidgetProvider::class.java else PrayerSolarWidgetProvider::class.java
+                    manager.requestPinAppWidget(android.content.ComponentName(context, cls), null, null)
+                }
+            }
+            return
+        }
         // Programar el siguiente aviso aun si Android inició este proceso sin UI.
         val pending = goAsync()
         PrayerAlarms.worker.execute {
             try {
-                if (PrayerAlarms.isAlarm(intent.action)) PrayerAlarms.deliver(context, intent)
+                if (PrayerAlarms.isAlarm(action)) PrayerAlarms.deliver(context, intent)
                 else PrayerAlarms.schedule(context) // BOOT no inicia reproducción.
             } catch (e: Throwable) { PrayerAlarms.failure(context, e) }
             finally { pending.finish() }

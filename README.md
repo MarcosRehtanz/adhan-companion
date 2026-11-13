@@ -6,7 +6,7 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.22 para Linux, Windows y Android** — respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, sobre los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.22.md).
+✅ **v0.1.23 para Linux, Windows y Android** — widgets nativos para la pantalla de inicio de Android (solar completo y compacto) e incorporación del logotipo oficial en el sistema y la interfaz móvil, sobre el respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.23.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
@@ -38,6 +38,12 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
+
+## Novedades de v0.1.23
+
+- Widgets nativos para la pantalla de inicio en Android: widget solar completo (4×2 / 4×3) con arco interactivo en vivo, horizonte punteado, salida (*Shuruq*), puesta (*Ghurub*), posición del sol en tiempo real, próximo rezo con cuenta regresiva y tira de los 5 rezos con chip activo; y widget compacto (4×1) con hora y cuenta regresiva.
+- Local-first y apertura directa: renderizado eficiente mediante `RemoteViews` vinculado al cálculo local compartido de PrayTimes C, con apertura directa a la app al tocar cualquiera de los widgets.
+- Logotipo oficial en Android: sustitución de iconos genéricos por el isotipo oficial en todos los mipmaps del sistema para launcher, dock y drawer, e integración visual en las cabeceras de «Hoy», «Más» y «Acerca de».
 
 ## Novedades de v0.1.22
 
