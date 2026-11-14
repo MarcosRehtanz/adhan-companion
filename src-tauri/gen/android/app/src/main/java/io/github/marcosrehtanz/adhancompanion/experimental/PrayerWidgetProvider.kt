@@ -1,5 +1,6 @@
 package io.github.marcosrehtanz.adhancompanion.experimental
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -20,6 +21,17 @@ open class BasePrayerWidgetProvider : AppWidgetProvider() {
         for (id in appWidgetIds) {
             updateWidget(context, appWidgetManager, id)
         }
+        scheduleNextWidgetUpdate(context)
+    }
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        updateAllWidgets(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        scheduleNextWidgetUpdate(context)
     }
 
     open fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
@@ -27,6 +39,9 @@ open class BasePrayerWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        const val ACTION_UPDATE_WIDGET = "io.github.marcosrehtanz.adhancompanion.UPDATE_WIDGET"
+        const val WIDGET_ALARM_REQUEST_CODE = 8002
+
         val PRAYER_NAMES = arrayOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha")
         val PRAYER_ARABIC = arrayOf("الفجر", "الظهر", "العصر", "المغرب", "العشاء")
 
@@ -53,6 +68,112 @@ open class BasePrayerWidgetProvider : AppWidgetProvider() {
                 val compactProvider = PrayerCompactWidgetProvider()
                 for (id in compactIds) compactProvider.updateWidget(context, manager, id)
             }
+
+            scheduleNextWidgetUpdate(context)
+        }
+
+        fun scheduleNextWidgetUpdate(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val solarComponent = ComponentName(context, PrayerSolarWidgetProvider::class.java)
+            val compactComponent = ComponentName(context, PrayerCompactWidgetProvider::class.java)
+            val solarIds = manager.getAppWidgetIds(solarComponent)
+            val compactIds = manager.getAppWidgetIds(compactComponent)
+
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            val intent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+                action = ACTION_UPDATE_WIDGET
+            }
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            val pending = PendingIntent.getBroadcast(context, WIDGET_ALARM_REQUEST_CODE, intent, flags)
+
+            // Si el usuario no tiene ningún widget en la pantalla de inicio, cancelamos alarmas futuras
+            if (solarIds.isEmpty() && compactIds.isEmpty()) {
+                alarmManager.cancel(pending)
+                return
+            }
+
+            val prefs = context.getSharedPreferences("native-prayer-alarms", Context.MODE_PRIVATE)
+            val configStr = prefs.getString("config", null) ?: return
+
+            val now = Calendar.getInstance()
+            val nowMillis = now.timeInMillis
+            val nowSec = now.get(Calendar.HOUR_OF_DAY) * 3600 + now.get(Calendar.MINUTE) * 60 + now.get(Calendar.SECOND)
+            val offset = now.timeZone.getOffset(nowMillis) / 3600000.0
+
+            val rawTimes = try {
+                PrayerNative.calculate(
+                    configStr,
+                    now.get(Calendar.YEAR),
+                    now.get(Calendar.MONTH) + 1,
+                    now.get(Calendar.DAY_OF_MONTH),
+                    offset
+                )
+            } catch (_: Throwable) {
+                return
+            }
+
+            val times = JSONArray(rawTimes)
+            // Eventos clave de hoy (Fajr, Dhuhr, Asr, Maghrib, Isha y Shuruq si está disponible)
+            val criticalSecs = mutableListOf<Int>()
+            for (i in 0 until minOf(times.length(), 6)) {
+                if (!times.isNull(i)) {
+                    val s = times.getInt(i)
+                    if (s > 0) criticalSecs.add(s)
+                }
+            }
+            criticalSecs.sort()
+
+            // Próximo evento de hoy
+            val nextCriticalSec = criticalSecs.firstOrNull { it > nowSec }
+            val diffSec = if (nextCriticalSec != null) {
+                nextCriticalSec - nowSec
+            } else {
+                // Ya pasaron todos los de hoy: próximo hito es medianoche
+                86400 - nowSec
+            }
+
+            val cfg = try { JSONObject(configStr) } catch (_: Throwable) { null }
+            val widgetCfg = cfg?.optJSONObject("widget")
+            val intervalMins = widgetCfg?.optInt("interval_minutes", 1) ?: 1
+
+            // Intervalo de refresco según la configuración elegida por el usuario:
+            // 0 = Inteligente/adaptativo
+            // 1..60 = Fijo en minutos (por defecto 1 min en tiempo real)
+            val stepSec = when (intervalMins) {
+                0 -> {
+                    when {
+                        diffSec > 3600 -> 900 // 15 min si falta más de 1h
+                        diffSec > 900 -> 300  // 5 min si falta entre 15m y 1h
+                        diffSec > 60 -> 60    // 1 min en los 15 min finales
+                        else -> diffSec.coerceAtLeast(5)
+                    }
+                }
+                else -> {
+                    val configuredSec = (intervalMins * 60).coerceIn(60, 3600)
+                    if (diffSec <= 60) {
+                        diffSec.coerceAtLeast(5)
+                    } else {
+                        // Ajustar al momento del evento si está más cerca que el intervalo configurado
+                        minOf(configuredSec, diffSec)
+                    }
+                }
+            }
+
+            val nextUpdateMillis = nowMillis + (stepSec * 1000L)
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    // RTC (no WAKEUP): no despierta el CPU en reposo profundo para ahorrar batería,
+                    // pero dispara puntualmente cuando el dispositivo está en uso o al desbloquearse.
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC, nextUpdateMillis, pending)
+                } else {
+                    alarmManager.set(AlarmManager.RTC, nextUpdateMillis, pending)
+                }
+            } catch (_: Throwable) {
+                try {
+                    alarmManager.set(AlarmManager.RTC, nextUpdateMillis, pending)
+                } catch (_: Throwable) {}
+            }
         }
     }
 }
@@ -69,6 +190,7 @@ class PrayerSolarWidgetProvider : BasePrayerWidgetProvider() {
 
         if (configStr.isNullOrEmpty()) {
             views.setTextViewText(R.id.widget_city, "Adhan Companion")
+            views.setViewVisibility(R.id.widget_clock, View.GONE)
             views.setTextViewText(R.id.widget_next_name, "Configurar")
             views.setTextViewText(R.id.widget_next_time, "--:--")
             views.setTextViewText(R.id.widget_countdown, "Abrí la app para comenzar")
@@ -80,6 +202,10 @@ class PrayerSolarWidgetProvider : BasePrayerWidgetProvider() {
             val cfg = JSONObject(configStr)
             val cityName = cfg.optString("city", "Adhan Companion")
             views.setTextViewText(R.id.widget_city, cityName)
+
+            val widgetObj = cfg.optJSONObject("widget")
+            val showClock = widgetObj?.optBoolean("show_clock", true) ?: true
+            views.setViewVisibility(R.id.widget_clock, if (showClock) View.VISIBLE else View.GONE)
 
             val now = Calendar.getInstance()
             val nowSec = now.get(Calendar.HOUR_OF_DAY) * 3600 + now.get(Calendar.MINUTE) * 60 + now.get(Calendar.SECOND)
@@ -215,6 +341,7 @@ class PrayerCompactWidgetProvider : BasePrayerWidgetProvider() {
         if (configStr.isNullOrEmpty()) {
             views.setTextViewText(R.id.widget_compact_name, "Adhan Companion")
             views.setTextViewText(R.id.widget_compact_subtext, "Abrí la app para configurar")
+            views.setViewVisibility(R.id.widget_compact_clock, View.GONE)
             views.setTextViewText(R.id.widget_compact_time, "--:--")
             views.setTextViewText(R.id.widget_compact_countdown, "")
             appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -224,6 +351,9 @@ class PrayerCompactWidgetProvider : BasePrayerWidgetProvider() {
         try {
             val cfg = JSONObject(configStr)
             val cityName = cfg.optString("city", "Adhan Companion")
+            val widgetObj = cfg.optJSONObject("widget")
+            val showClock = widgetObj?.optBoolean("show_clock", true) ?: true
+            views.setViewVisibility(R.id.widget_compact_clock, if (showClock) View.VISIBLE else View.GONE)
 
             val now = Calendar.getInstance()
             val nowSec = now.get(Calendar.HOUR_OF_DAY) * 3600 + now.get(Calendar.MINUTE) * 60 + now.get(Calendar.SECOND)

@@ -250,8 +250,14 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
         val pending = goAsync()
         PrayerAlarms.worker.execute {
             try {
-                if (PrayerAlarms.isAlarm(action)) PrayerAlarms.deliver(context, intent)
-                else PrayerAlarms.schedule(context) // BOOT no inicia reproducción.
+                if (action == BasePrayerWidgetProvider.ACTION_UPDATE_WIDGET ||
+                    action == Intent.ACTION_USER_PRESENT) {
+                    BasePrayerWidgetProvider.updateAllWidgets(context)
+                } else if (PrayerAlarms.isAlarm(action)) {
+                    PrayerAlarms.deliver(context, intent)
+                } else {
+                    PrayerAlarms.schedule(context) // BOOT, DATE_CHANGED, etc. también actualiza widgets
+                }
             } catch (e: Throwable) { PrayerAlarms.failure(context, e) }
             finally { pending.finish() }
         }

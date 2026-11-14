@@ -9,5 +9,7 @@
     android:resizeMode="horizontal"
     android:widgetCategory="home_screen"
     android:initialLayout="@layout/prayer_widget_compact"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="1800000"
+    android:previewImage="@drawable/preview_widget_compact"
+    android:previewLayout="@layout/prayer_widget_compact"
     android:description="@string/widget_compact_description" />

@@ -9,5 +9,7 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:initialLayout="@layout/prayer_widget_solar"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="1800000"
+    android:previewImage="@drawable/preview_widget_solar"
+    android:previewLayout="@layout/prayer_widget_solar"
     android:description="@string/widget_solar_description" />

@@ -6,9 +6,12 @@
     android:orientation="vertical"
     android:gravity="center_vertical"
     android:background="@drawable/widget_background"
-    android:padding="12dp">
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
 
-    <!-- Encabezado: Logo + Ciudad + Fecha Hijri -->
+    <!-- Encabezado: Logo + Ciudad + Reloj + Fecha Hijri -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -33,6 +36,16 @@
             android:maxLines="1"
             android:ellipsize="end" />
 
+        <TextClock
+            android:id="@+id/widget_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#ffffff"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:format12Hour="' • 'h:mm a"
+            android:format24Hour="' • 'HH:mm" />
+
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="1dp"
@@ -51,7 +64,8 @@
     <!-- Centro: Arco del Sol con Próximo Rezo en el centro -->
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="105dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginTop="2dp"
         android:layout_marginBottom="2dp">
 
@@ -105,7 +119,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:baselineAligned="false"
-        android:layout_marginTop="4dp">
+        android:layout_marginTop="2dp">
 
         <!-- Fajr -->
         <LinearLayout
@@ -117,8 +131,8 @@
             android:background="@drawable/widget_chip_inactive"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp">
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:id="@+id/widget_name_0"
@@ -148,8 +162,8 @@
             android:background="@drawable/widget_chip_inactive"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp">
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:id="@+id/widget_name_1"
@@ -179,8 +193,8 @@
             android:background="@drawable/widget_chip_inactive"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp">
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:id="@+id/widget_name_2"
@@ -210,8 +224,8 @@
             android:background="@drawable/widget_chip_inactive"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp">
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:id="@+id/widget_name_3"
@@ -240,8 +254,8 @@
             android:background="@drawable/widget_chip_inactive"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp">
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:id="@+id/widget_name_4"

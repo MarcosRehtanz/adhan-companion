@@ -27,6 +27,7 @@ import { hijriLabel } from "./lib/hijri";
 import { cardinal } from "./lib/prayers";
 import { AppearanceSettings, useAppearance, DEFAULT_APPEARANCE, themes, palettes, type Appearance } from "./components/AppearanceSettings";
 import { RamadanSettings, DEFAULT_RAMADAN, type RamadanConfig } from "./components/RamadanSettings";
+import { WidgetSettings, DEFAULT_WIDGET_CONFIG, widgetIntervalLabel, type WidgetConfig } from "./components/WidgetSettings";
 import QuranReader from "./components/QuranReader";
 import logo from "./assets/logo.png";
 import "./App.css";
@@ -39,8 +40,8 @@ const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 // Las mismas páginas en el celular y en escritorio; cambia el marco de navegación.
 // Celular (Android y ventanas de hasta 720 px): barra inferior con Hoy, Registro, Qur’an y Más.
 // Escritorio: barra lateral con Hoy, Registro, Calendario islámico, Qur’an y Configuración.
-type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "inicio" | "respaldo" | "actualizaciones" | "acerca" | "guia" | "ramadan";
-type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | "ramadan" | null;
+type Page = "hoy" | "registro" | "quran" | "mas" | "calendario" | "qibla" | "horarios" | "avisos" | "apariencia" | "widgets" | "inicio" | "respaldo" | "actualizaciones" | "acerca" | "guia" | "ramadan";
+type EditBlock = "apariencia" | "calendario" | "ubicacion" | "calculo" | "adhan" | "ramadan" | "widgets" | null;
 const TABS: { id: Page; label: string; Icon: LucideIcon }[] = [
   { id: "hoy", label: "Hoy", Icon: Sun },
   { id: "registro", label: "Registro", Icon: ListChecks },
@@ -55,7 +56,7 @@ const SIDEBAR: { id: Page; label: string; Icon: LucideIcon }[] = [
 ];
 const SUBPAGE_TITLES: Partial<Record<Page, string>> = {
   calendario: "Calendario islámico", qibla: "Qibla", horarios: "Ubicación y cálculo", avisos: "Adhan y avisos",
-  ramadan: "Modo Ramadán", apariencia: "Apariencia", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", guia: "Guía del rezo", actualizaciones: "Actualizaciones", acerca: "Acerca de",
+  ramadan: "Modo Ramadán", apariencia: "Apariencia", widgets: "Widgets de inicio", inicio: "Inicio de sesión", respaldo: "Respaldo y sincronización", guia: "Guía del rezo", actualizaciones: "Actualizaciones", acerca: "Acerca de",
 };
 
 interface RuntimeInfo { platform: string; config_path: string; background_alerts: boolean; audio_preview: boolean; quran_audio: boolean; google_sync: boolean }
@@ -77,6 +78,7 @@ interface Config {
   agent: { mqtt: boolean; broker: string };
   follow_up: { reminder: boolean; minutes: number; paused_until?: string | null };
   ramadan: RamadanConfig;
+  widget?: WidgetConfig;
 }
 
 const NARROW = "(max-width: 720px)";
@@ -386,6 +388,7 @@ export default function App() {
       setCfg((actual) => {
         if (!actual) return actual;
         if (editando === "apariencia") return { ...actual, appearance: snapshotEdicion.appearance ?? DEFAULT_APPEARANCE };
+        if (editando === "widgets") return { ...actual, widget: snapshotEdicion.widget ?? DEFAULT_WIDGET_CONFIG };
         if (editando === "ramadan") return { ...actual, ramadan: snapshotEdicion.ramadan ?? DEFAULT_RAMADAN };
         if (editando === "ubicacion") return { ...actual, city: snapshotEdicion.city, lat: snapshotEdicion.lat, lon: snapshotEdicion.lon, tz: snapshotEdicion.tz };
         if (editando === "calendario") return { ...actual, calendar: snapshotEdicion.calendar };
@@ -406,7 +409,7 @@ export default function App() {
   };
   const back = () => { if (mobile && window.history.state?.sub) window.history.back(); else setPage("mas"); };
 
-  const editingPage: Page | null = !editando ? null : editando === "ubicacion" || editando === "calculo" ? "horarios" : editando === "calendario" ? "calendario" : editando === "adhan" ? "avisos" : editando === "ramadan" ? "ramadan" : "apariencia";
+  const editingPage: Page | null = !editando ? null : editando === "ubicacion" || editando === "calculo" ? "horarios" : editando === "calendario" ? "calendario" : editando === "adhan" ? "avisos" : editando === "ramadan" ? "ramadan" : editando === "widgets" ? "widgets" : "apariencia";
   const calendar = cfg.calendar ?? { adjustment_days: 0 };
   const hoy = schedule?.date ?? "";
   const appearance = cfg.appearance ?? DEFAULT_APPEARANCE;
@@ -472,10 +475,11 @@ export default function App() {
     { id: "avisos", label: "Adhan y avisos", value: enPausa(cfg.follow_up.paused_until, hoy) ? `En pausa; vuelven el ${fechaVuelta(cfg.follow_up.paused_until!)}` : cfg.notice.minutes_before === 0 ? "Sonido por rezo, sin preaviso" : `Sonido por rezo, preaviso de ${cfg.notice.minutes_before} min` },
   ], [
     { id: "apariencia", label: "Apariencia", value: `Tema ${themes[appearance.theme].toLowerCase()}, acento ${palettes[appearance.accent].name.toLowerCase()}` },
+    { id: "widgets" as Page, label: "Widgets de inicio", value: `${widgetIntervalLabel(cfg.widget?.interval_minutes ?? 1)}${cfg.widget?.show_clock !== false ? " • Reloj" : ""}` },
     ...(!isAndroid ? [{ id: "inicio" as Page, label: "Inicio de sesión", value: "Abrir Adhan Companion en la bandeja al iniciar sesión" }] : []),
     // Solo builds con credencial OAuth; las publicadas por la CI todavía no la tienen.
     ...(runtime?.google_sync ? [{ id: "respaldo" as Page, label: "Respaldo y sincronización", value: "Configuración, rezos y lectura en tu cuenta de Google" }] : []),
-    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.24"}` },
+    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.25"}` },
     { id: "acerca", label: "Acerca de", value: "Archivo de configuración y fuentes" },
   ]];
 
@@ -497,7 +501,7 @@ export default function App() {
         <img src={logo} className="logo-mas" alt="" />
         <div className="marca-mas-texto">
           <h2>Adhan Companion</h2>
-          <span className="version-mas">v{verActual || "0.1.24"}</span>
+          <span className="version-mas">v{verActual || "0.1.25"}</span>
         </div>
       </div>}
       {opciones.map((grupo, i) => <div key={i}>
@@ -514,6 +518,7 @@ export default function App() {
     {page === "avisos" && <div className="page-stack">{avisos}</div>}
     {page === "ramadan" && <div className="page-stack"><RamadanSettings disabled={!!editando && editando !== "ramadan"} value={cfg.ramadan ?? DEFAULT_RAMADAN} editing={editando === "ramadan"} onEdit={() => iniciarEdicion("ramadan")} onCancel={cancelarEdicion} onChange={(ramadan) => upd({ ramadan })} /></div>}
     {page === "apariencia" && <div className="page-stack"><AppearanceSettings disabled={!!editando && editando !== "apariencia"} value={appearance} editing={editando === "apariencia"} onEdit={() => iniciarEdicion("apariencia")} onCancel={cancelarEdicion} onChange={(appearance) => upd({ appearance })} /></div>}
+    {page === "widgets" && <div className="page-stack"><WidgetSettings disabled={!!editando && editando !== "widgets"} value={cfg.widget ?? DEFAULT_WIDGET_CONFIG} editing={editando === "widgets"} onEdit={() => iniciarEdicion("widgets")} onCancel={cancelarEdicion} onChange={(widget) => upd({ widget })} /></div>}
     {page === "inicio" && <div className="page-stack"><section className="panel setting-panel"><div className="panel-heading"><div><h2>Inicio de sesión</h2><p>El tray se iniciará automáticamente al iniciar sesión.</p></div></div><AutostartSettings /></section></div>}
     {page === "guia" && GUIA_REZO && <div className="page-stack"><GuiaRezo key={guiaPedido?.n ?? 0} rezoInicial={guiaPedido?.rezo} escuelaInicial={cfg?.method === "Jafari" || cfg?.method === "Tehran" ? "jafari" : cfg?.madhab === "Hanafi" ? "hanafi" : "shafii"} schedule={schedule} scheduleError={scheduleError} android={isAndroid} onMarked={() => { void loadSchedule(); void loadStats(); }} /></div>}
     {page === "respaldo" && runtime?.google_sync && <div className="page-stack"><GoogleSync recargado={recargadoDeSync} /></div>}
@@ -522,7 +527,7 @@ export default function App() {
       <div className="acerca-branding">
         <img src={logo} className="logo-acerca" alt="Adhan Companion" />
         <h2>Adhan Companion</h2>
-        <span className="version-acerca">v{verActual || "0.1.24"}{isAndroid ? " para Android" : ""}</span>
+        <span className="version-acerca">v{verActual || "0.1.25"}{isAndroid ? " para Android" : ""}</span>
       </div>
       <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
       <p className="nota">Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
@@ -577,7 +582,7 @@ export default function App() {
           <button className={"nav-item " + (section === "mas" ? "activa" : "")} aria-label="Configuración" aria-current={section === "mas" ? "page" : undefined} disabled={saving} onClick={() => go("mas")}>
             <Settings size={17} strokeWidth={2} /><span>Configuración</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.24"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.25"}</span>
         </div>
       </aside>}
       <div className="workspace">

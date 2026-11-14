@@ -331,6 +331,43 @@ impl RamadanConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WidgetConfig {
+    /// Frecuencia de actualización en minutos. 1 = cada 1 min, 5 = cada 5 min, 15 = cada 15 min, 0 = inteligente/adaptativo.
+    #[serde(default = "default_widget_interval")]
+    pub interval_minutes: u32,
+    /// Mostrar reloj del teléfono en la cabecera del widget.
+    #[serde(default = "default_show_clock")]
+    pub show_clock: bool,
+}
+
+fn default_widget_interval() -> u32 {
+    1
+}
+
+fn default_show_clock() -> bool {
+    true
+}
+
+impl Default for WidgetConfig {
+    fn default() -> Self {
+        Self {
+            interval_minutes: default_widget_interval(),
+            show_clock: default_show_clock(),
+        }
+    }
+}
+
+impl WidgetConfig {
+    pub fn validar(&self) -> Result<(), String> {
+        // 0 = inteligente/adaptativo; 1..=60 = intervalo fijo en minutos
+        if self.interval_minutes != 0 && !(1..=60).contains(&self.interval_minutes) {
+            return Err("El intervalo del widget debe ser entre 1 y 60 minutos (o 0 para adaptativo).".into());
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
@@ -367,6 +404,8 @@ pub struct Config {
     pub follow_up: FollowUp,
     #[serde(default)]
     pub ramadan: RamadanConfig,
+    #[serde(default)]
+    pub widget: WidgetConfig,
 }
 
 fn default_method() -> Method { Method::Mwl }
@@ -389,6 +428,7 @@ impl Default for Config {
             notice: Notice { minutes_before: 10 },
             follow_up: FollowUp::default(),
             ramadan: RamadanConfig::default(),
+            widget: WidgetConfig::default(),
             agent: AgentConfig { mqtt: false, broker: String::new() },
         }
     }
@@ -462,6 +502,7 @@ pub fn validar(cfg: &Config) -> Result<(), String> {
     }
     cfg.follow_up.validar()?;
     cfg.ramadan.validar()?;
+    cfg.widget.validar()?;
     Ok(())
 }
 

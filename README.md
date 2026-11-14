@@ -6,13 +6,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.23 para Linux, Windows y Android** — widgets nativos para la pantalla de inicio de Android (solar completo y compacto) e incorporación del logotipo oficial en el sistema y la interfaz móvil, sobre el respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.23.md).
+✅ **v0.1.25 para Linux, Windows y Android** — widgets nativos para Android con reloj en vivo, actualización configurable al minuto, selector con previsualizaciones y corrección de recortes, sobre la ubicación GPS de alta precisión con geocodificación inversa, el widget solar, el respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.25.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.22_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.25_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -38,6 +38,18 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
+
+## Novedades de v0.1.25
+
+- **Reloj en tiempo real (`TextClock`) en widgets de Android:** integración del componente nativo `TextClock` en la cabecera del widget solar (4×2) y en la línea informativa del widget compacto (4×1), con cero consumo de batería (actualizado al segundo por el sistema operativo) y configurable con interruptor sí/no.
+- **Actualización automática periódica y configurable:** nueva estructura `WidgetConfig` en core Rust con opciones de 1 minuto (tiempo real), 5 minutos (balanceado), 15 minutos (ahorro de batería) o inteligente (adaptativo), con alarmas RTC exactas y captura de eventos del sistema (`USER_PRESENT`, `DATE_CHANGED`, `TIME_SET`, `TIMEZONE_CHANGED`).
+- **Previsualizaciones en el selector de widgets:** recursos PNG en todas las densidades de pantalla (`mdpi` a `xxxhdpi`) y `android:previewLayout` para Android 12+, mostrando la apariencia real en el selector de widgets.
+- **Corrección de recorte vertical en pantallas reales:** distribución dinámica mediante pesos (`layout_weight="1"`) en el arco solar y espaciados optimizados para garantizar que la fila de los cinco rezos nunca se corte en cuadrículas 4×2 compactas.
+- **Nuevo panel «Widgets de inicio»:** subpantalla de configuración en móvil y escritorio con modo lectura y edición para controlar frecuencia y reloj del teléfono, con persistencia y sincronización en Google Drive.
+
+## Novedades de v0.1.24
+
+- **Ubicación GPS de alta precisión:** botón nativo en Android con captura de coordenadas satelitales (±5 m), geocodificación inversa automática de la localidad en español con `android.location.Geocoder`, y geolocalización de alta precisión en escritorio.
 
 ## Novedades de v0.1.23
 
