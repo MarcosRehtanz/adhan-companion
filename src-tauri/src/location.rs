@@ -18,6 +18,14 @@ pub struct Coordinates {
     pub lon: f64,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
+pub struct DeviceLocation {
+    pub lat: f64,
+    pub lon: f64,
+    pub accuracy: f64,
+    pub city: String,
+}
+
 impl Coordinates {
     pub fn validated(lat: f64, lon: f64) -> Result<Self, String> {
         if !lat.is_finite()

@@ -2,3 +2,8 @@
 identifier = "parse-google-maps-location"
 description = "Interpreta coordenadas o resuelve un enlace corto de Google Maps para revisar una ubicación."
 commands.allow = ["parse_google_maps_location"]
+
+[[permission]]
+identifier = "device-location"
+description = "Obtiene la ubicación precisa del dispositivo mediante el GPS."
+commands.allow = ["get_device_location"]

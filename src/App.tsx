@@ -12,7 +12,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
   Settings, Pencil, BookOpen, Sun, Ellipsis, ChevronLeft, ChevronRight,
-  LocateFixed, CheckCircle2, AlertCircle, ListChecks, CalendarCheck, type LucideIcon,
+  LocateFixed, Navigation, CheckCircle2, AlertCircle, ListChecks, CalendarCheck, type LucideIcon,
 } from "lucide-react";
 import type { Schedule, Stats } from "./types";
 import { GoogleMapsLocationPicker } from "./components/GoogleMapsLocationPicker";
@@ -316,6 +316,59 @@ export default function App() {
     }
   };
 
+  const [localizando, setLocalizando] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+
+  const obtenerUbicacionGPS = async () => {
+    if (localizando || detectando || saveLock.current) return;
+    const generation = editGeneration.current;
+    setLocalizando(true);
+    setGpsAccuracy(null);
+    try {
+      if (isAndroid) {
+        const res = await invoke<{ lat: number; lon: number; accuracy: number; city: string }>("get_device_location");
+        if (generation !== editGeneration.current) return;
+        const lat = +res.lat.toFixed(6);
+        const lon = +res.lon.toFixed(6);
+        const acc = Math.round(res.accuracy);
+        setGpsAccuracy(acc);
+        upd({
+          lat,
+          lon,
+          ...(res.city ? { city: res.city } : {}),
+        });
+        const detalleCiudad = res.city ? `${res.city} ` : "";
+        flash(`Ubicación GPS obtenida: ${detalleCiudad}(${lat}, ${lon}) ±${acc} m`, "ok");
+      } else {
+        if (!navigator.geolocation) {
+          throw new Error("Geolocalización no disponible en este dispositivo");
+        }
+        await new Promise<void>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              if (generation !== editGeneration.current) return resolve();
+              const lat = +pos.coords.latitude.toFixed(6);
+              const lon = +pos.coords.longitude.toFixed(6);
+              const acc = Math.round(pos.coords.accuracy);
+              setGpsAccuracy(acc);
+              upd({ lat, lon });
+              flash(`Ubicación GPS: (${lat}, ${lon}) ±${acc} m`, "ok");
+              resolve();
+            },
+            (err) => reject(new Error(err.message || "No se pudo obtener la posición")),
+            { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 }
+          );
+        });
+      }
+    } catch (e: any) {
+      if (generation !== editGeneration.current) return;
+      const msg = typeof e === "string" ? e : e?.message || String(e);
+      flash(`GPS: ${msg}`, "error");
+    } finally {
+      if (generation === editGeneration.current) setLocalizando(false);
+    }
+  };
+
   if (!cfg) return <div className="cargando">{configError ? <div role="alert"><p>No se pudo cargar la configuración.</p><pre style={{ whiteSpace: "pre-wrap" }}>{configError}</pre><button onClick={() => window.location.reload()}>Reintentar</button></div> : "Cargando configuración…"}</div>;
 
   const upd = (patch: Partial<Config>) => { if (!saveLock.current) setCfg(current => current ? { ...current, ...patch } : current); };
@@ -324,11 +377,11 @@ export default function App() {
   const iniciarEdicion = (block: Exclude<EditBlock, null>) => {
     if (editando || saveLock.current) return;
     editGeneration.current++;
-    setStatus(null); setSnapshotEdicion(cfg); setEditando(block);
+    setStatus(null); setSnapshotEdicion(cfg); setEditando(block); setGpsAccuracy(null); setLocalizando(false);
   };
   const cancelarEdicion = () => {
     if (saveLock.current) return;
-    editGeneration.current++; ipController.current?.abort(); setDetectando(false); setStatus(null);
+    editGeneration.current++; ipController.current?.abort(); setDetectando(false); setLocalizando(false); setGpsAccuracy(null); setStatus(null);
     if (snapshotEdicion && editando) {
       setCfg((actual) => {
         if (!actual) return actual;
@@ -366,12 +419,16 @@ export default function App() {
     <section className="panel setting-panel">
       <div className="panel-heading"><div><h2>Ubicación</h2><p>Ciudad y coordenadas usadas para calcular los horarios.</p></div>{editando !== "ubicacion" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("ubicacion")}><Pencil size={14} />Editar ubicación</button>}</div>
       {editando === "ubicacion" ? <div className="editor">
-        <label>Ciudad<input disabled={detectando} value={cfg.city} onChange={(e) => upd({ city: e.target.value })} /></label>
-        <div className="fila"><label>Latitud<input disabled={detectando} type="number" min="-90" max="90" step="0.000001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} /></label><label>Longitud<input disabled={detectando} type="number" min="-180" max="180" step="0.000001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} /></label></div>
-        <GoogleMapsLocationPicker current={{ lat: cfg.lat, lon: cfg.lon }} disabled={detectando} onUse={(point) => upd(point)} />
+        <label>Ciudad<input disabled={detectando || localizando} value={cfg.city} onChange={(e) => upd({ city: e.target.value })} /></label>
+        <div className="fila"><label>Latitud<input disabled={detectando || localizando} type="number" min="-90" max="90" step="0.000001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} /></label><label>Longitud<input disabled={detectando || localizando} type="number" min="-180" max="180" step="0.000001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} /></label></div>
+        {gpsAccuracy != null && <p className="gps-badge">✓ Coordenadas fijadas por GPS (precisión ±{gpsAccuracy} m)</p>}
+        <div className="fila-botones-ubicacion">
+          <button className="test boton-gps" disabled={localizando || detectando} onClick={obtenerUbicacionGPS}><Navigation size={14} />{localizando ? "Obteniendo señal GPS…" : "Usar ubicación precisa del GPS"}</button>
+          <button className="test" disabled={detectando || localizando} onClick={detectarPorIP}><LocateFixed size={14} />{detectando ? "Detectando…" : "Sugerir por IP"}</button>
+        </div>
+        <GoogleMapsLocationPicker current={{ lat: cfg.lat, lon: cfg.lon }} disabled={detectando || localizando} onUse={(point) => upd(point)} />
         <div className="read-grid"><div><span>Zona horaria de la ciudad</span><b>{cfg.tz}</b></div></div>
-        <button className="test" disabled={detectando} onClick={detectarPorIP}><LocateFixed size={14} />{detectando ? "Detectando…" : "Sugerir ubicación por IP"}</button>
-        <p className="nota">La detección es una sugerencia: revisá ciudad y coordenadas antes de guardar. Para este cálculo, la zona horaria del sistema debe coincidir con la ubicación.</p>
+        <p className="nota">El GPS del dispositivo proporciona las coordenadas exactas de tu posición física. Para este cálculo, la zona horaria del sistema debe coincidir con la ubicación.</p>
         <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button></div>
       </div> : <div className="read-grid"><div><span>Ciudad</span><b>{cfg.city || "Sin configurar"}</b></div><div><span>Coordenadas</span><b>{cfg.lat.toFixed(6)}, {cfg.lon.toFixed(6)}</b></div><div><span>Zona horaria guardada</span><b>{cfg.tz}</b></div><p className="nota read-note">El cálculo usa la zona horaria local del sistema. Asegurate de que coincida con esta ubicación.</p></div>}
     </section>
@@ -418,7 +475,7 @@ export default function App() {
     ...(!isAndroid ? [{ id: "inicio" as Page, label: "Inicio de sesión", value: "Abrir Adhan Companion en la bandeja al iniciar sesión" }] : []),
     // Solo builds con credencial OAuth; las publicadas por la CI todavía no la tienen.
     ...(runtime?.google_sync ? [{ id: "respaldo" as Page, label: "Respaldo y sincronización", value: "Configuración, rezos y lectura en tu cuenta de Google" }] : []),
-    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.23"}` },
+    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.24"}` },
     { id: "acerca", label: "Acerca de", value: "Archivo de configuración y fuentes" },
   ]];
 
@@ -440,7 +497,7 @@ export default function App() {
         <img src={logo} className="logo-mas" alt="" />
         <div className="marca-mas-texto">
           <h2>Adhan Companion</h2>
-          <span className="version-mas">v{verActual || "0.1.23"}</span>
+          <span className="version-mas">v{verActual || "0.1.24"}</span>
         </div>
       </div>}
       {opciones.map((grupo, i) => <div key={i}>
@@ -465,7 +522,7 @@ export default function App() {
       <div className="acerca-branding">
         <img src={logo} className="logo-acerca" alt="Adhan Companion" />
         <h2>Adhan Companion</h2>
-        <span className="version-acerca">v{verActual || "0.1.23"}{isAndroid ? " para Android" : ""}</span>
+        <span className="version-acerca">v{verActual || "0.1.24"}{isAndroid ? " para Android" : ""}</span>
       </div>
       <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
       <p className="nota">Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
@@ -520,7 +577,7 @@ export default function App() {
           <button className={"nav-item " + (section === "mas" ? "activa" : "")} aria-label="Configuración" aria-current={section === "mas" ? "page" : undefined} disabled={saving} onClick={() => go("mas")}>
             <Settings size={17} strokeWidth={2} /><span>Configuración</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.23"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.24"}</span>
         </div>
       </aside>}
       <div className="workspace">

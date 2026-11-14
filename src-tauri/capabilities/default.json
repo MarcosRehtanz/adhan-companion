@@ -11,6 +11,7 @@
     "quran-reader",
     "quran-audio",
     "parse-google-maps-location",
+    "device-location",
     "prayer-alerts",
     {
       "identifier": "opener:allow-open-url",

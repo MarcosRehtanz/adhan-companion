@@ -77,6 +77,20 @@ async fn parse_google_maps_location(input: String) -> Result<location::Coordinat
 }
 
 #[tauri::command]
+async fn get_device_location() -> Result<location::DeviceLocation, String> {
+    #[cfg(target_os = "android")]
+    {
+        let res = android_alerts::call("getGpsLocation", serde_json::json!({}))?;
+        let loc: location::DeviceLocation = serde_json::from_value(res).map_err(|e| e.to_string())?;
+        Ok(loc)
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        Err("La localización por GPS nativo se encuentra disponible en Android.".into())
+    }
+}
+
+#[tauri::command]
 async fn preview_alert(
     audio: config::AudioConfig,
     prayer: String,
@@ -495,6 +509,7 @@ pub fn run() {
         alert_playback_status,
         stop_alert,
         parse_google_maps_location,
+        get_device_location,
         test_adhan,
         test_notification,
         get_config,
@@ -540,6 +555,7 @@ pub fn run() {
         alert_playback_status,
         stop_alert,
         parse_google_maps_location,
+        get_device_location,
         test_adhan,
         test_notification,
         get_config,

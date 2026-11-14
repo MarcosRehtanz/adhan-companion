@@ -133,6 +133,10 @@ button.test {
 }
 button.test:hover { background: var(--acento-claro); border-color: var(--acento); }
 button.test:disabled { opacity: .5; cursor: default; }
+.fila-botones-ubicacion { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; }
+.fila-botones-ubicacion button.test { flex: 1; min-width: 160px; }
+button.boton-gps { background: var(--acento-claro); border-color: var(--acento); font-weight: 700; }
+.gps-badge { margin: 2px 0 6px; font-size: 12px; font-weight: 600; color: var(--acento-solido); display: flex; align-items: center; gap: 4px; }
 .audio-por-rezo { padding: 11px 12px; border: 1px solid var(--borde); border-radius: var(--r-control); background: var(--bg); }
 .audio-filas { display: flex; flex-direction: column; gap: 6px; }
 .audio-fila { min-height: 37px; display: flex; align-items: center; gap: 10px; padding: 5px 9px; border: 1px solid var(--borde); border-radius: var(--r-control); background: var(--tarjeta); }

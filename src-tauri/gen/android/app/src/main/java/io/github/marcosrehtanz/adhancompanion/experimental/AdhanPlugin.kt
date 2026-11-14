@@ -3,12 +3,22 @@ package io.github.marcosrehtanz.adhancompanion.experimental
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Geocoder
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -16,6 +26,7 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import org.json.JSONObject
+import java.util.Locale
 
 @InvokeArg class ConfigArgs { lateinit var config: String; var registro: String = "" }
 @InvokeArg class ControlArgs { var action: String = "status" }
@@ -41,6 +52,127 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
                     else -> e.message ?: "No se pudo leer el enlace de Google Maps."
                 })
             }
+        }
+    }
+
+    @Command fun getGpsLocation(invoke: Invoke) {
+        val lm = activity.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+        if (lm == null) {
+            invoke.reject("El servicio de ubicación no está disponible en este dispositivo.")
+            return
+        }
+
+        val hasFine = ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        val startFix = {
+            val isFine = ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val isCoarse = ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val isGpsEnabled = try { lm.isProviderEnabled(LocationManager.GPS_PROVIDER) } catch (_: Throwable) { false }
+            val isNetEnabled = try { lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) } catch (_: Throwable) { false }
+
+            if (!isGpsEnabled && !isNetEnabled) {
+                invoke.reject("El sensor de ubicación (GPS) está desactivado en el teléfono. Activá la ubicación en los ajustes para continuar.")
+            } else {
+                val mainHandler = Handler(Looper.getMainLooper())
+                var responded = false
+
+                val finishWith = fun(loc: Location) {
+                    if (responded) return
+                    responded = true
+                    GoogleMapsLinks.worker.execute {
+                        var cityName = ""
+                        try {
+                            val geocoder = Geocoder(activity, Locale("es"))
+                            val addresses = geocoder.getFromLocation(loc.latitude, loc.longitude, 1)
+                            val addr = addresses?.firstOrNull()
+                            cityName = addr?.locality ?: addr?.subAdminArea ?: addr?.adminArea ?: ""
+                        } catch (_: Throwable) {}
+
+                        invoke.resolve(JSObject().apply {
+                            put("lat", loc.latitude)
+                            put("lon", loc.longitude)
+                            put("accuracy", loc.accuracy.toDouble())
+                            put("city", cityName)
+                        })
+                    }
+                }
+
+                val lastGps = if (isFine && isGpsEnabled) try { lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) } catch (_: SecurityException) { null } else null
+                val lastNet = if ((isFine || isCoarse) && isNetEnabled) try { lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) } catch (_: SecurityException) { null } else null
+                val bestLast = when {
+                    lastGps != null && lastNet != null -> if (lastGps.time >= lastNet.time) lastGps else lastNet
+                    lastGps != null -> lastGps
+                    else -> lastNet
+                }
+
+                val nowTime = System.currentTimeMillis()
+                if (bestLast != null && (nowTime - bestLast.time) < 15_000 && bestLast.accuracy <= 25f) {
+                    finishWith(bestLast)
+                } else {
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            mainHandler.removeCallbacksAndMessages(null)
+                            try { lm.removeUpdates(this) } catch (_: Throwable) {}
+                            finishWith(location)
+                        }
+                        @Deprecated("Deprecated in Java")
+                        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                        override fun onProviderEnabled(provider: String) {}
+                        override fun onProviderDisabled(provider: String) {}
+                    }
+
+                    val timeoutRunnable = Runnable {
+                        try { lm.removeUpdates(listener) } catch (_: Throwable) {}
+                        if (bestLast != null) {
+                            finishWith(bestLast)
+                        } else if (!responded) {
+                            responded = true
+                            invoke.reject("Tiempo de espera agotado sin señal GPS suficiente. Podés reintentar al aire libre o sugerir por IP.")
+                        }
+                    }
+                    mainHandler.postDelayed(timeoutRunnable, 15_000)
+
+                    mainHandler.post {
+                        try {
+                            if (isGpsEnabled && isFine) {
+                                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, Looper.getMainLooper())
+                            }
+                            if (isNetEnabled && (isFine || isCoarse)) {
+                                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, Looper.getMainLooper())
+                            }
+                            if (Build.VERSION.SDK_INT >= 31 && lm.allProviders.contains(LocationManager.FUSED_PROVIDER)) {
+                                lm.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0L, 0f, listener, Looper.getMainLooper())
+                            }
+                        } catch (e: SecurityException) {
+                            mainHandler.removeCallbacksAndMessages(null)
+                            if (!responded) {
+                                responded = true
+                                invoke.reject("Permiso de ubicación no concedido: ${e.message}")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!hasFine && !hasCoarse) {
+            val wry = activity as? WryActivity
+            if (wry != null) {
+                wry.requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) { _ ->
+                    val nowFine = ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    val nowCoarse = ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    if (nowFine || nowCoarse) {
+                        startFix()
+                    } else {
+                        invoke.reject("Permiso de ubicación denegado. Para obtener la posición exacta del GPS, concedé el permiso en los Ajustes del sistema.")
+                    }
+                }
+            } else {
+                invoke.reject("No se pudo iniciar la solicitud de permisos.")
+            }
+        } else {
+            startFix()
         }
     }
     private fun background(invoke: Invoke, block: () -> Unit) {
