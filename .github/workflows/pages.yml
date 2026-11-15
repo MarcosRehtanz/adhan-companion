@@ -5,7 +5,12 @@ on:
     branches: ["main"]
     paths:
       - "website/**"
+      - "scripts/prepare-website.mjs"
       - ".github/workflows/pages.yml"
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -19,6 +24,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -26,6 +32,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Prepare Website Assets & Release Info
+        run: node scripts/prepare-website.mjs
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

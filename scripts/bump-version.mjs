@@ -103,7 +103,15 @@ Los datos, el registro de rezos y las preferencias se conservan.
   console.log(`✔ Plantilla creada en docs/releases/v${target}.md`);
 }
 
-// 8. Validación final
+// 8. Sincronizar recursos y estáticos de la web
+try {
+  execSync(`node scripts/prepare-website.mjs ${target}`, { stdio: "inherit", cwd: root("") });
+  console.log("✔ Sitio web sincronizado");
+} catch (e) {
+  console.error("⚠ No se pudo sincronizar la web:", e.message);
+}
+
+// 9. Validación final
 try {
   execSync("node scripts/check-release.mjs", { stdio: "inherit", cwd: root("") });
   console.log(`\n🎉 Sincronización completa a v${target}. No olvides completar docs/releases/v${target}.md.`);

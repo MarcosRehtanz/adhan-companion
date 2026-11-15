@@ -4,31 +4,42 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Adhan Companion — Horarios de Rezo, Adhan y Qur'an Local-First</title>
-  <meta name="description" content="Aplicación de escritorio y móvil para los 5 rezos diarios, adhan, lector del Qur'an con recitación y seguimiento. Cálculo 100% local, sin publicidad ni rastreo. Disponible para Linux, Windows y Android.">
-  <meta property="og:title" content="Adhan Companion — Horarios de Rezo, Adhan y Qur'an">
-  <meta property="og:description" content="App tray-first y móvil: horarios con PrayTimes C, adhan por rezo, lector del Qur'an offline y respaldo privado en Google Drive.">
+  <meta name="description" content="Aplicación de rezo respetuosa y local-first: horarios de oración con cálculo astronómico PrayTimes C, adhan de Doha, widgets solares para Android, lector del Qur'an con recitación y sincronización privada en Google Drive. Para Android, Windows y Linux.">
+  <meta property="og:title" content="Adhan Companion — Horarios de Rezo, Adhan y Sagrado Qur'an">
+  <meta property="og:description" content="Tus cinco rezos diarios con la precisión del cielo y la paz de lo privado. Cálculo 100% local, widgets en tiempo real, adhan y lector offline.">
   <meta property="og:image" content="assets/icon.png">
   <meta property="og:type" content="website">
   <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Background Ambient Glow & Islamic Rosette Pattern -->
+  <div class="ambient-glow glow-top" aria-hidden="true"></div>
+  <div class="ambient-glow glow-bottom" aria-hidden="true"></div>
+  <div class="islamic-pattern" aria-hidden="true"></div>
 
   <!-- Header -->
   <header class="site-header">
     <div class="container header-inner">
       <a href="#" class="brand">
         <img src="assets/icon.png" alt="Adhan Companion Logo">
-        <span>Adhan Companion</span>
-        <span class="brand-badge">v0.1.22</span>
+        <div class="brand-info">
+          <span class="brand-name">Adhan Companion</span>
+          <span class="brand-badge" data-release-version>v0.1.25</span>
+        </div>
       </a>
       <nav>
         <ul class="nav-links">
-          <li><a href="#caracteristicas" class="nav-link">Características</a></li>
+          <li><a href="#funciones" class="nav-link">Funciones</a></li>
+          <li><a href="#experiencia" class="nav-link">Experiencia</a></li>
           <li><a href="#descargas" class="nav-link">Descargas</a></li>
           <li><a href="privacidad.html" class="nav-link">Privacidad</a></li>
           <li>
-            <a href="https://github.com/MarcosRehtanz/adhan-companion" target="_blank" rel="noopener noreferrer" class="btn-github">
+            <a href="https://github.com/MarcosRehtanz/adhan-companion" target="_blank" rel="noopener noreferrer" class="btn-github-subtle" title="Ver repositorio de código abierto en GitHub">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
               <span>GitHub</span>
             </a>
@@ -41,67 +52,282 @@
   <!-- Hero Section -->
   <main>
     <section class="hero">
-      <div class="container">
+      <div class="container hero-container">
+        
+        <!-- Live Release Pill -->
         <div class="hero-pill">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          <span>Nueva versión v0.1.22 disponible</span>
+          <span class="hero-pill-pulse" aria-hidden="true"></span>
+          <span class="hero-pill-text" data-release-pill>Nueva versión v0.1.25 disponible</span>
+          <span class="hero-pill-divider" aria-hidden="true">•</span>
+          <span class="hero-pill-extra">Widgets solares en tiempo real</span>
         </div>
+
         <h1 class="hero-title">
-          Tu compañero diario de rezo,<br>
-          <span class="gradient-text">100% local y sin distracciones</span>
+          Tus cinco rezos diarios,<br>
+          <span class="gradient-text">con la serenidad que merecen</span>
         </h1>
+
         <p class="hero-subtitle">
-          Horarios exactos de oración calculados en tu propio dispositivo con PrayTimes C, adhan configurable, lector y recitación del Qur’an offline y sincronización privada en Google Drive.
+          Horarios de oración calculados con exactitud astronómica en tu propio dispositivo. Adhan auténtico de la mezquita de Doha, widgets solares en vivo para Android, lector del Sagrado Qur’an con recitación offline y sincronización privada en Google Drive.
         </p>
 
-        <div class="hero-cta">
-          <a href="#descargas" class="btn-primary">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-            <span>Descargar gratis</span>
-          </a>
-          <a href="https://github.com/MarcosRehtanz/adhan-companion" target="_blank" rel="noopener noreferrer" class="btn-secondary">
-            <span>Ver código fuente</span>
+        <!-- Smart CTA Buttons -->
+        <div class="hero-cta-group">
+          <div class="hero-cta-main">
+            <a href="#descargas" id="hero-download-btn" class="btn-primary-hero" data-release-link="android-arm64">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              <span>Descargar gratis</span>
+            </a>
+            <small id="hero-download-sub" class="hero-cta-caption">Para Android, Windows y Linux • 100% Local y Gratuito</small>
+          </div>
+          <a href="#experiencia" class="btn-secondary-hero">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Ver cómo funciona</span>
           </a>
         </div>
 
-        <!-- Badges Strip -->
-        <div class="badges-strip">
-          <div class="badge-item">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span>Cálculo 100% Offline</span>
+        <!-- Trust Badges -->
+        <div class="trust-bar">
+          <div class="trust-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Cálculo 100% Offline (PrayTimes C)</span>
           </div>
-          <div class="badge-item">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <span>Sin rastreo ni publicidad</span>
+          <div class="trust-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Cero publicidad y sin telemetría</span>
           </div>
-          <div class="badge-item">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            <span>Colección Adhan de Doha</span>
+          <div class="trust-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Audio Adhan de Doha en alta fidelidad</span>
           </div>
-          <div class="badge-item">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            <span>Qur'an con Recitación</span>
+          <div class="trust-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Respaldo seguro en tu Google Drive</span>
           </div>
         </div>
 
-        <!-- App Screenshots Preview -->
-        <div class="hero-preview">
-          <div class="preview-grid">
-            <img src="assets/screen-hoy.png" alt="Pantalla Hoy con horarios y recorrido del sol">
-            <img src="assets/screen-quran.png" alt="Lector del Qur'an con texto árabe y traducción">
-            <img src="assets/screen-registro.png" alt="Registro mensual de rezos y rachas">
+        <!-- Interactive Product Showcase -->
+        <section id="experiencia" class="showcase-section">
+          <div class="showcase-header">
+            <h2 class="showcase-heading">Una experiencia diseñada para tu tranquilidad</h2>
+            <p class="showcase-subheading">Explorá cada rincón de la app: desde el recorrido del sol en vivo hasta la recitación del Corán aleya por aleya.</p>
           </div>
-        </div>
+
+          <!-- Showcase Navigation Tabs -->
+          <div class="showcase-tabs" role="tablist" aria-label="Pantallas de la aplicación">
+            <button class="showcase-tab active" data-target="pane-hoy" role="tab" aria-selected="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              <span>Hoy y Horarios</span>
+            </button>
+            <button class="showcase-tab" data-target="pane-widgets" role="tab" aria-selected="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              <span>Widgets en vivo <span class="tab-badge">v0.1.25</span></span>
+            </button>
+            <button class="showcase-tab" data-target="pane-quran" role="tab" aria-selected="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <span>Sagrado Qur'an</span>
+            </button>
+            <button class="showcase-tab" data-target="pane-registro" role="tab" aria-selected="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <span>Registro y Rachas</span>
+            </button>
+          </div>
+
+          <!-- Showcase Panes Stage -->
+          <div class="showcase-stage">
+            
+            <!-- Pane 1: Hoy & Horarios -->
+            <div class="showcase-pane active" id="pane-hoy" role="tabpanel">
+              <div class="device-frame-wrapper">
+                <div class="device-phone">
+                  <div class="phone-notch"><span class="camera-dot"></span></div>
+                  <div class="phone-screen">
+                    <img src="assets/screen-hoy.png" alt="Pantalla Hoy con el recorrido del sol, próximo rezo y lista para marcar oraciones">
+                  </div>
+                </div>
+              </div>
+              <div class="showcase-details">
+                <div class="feature-tag-pill">Pantalla Principal</div>
+                <h3>La salat en su momento exacto</h3>
+                <p>Una mirada clara y serena para saber cuánto falta para tu próxima cita con el rezo. Sin números confusos ni recargas externas.</p>
+                
+                <ul class="detail-points">
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Recorrido del Sol en Tiempo Real</strong>
+                      <span>Visualizá el arco solar entre el alba (Fajr) y la noche (Isha) con el punto exacto donde se encuentra el sol ahora.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Marcado de Rezos al Instante</strong>
+                      <span>Tocá cada rezo cumplido para registrarlo. El sistema solo habilita el marcado cuando llega el horario correspondiente.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Rumbo a la Qibla</strong>
+                      <span>Orientación astronómica precisa hacia La Meca calculada con la fórmula de gran círculo para tu ubicación.</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Pane 2: Widgets de Inicio (v0.1.25) -->
+            <div class="showcase-pane" id="pane-widgets" role="tabpanel" hidden>
+              <div class="widgets-stage-wrapper">
+                <div class="widgets-stack">
+                  <div class="widget-card widget-solar-card">
+                    <div class="widget-label">Widget Solar (4×2) con Reloj TextClock en Vivo</div>
+                    <img src="assets/widget-solar.png" alt="Widget solar de Android con reloj en vivo, localidad y arco solar">
+                  </div>
+                  <div class="widget-card widget-compact-card">
+                    <div class="widget-label">Widget Compacto (4×1) para la Pantalla de Inicio</div>
+                    <img src="assets/widget-compact.png" alt="Widget compacto para Android con tira horizontal de los cinco rezos">
+                  </div>
+                </div>
+              </div>
+              <div class="showcase-details">
+                <div class="feature-tag-pill novelty-pill">Novedad v0.1.25</div>
+                <h3>Tus rezos en tu pantalla de inicio</h3>
+                <p>Mantené tus oraciones a la vista sin abrir la aplicación. Los nuevos widgets nativos de Android se actualizan de forma continua con cero impacto en la batería.</p>
+
+                <ul class="detail-points">
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Reloj TextClock Nativo</strong>
+                      <span>El sistema operativo actualiza el minutero en vivo en el lanzador sin despertar la CPU, respetando tu formato de 12 o 24 horas.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Actualización Automática al Minuto</strong>
+                      <span>Elegí entre actualización en tiempo real (1 min), balanceada (5 min), ahorro o inteligente. Refresco instantáneo al desbloquear.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Previsualización Real en el Selector</strong>
+                      <span>Elegí el diseño que mejor combine con tu fondo de pantalla viendo la escala y tipografía exactas antes de añadirlo.</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Pane 3: Sagrado Qur'an -->
+            <div class="showcase-pane" id="pane-quran" role="tabpanel" hidden>
+              <div class="device-frame-wrapper">
+                <div class="device-phone">
+                  <div class="phone-notch"><span class="camera-dot"></span></div>
+                  <div class="phone-screen">
+                    <img src="assets/screen-quran.png" alt="Lector del Sagrado Qur'an con texto árabe Uthmani, traducción y reproductor de audio">
+                  </div>
+                </div>
+              </div>
+              <div class="showcase-details">
+                <div class="feature-tag-pill">Sagrado Qur'an</div>
+                <h3>Lectura sagrada y recitación offline</h3>
+                <p>Una experiencia de lectura inmersiva con texto caligráfico Uthmani verificado por Tanzil y la traducción anotada de Raúl González Bórnez.</p>
+
+                <ul class="detail-points">
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Voz de Shahriar Parhizgar</strong>
+                      <span>Descargá suras individuales para escuchar la recitación con seguimiento sincronizado aleya por aleya, sin necesidad de conexión.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Controles Multimedia en Segundo Plano</strong>
+                      <span>Pausá o continuá desde la barra de notificaciones del teléfono. El reproductor se pausa automáticamente ante el Adhan.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Ajustes de Tipografía Inmediatos</strong>
+                      <span>Cambiá el tamaño de letra, el modo de lectura (solo árabe, traducción o ambos) y retomá siempre desde tu última aleya leída.</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Pane 4: Registro y Rachas -->
+            <div class="showcase-pane" id="pane-registro" role="tabpanel" hidden>
+              <div class="device-frame-wrapper">
+                <div class="device-phone">
+                  <div class="phone-notch"><span class="camera-dot"></span></div>
+                  <div class="phone-screen">
+                    <img src="assets/screen-registro.png" alt="Registro mensual de rezos con calendario, estadísticas y contador de racha">
+                  </div>
+                </div>
+              </div>
+              <div class="showcase-details">
+                <div class="feature-tag-pill">Registro y Acompañamiento</div>
+                <h3>Cultivá tu constancia con el rezo</h3>
+                <p>Un espacio íntimo para ver tu progreso mensual, corregir rezos pasados y celebrar tus días de cumplimiento sin presiones ni juicios.</p>
+
+                <ul class="detail-points">
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Calendario Mensual con Vista Visual</strong>
+                      <span>Identificá de un vistazo los días completos (5 de 5) e incompletos para comprender tu ritmo y perseverar en la práctica.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Formato Local Seguro (Append-Only)</strong>
+                      <span>Tus oraciones se escriben en un archivo local <code>registro.jsonl</code>. Tus datos son siempre tuyos y portables.</span>
+                    </div>
+                  </li>
+                  <li>
+                    <div class="point-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div>
+                      <strong>Pausa Consciente para Viajes</strong>
+                      <span>Activá el modo de pausa temporal cuando viajes o por motivos personales: silencia avisos y cuida tus estadísticas de días perdidos.</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
       </div>
     </section>
 
-    <!-- Features -->
-    <section id="caracteristicas" class="features">
+    <!-- Spiritual Quote Banner -->
+    <section class="spiritual-quote-banner">
+      <div class="container quote-container">
+        <span class="arabic-calligraphy" lang="ar" dir="rtl">إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا</span>
+        <blockquote class="quote-text">
+          «Ciertamente, la oración ha sido prescrita a los creyentes en horarios determinados.»
+        </blockquote>
+        <cite class="quote-source">— Sagrado Qur’an, Sura An-Nisa (4:103)</cite>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="funciones" class="features">
       <div class="container">
         <div class="section-header">
-          <span class="section-label">Filosofía y Funciones</span>
+          <span class="section-label">Filosofía de Desarrollo</span>
           <h2 class="section-title">Diseñado con respeto, privacidad y precisión ritual</h2>
-          <p class="section-desc">Construido para acompañarte en tu práctica diaria sin invadir tu atención ni depender de la nube para funcionar.</p>
+          <p class="section-desc">Construido para acompañarte en tu práctica diaria sin invadir tu atención ni depender de servidores externos para funcionar.</p>
         </div>
 
         <div class="features-grid">
@@ -111,16 +337,16 @@
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
             </div>
             <h3>Cálculo 100% Local</h3>
-            <p>Los horarios se calculan en tu máquina mediante FFI al motor PrayTimes C (el mismo del firmware del reloj físico). No toca internet ni se cae si no hay red.</p>
+            <p>Los horarios se calculan en tu máquina mediante FFI al motor PrayTimes C (el mismo del firmware de reloj físico). No toca internet ni se interrumpe si no hay red.</p>
           </div>
 
           <!-- Card 2 -->
           <div class="feature-card">
             <div class="feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
             </div>
-            <h3>Tray-First en la Computadora</h3>
-            <p>Vive en la barra de menú o bandeja de GNOME, KDE y Windows. Muestra el tiempo restante al próximo rezo con una simple mirada y notifica con preaviso.</p>
+            <h3>Widgets Solares en Android</h3>
+            <p>Novedad de v0.1.25: Reloj <code>TextClock</code> en vivo en la pantalla de inicio, seguimiento visual del arco solar y los 5 rezos del día con frecuencia configurable.</p>
           </div>
 
           <!-- Card 3 -->
@@ -128,7 +354,7 @@
             <div class="feature-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.08"/></svg>
             </div>
-            <h3>Adhan y Tonos por Rezo</h3>
+            <h3>Adhan Auténtico y Tonos Serenos</h3>
             <p>Cada oración tiene una asignación de la colección Doha (Dominio Público) o tonos discretos. Podés pausar avisos en viajes o habilitar recordatorios amables.</p>
           </div>
 
@@ -138,7 +364,7 @@
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             </div>
             <h3>Lector y Recitación del Qur'an</h3>
-            <p>Texto árabe Uthmani de Tanzil y traducción de Raúl González Bórnez. Descarga suras para escuchar offline la voz de Shahriar Parhizgar con seguimiento sincronizado.</p>
+            <p>Texto árabe caligráfico Uthmani y traducción al español. Descargá suras para escuchar sin conexión la voz de Shahriar Parhizgar con seguimiento aleya por aleya.</p>
           </div>
 
           <!-- Card 5 -->
@@ -153,7 +379,7 @@
           <!-- Card 6 -->
           <div class="feature-card">
             <div class="feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <h3>Sincronización Privada</h3>
             <p>Sincronizá tus rezos, lectura y configuración entre computadoras y celulares conectando tu cuenta de Google Drive, usando solo el espacio privado de la app.</p>
@@ -166,87 +392,136 @@
     <section id="descargas" class="downloads">
       <div class="container">
         <div class="section-header">
-          <span class="section-label">Instalación</span>
-          <h2 class="section-title">Descargá Adhan Companion para tu equipo</h2>
-          <p class="section-desc">Disponible en paquetes oficiales verificados con SHA-256 para Linux, Windows y Android.</p>
+          <span class="section-label">Instalación y Paquetes</span>
+          <h2 class="section-title">Elegí tu plataforma y descargá Adhan Companion</h2>
+          <p class="section-desc">Paquetes oficiales verificados con firmas criptográficas y SHA-256 para Android, Windows y Linux.</p>
         </div>
 
         <div class="downloads-grid">
-          <!-- Linux Card -->
-          <div class="download-card">
+          
+          <!-- Android Card -->
+          <div class="download-card" id="card-android">
             <div class="download-header">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.001 2c-3.13 0-5.69 2.56-5.69 5.69 0 1.25.41 2.4 1.1 3.34-.14.28-.27.57-.38.87-.99 2.7-.33 5.37.74 6.7.35.43.76.74 1.22.92-.09.33-.18.66-.27.99-.21.75-.41 1.48-.41 2.07 0 .55.45.99 1 .99.41 0 .76-.25.9-.62.22-.57.49-1.28.77-2.02.32-.86.66-1.77.94-2.58h.16c.28.81.62 1.72.94 2.58.28.74.55 1.45.77 2.02.14.37.49.62.9.62.55 0 1-.44 1-.99 0-.59-.2-1.32-.41-2.07-.09-.33-.18-.66-.27-.99.46-.18.87-.49 1.22-.92 1.07-1.33 1.73-4 .74-6.7-.11-.3-.24-.59-.38-.87.69-.94 1.1-2.09 1.1-3.34 0-3.13-2.56-5.69-5.69-5.69z"/></svg>
+              <div class="platform-icon android-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.411 13.8566 8.1 12 8.1s-3.5902.311-5.1368.8507L4.841 5.4477a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+              </div>
               <div>
-                <h3>Linux</h3>
-                <small>Ubuntu, Debian, Fedora, Arch</small>
+                <h3>Android</h3>
+                <span class="platform-meta">Android 7.0 en adelante • APK Oficial</span>
               </div>
             </div>
-            <p class="download-desc">Instalación nativa con icono de bandeja (tray), autostart, notificaciones del sistema e integración con el escritorio.</p>
+            <p class="download-desc">Widgets nativos con reloj en vivo, alarmas exactas con AlarmManager, recitación del Qur’an en segundo plano y actualización interna.</p>
+            
             <div class="download-actions">
-              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.22/Adhan.Companion_0.1.22_amd64.deb" class="btn-download">
-                <span>Descargar paquete .deb</span>
-                <span class="file-tag">v0.1.22</span>
+              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan-Companion_0.1.25_android-arm64.apk" class="btn-download primary-dl" data-release-link="android-arm64">
+                <div class="dl-text">
+                  <span>Descargar APK ARM64</span>
+                  <small>Para teléfonos modernos (64-bit)</small>
+                </div>
+                <span class="file-tag" data-release-tag>v0.1.25</span>
               </a>
-              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.22/Adhan.Companion_0.1.22_amd64.AppImage" class="btn-download">
-                <span>Descargar AppImage</span>
-                <span class="file-tag">Portable</span>
+              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan-Companion_0.1.25_android-armv7.apk" class="btn-download secondary-dl" data-release-link="android-armv7">
+                <div class="dl-text">
+                  <span>Descargar APK ARMv7</span>
+                  <small>Dispositivos clásicos (32-bit)</small>
+                </div>
+                <span class="file-tag">32-bit</span>
               </a>
             </div>
           </div>
 
           <!-- Windows Card -->
-          <div class="download-card">
+          <div class="download-card" id="card-windows">
             <div class="download-header">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+              <div class="platform-icon windows-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+              </div>
               <div>
                 <h3>Windows</h3>
-                <small>Windows 10 y Windows 11 (64-bit)</small>
+                <span class="platform-meta">Windows 10 y 11 (64-bit)</span>
               </div>
             </div>
-            <p class="download-desc">Instalador NSIS liviano por usuario. Se integra en la bandeja del sistema junto al reloj y cuenta con auto-actualizador integrado.</p>
+            <p class="download-desc">Instalador liviano por usuario. Se minimiza discretamente en la bandeja del sistema junto al reloj y cuenta con auto-actualizador integrado.</p>
+            
             <div class="download-actions">
-              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.22/Adhan.Companion_0.1.22_x64-setup.exe" class="btn-download">
-                <span>Instalador Windows x64</span>
-                <span class="file-tag">.exe</span>
+              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan.Companion_0.1.25_x64-setup.exe" class="btn-download primary-dl" data-release-link="windows">
+                <div class="dl-text">
+                  <span>Instalador Windows x64</span>
+                  <small>Instalador por usuario (.exe)</small>
+                </div>
+                <span class="file-tag" data-release-tag>v0.1.25</span>
               </a>
             </div>
           </div>
 
-          <!-- Android Card -->
-          <div class="download-card">
+          <!-- Linux Card -->
+          <div class="download-card" id="card-linux">
             <div class="download-header">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.411 13.8566 8.1 12 8.1s-3.5902.311-5.1368.8507L4.841 5.4477a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+              <div class="platform-icon linux-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.001 2c-3.13 0-5.69 2.56-5.69 5.69 0 1.25.41 2.4 1.1 3.34-.14.28-.27.57-.38.87-.99 2.7-.33 5.37.74 6.7.35.43.76.74 1.22.92-.09.33-.18.66-.27.99-.21.75-.41 1.48-.41 2.07 0 .55.45.99 1 .99.41 0 .76-.25.9-.62.22-.57.49-1.28.77-2.02.32-.86.66-1.77.94-2.58h.16c.28.81.62 1.72.94 2.58.28.74.55 1.45.77 2.02.14.37.49.62.9.62.55 0 1-.44 1-.99 0-.59-.2-1.32-.41-2.07-.09-.33-.18-.66-.27-.99.46-.18.87-.49 1.22-.92 1.07-1.33 1.73-4 .74-6.7-.11-.3-.24-.59-.38-.87.69-.94 1.1-2.09 1.1-3.34 0-3.13-2.56-5.69-5.69-5.69z"/></svg>
+              </div>
               <div>
-                <h3>Android</h3>
-                <small>Android 7.0 en adelante (64 y 32-bit)</small>
+                <h3>Linux</h3>
+                <span class="platform-meta">Ubuntu, Debian, Fedora, Arch</span>
               </div>
             </div>
-            <p class="download-desc">Alarmas exactas nativas con AlarmManager, recitación del Qur’an en segundo plano con controles de audio en la barra de notificaciones.</p>
+            <p class="download-desc">Integración nativa con icono de bandeja (tray), autostart, notificaciones del sistema y soporte para Wayland y X11.</p>
+            
             <div class="download-actions">
-              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.22/Adhan-Companion_0.1.22_android-arm64.apk" class="btn-download">
-                <span>APK ARM64 (Más común)</span>
-                <span class="file-tag">64-bit</span>
+              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan.Companion_0.1.25_amd64.deb" class="btn-download primary-dl" data-release-link="deb">
+                <div class="dl-text">
+                  <span>Descargar paquete .deb</span>
+                  <small>Ubuntu, Debian, Linux Mint</small>
+                </div>
+                <span class="file-tag" data-release-tag>v0.1.25</span>
               </a>
-              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.22/Adhan-Companion_0.1.22_android-armv7.apk" class="btn-download">
-                <span>APK ARMv7 (Dispositivos 32-bit)</span>
-                <span class="file-tag">32-bit</span>
+              <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan.Companion_0.1.25_amd64.AppImage" class="btn-download secondary-dl" data-release-link="appimage">
+                <div class="dl-text">
+                  <span>Descargar AppImage</span>
+                  <small>Ejecutable universal portable</small>
+                </div>
+                <span class="file-tag">Portable</span>
               </a>
             </div>
           </div>
+
         </div>
 
-        <!-- Terminal Quick Install -->
-        <div class="terminal-box">
-          <div class="terminal-header">
-            <span class="terminal-dot dot-red"></span>
-            <span class="terminal-dot dot-yellow"></span>
-            <span class="terminal-dot dot-green"></span>
-            <span>Instalación rápida en Ubuntu / Debian vía terminal</span>
-          </div>
-          <div class="terminal-cmd">
-            <code>sudo apt install "./Adhan.Companion_0.1.22_amd64.deb"</code>
-          </div>
+        <!-- Terminal Quick Install (Subtle Collapsible Accordion) -->
+        <div class="terminal-wrapper">
+          <details class="terminal-disclosure">
+            <summary class="terminal-summary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              <span>¿Sos usuario de terminal en Ubuntu / Debian? Instalación rápida</span>
+              <svg class="summary-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="terminal-content">
+              <div class="terminal-box">
+                <div class="terminal-header">
+                  <span class="terminal-dot dot-red"></span>
+                  <span class="terminal-dot dot-yellow"></span>
+                  <span class="terminal-dot dot-green"></span>
+                  <span class="terminal-title">bash — instalación local .deb</span>
+                </div>
+                <div class="terminal-cmd-row">
+                  <code id="terminal-install-cmd" data-release-terminal="deb">sudo apt install "./Adhan.Companion_0.1.25_amd64.deb"</code>
+                  <button class="btn-copy-cmd" data-copy-target="terminal-install-cmd" title="Copiar comando">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span>Copiar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
+
+        <!-- SHA256 Sums Link -->
+        <div class="checksums-note">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Podés verificar la integridad de cualquier paquete descargado con las sumas oficiales:</span>
+          <a href="https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/SHA256SUMS" target="_blank" rel="noopener noreferrer" data-release-link="sha256" class="link-sha">Descargar SHA256SUMS</a>
+        </div>
+
       </div>
     </section>
 
@@ -255,10 +530,14 @@
       <div class="container">
         <div class="privacy-box">
           <div class="privacy-content">
-            <h3>Tu privacidad es absoluta</h3>
-            <p>Adhan Companion no incluye telemetría, no vende datos y no tiene servidores intermedios. Tu ubicación y rezos nunca salen de tus dispositivos.</p>
+            <div class="privacy-badge">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Privacidad por Principio</span>
+            </div>
+            <h3>Tu práctica espiritual y tu intimidad son sagradas</h3>
+            <p>Adhan Companion no incluye telemetría, no vende datos a empresas de publicidad y no tiene servidores intermedios de recolección. Tu ubicación, tus oraciones registradas y tus lecturas nunca salen de tus dispositivos sin tu consentimiento.</p>
           </div>
-          <a href="privacidad.html" class="btn-secondary">Leer Política de Privacidad</a>
+          <a href="privacidad.html" class="btn-privacy-action">Leer Política de Privacidad</a>
         </div>
       </div>
     </section>
@@ -267,23 +546,57 @@
   <!-- Footer -->
   <footer class="site-footer">
     <div class="container">
-      <div class="footer-top">
-        <div class="brand">
-          <img src="assets/icon.png" alt="Adhan Companion Logo">
-          <span>Adhan Companion</span>
+      <div class="footer-grid">
+        <div class="footer-brand-col">
+          <div class="brand">
+            <img src="assets/icon.png" alt="Adhan Companion Logo">
+            <span>Adhan Companion</span>
+          </div>
+          <p class="footer-tagline">Compañero diario de rezo respetuoso, local-first y de código abierto para Android, Windows y Linux.</p>
+          <div class="footer-release-pill">
+            <span>Versión actual: <strong data-release-version>v0.1.25</strong></span>
+          </div>
         </div>
-        <ul class="footer-links">
-          <li><a href="https://github.com/MarcosRehtanz/adhan-companion/releases/latest" target="_blank" rel="noopener noreferrer">Releases</a></li>
-          <li><a href="https://github.com/MarcosRehtanz/adhan-companion" target="_blank" rel="noopener noreferrer">Código Fuente (GitHub)</a></li>
-          <li><a href="privacidad.html">Política de Privacidad</a></li>
-        </ul>
+
+        <div class="footer-col">
+          <h4>Navegación</h4>
+          <ul class="footer-nav-list">
+            <li><a href="#funciones">Características</a></li>
+            <li><a href="#experiencia">Experiencia interactiva</a></li>
+            <li><a href="#descargas">Descargas oficiales</a></li>
+            <li><a href="privacidad.html">Política de privacidad</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Plataformas</h4>
+          <ul class="footer-nav-list">
+            <li><a href="#card-android">Android (ARM64 / ARMv7)</a></li>
+            <li><a href="#card-windows">Windows (x64 NSIS)</a></li>
+            <li><a href="#card-linux">Linux (.deb / AppImage)</a></li>
+            <li><a href="https://github.com/MarcosRehtanz/adhan-companion/releases" target="_blank" rel="noopener noreferrer">Historial de versiones</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Código y Fuentes</h4>
+          <ul class="footer-nav-list">
+            <li><a href="https://github.com/MarcosRehtanz/adhan-companion" target="_blank" rel="noopener noreferrer">Repositorio en GitHub</a></li>
+            <li><a href="https://tanzil.net" target="_blank" rel="noopener noreferrer">Tanzil Project (Corán)</a></li>
+            <li><a href="https://praytimes.org" target="_blank" rel="noopener noreferrer">PrayTimes C Core</a></li>
+            <li><a href="https://github.com/MarcosRehtanz/adhan-companion/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Licencia MIT</a></li>
+          </ul>
+        </div>
       </div>
+
       <div class="footer-bottom">
-        <p>Proyecto de código abierto desarrollado por Marcos Rehtanz. Licencia MIT.</p>
-        <p>Textos del Qur’an de Tanzil Project. Traducción al español de Raúl González Bórnez. Colección Adhan de Doha.</p>
+        <p>Desarrollado con dedicación por <strong>Marcos Rehtanz</strong>. Licencia MIT.</p>
+        <p class="footer-attributions">Texto árabe del Sagrado Qur’an verificado por Tanzil Project. Traducción al español de Raúl González Bórnez. Colección Adhan de Doha.</p>
       </div>
     </div>
   </footer>
 
+  <!-- Script de auto-actualización dinámica y componentes interactivos -->
+  <script src="releases.js"></script>
 </body>
 </html>
