@@ -119,6 +119,69 @@ jobs:
         run: |
           pnpm tauri build --ci --bundles nsis -- --locked
 
+      - name: Test Windows installer lifecycle (clean install, update while running, and uninstall while running)
+        shell: pwsh
+        run: |
+          $installer = Get-Item "src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
+          if (!$installer) { throw "No se encontro el archivo *-setup.exe en bundle/nsis" }
+          Write-Host "Probando instalador: $($installer.FullName)"
+          
+          $targetDir = "$env:LOCALAPPDATA\Adhan Companion"
+          Write-Host "Destino previsto: $targetDir"
+          
+          # 1. Instalación inicial silenciosa especificando /D
+          Write-Host "==> Paso 1: Instalación inicial silenciosa (/S /D=$targetDir)..."
+          $p = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/D=$targetDir" -Wait -PassThru
+          Write-Host "Proceso de instalacion finalizo con codigo de salida: $($p.ExitCode)"
+          Start-Sleep -Seconds 5
+          
+          $appExe = Join-Path $targetDir "adhan-companion.exe"
+          if (!(Test-Path $appExe)) {
+            $fallback = Get-ChildItem -Path $targetDir -Filter "*.exe" -Exclude "*uninstall*" | Select-Object -First 1
+            if ($fallback) {
+              $appExe = $fallback.FullName
+            } else {
+              throw "No se pudo encontrar el ejecutable en $targetDir tras la instalación"
+            }
+          }
+          Write-Host "✔ App instalada correctamente en $targetDir ($appExe)"
+          
+          # 2. Iniciar la aplicación en segundo plano (simulando bandeja del sistema)
+          Write-Host "==> Paso 2: Iniciando adhan-companion en segundo plano..."
+          $appProc = Start-Process -FilePath $appExe -PassThru
+          Start-Sleep -Seconds 5
+          $running = Get-Process -Name "adhan-companion" -ErrorAction SilentlyContinue
+          if (!$running) { throw "El proceso no inició en segundo plano" }
+          Write-Host "✔ Proceso corriendo con PID $($running.Id)"
+          
+          # 3. Probar actualización encima mientras la app está corriendo (/S /UPDATE /P)
+          Write-Host "==> Paso 3: Probando actualización encima con la app en ejecución..."
+          $updateProc = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/UPDATE", "/P" -Wait -PassThru
+          Write-Host "Actualizador finalizo con codigo: $($updateProc.ExitCode)"
+          if ($updateProc.ExitCode -ne 0) { throw "La actualización falló con código $($updateProc.ExitCode)" }
+          Start-Sleep -Seconds 3
+          Write-Host "✔ Actualización completada exitosamente sin bloquearse"
+          
+          # 4. Iniciar la app de nuevo y probar desinstalación mientras corre
+          Write-Host "==> Paso 4: Iniciando la app y probando desinstalación mientras corre..."
+          $appProc2 = Start-Process -FilePath $appExe -PassThru
+          Start-Sleep -Seconds 5
+          $uninstaller = Join-Path $targetDir "uninstall.exe"
+          if (!(Test-Path $uninstaller)) {
+            $uninstaller = Get-ChildItem -Path $targetDir -Filter "*uninstall*.exe" | Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (!$uninstaller -or !(Test-Path $uninstaller)) { throw "No se encontró el desinstalador en $targetDir" }
+          
+          Write-Host "Ejecutando desinstalador: $uninstaller"
+          $uninstProc = Start-Process -FilePath $uninstaller -ArgumentList "/S", "_?=$targetDir" -Wait -PassThru
+          Write-Host "Desinstalador finalizo con codigo: $($uninstProc.ExitCode)"
+          if ($uninstProc.ExitCode -ne 0) { throw "La desinstalación falló con código $($uninstProc.ExitCode)" }
+          Start-Sleep -Seconds 3
+          
+          $stillRunning = Get-Process -Name "adhan-companion" -ErrorAction SilentlyContinue
+          if ($stillRunning) { throw "El proceso sigue en ejecución después de desinstalar" }
+          Write-Host "✔ Desinstalación completada exitosamente; proceso finalizado sin errores"
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
