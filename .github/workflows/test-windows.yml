@@ -1,0 +1,97 @@
+name: Test Windows Installer
+
+on:
+  push:
+    branches:
+      - 'fix/windows-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-windows:
+    name: test-windows-installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate release version and notes
+        run: node scripts/check-release.mjs
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.8.1
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test Windows core
+        run: cargo test --locked --all-targets --manifest-path src-tauri/Cargo.toml
+
+      - name: Build Windows installer
+        run: |
+          pnpm tauri build --ci --bundles nsis -- --locked
+
+      - name: Test Windows installer lifecycle (clean install, update while running, and uninstall while running)
+        shell: pwsh
+        run: |
+          $installer = Get-Item "src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
+          if (!$installer) { throw "No se encontro el archivo *-setup.exe en bundle/nsis" }
+          Write-Host "Probando instalador: $($installer.FullName)"
+          
+          # 1. Instalación inicial silenciosa
+          Write-Host "==> Paso 1: Instalación inicial silenciosa (/S)..."
+          $proc = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "La instalación inicial falló con código $($proc.ExitCode)" }
+          
+          $installDir = "$env:LOCALAPPDATA\Adhan Companion"
+          $appExe = "$installDir\Adhan Companion.exe"
+          if (!(Test-Path $appExe)) { throw "No se encontró el ejecutable instalado en $appExe" }
+          Write-Host "✔ App instalada correctamente en $installDir"
+          
+          # 2. Iniciar la aplicación en segundo plano (simulando bandeja del sistema)
+          Write-Host "==> Paso 2: Iniciando Adhan Companion en segundo plano..."
+          $appProc = Start-Process -FilePath $appExe -PassThru
+          Start-Sleep -Seconds 3
+          $running = Get-Process -Name "Adhan Companion" -ErrorAction SilentlyContinue
+          if (!$running) { throw "El proceso no inició en segundo plano" }
+          Write-Host "✔ Proceso corriendo con PID $($running.Id)"
+          
+          # 3. Probar actualización encima mientras la app está corriendo (/S /UPDATE /P)
+          Write-Host "==> Paso 3: Probando actualización encima con la app en ejecución..."
+          $updateProc = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/UPDATE", "/P" -Wait -PassThru
+          if ($updateProc.ExitCode -ne 0) { throw "La actualización sobre la app en ejecución falló con código $($updateProc.ExitCode)" }
+          Write-Host "✔ Actualización completada exitosamente sin bloquearse"
+          
+          # 4. Volver a iniciar la app y probar desinstalación mientras corre
+          Write-Host "==> Paso 4: Iniciando la app y probando desinstalación mientras corre..."
+          $appProc2 = Start-Process -FilePath $appExe -PassThru
+          Start-Sleep -Seconds 3
+          $uninstaller = "$installDir\Uninstall Adhan Companion.exe"
+          if (!(Test-Path $uninstaller)) { throw "No se encontró el desinstalador en $uninstaller" }
+          
+          $uninstProc = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru
+          if ($uninstProc.ExitCode -ne 0) { throw "La desinstalación con la app en ejecución falló con código $($uninstProc.ExitCode)" }
+          Start-Sleep -Seconds 2
+          
+          $stillRunning = Get-Process -Name "Adhan Companion" -ErrorAction SilentlyContinue
+          if ($stillRunning) { throw "El proceso sigue en ejecución después de desinstalar" }
+          Write-Host "✔ Desinstalación completada exitosamente; proceso finalizado sin errores"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-tested
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
