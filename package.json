@@ -8,8 +8,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
     "release:check": "node scripts/check-release.mjs",
     "version:bump": "node scripts/bump-version.mjs",
+    "website:prepare": "node scripts/prepare-website.mjs",
     "tauri": "tauri"
   },
   "dependencies": {
