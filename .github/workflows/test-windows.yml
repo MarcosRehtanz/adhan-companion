@@ -65,7 +65,7 @@ jobs:
           
           # Comprobar contenido del directorio destino
           if (Test-Path $targetDir) {
-            Write-Host "Contenido de $targetDir:"
+            Write-Host "Contenido de $($targetDir):"
             Get-ChildItem -Path $targetDir | ForEach-Object { Write-Host " - $($_.Name)" }
           } else {
             Write-Host "ADVERTENCIA: $targetDir no existe tras la instalacion."
