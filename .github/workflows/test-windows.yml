@@ -73,24 +73,22 @@ jobs:
             Get-ChildItem -Path "$env:USERPROFILE" -Filter "*Adhan Companion*" -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Write-Host " Encontrado: $($_.FullName)" }
           }
           
-          $appExe = "$targetDir\Adhan Companion.exe"
+          $appExe = Join-Path $targetDir "adhan-companion.exe"
           if (!(Test-Path $appExe)) {
-            $fallback = Get-ChildItem -Path "$env:LOCALAPPDATA" -Filter "Adhan Companion.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            $fallback = Get-ChildItem -Path $targetDir -Filter "*.exe" -Exclude "*uninstall*" | Select-Object -First 1
             if ($fallback) {
               $appExe = $fallback.FullName
-              $targetDir = $fallback.DirectoryName
-              Write-Host "Fallback encontrado: $appExe"
             } else {
-              throw "No se pudo encontrar Adhan Companion.exe en el sistema tras la instalación"
+              throw "No se pudo encontrar el ejecutable en $targetDir tras la instalación"
             }
           }
           Write-Host "✔ App instalada correctamente en $targetDir ($appExe)"
           
           # 2. Iniciar la aplicación en segundo plano (simulando bandeja del sistema)
-          Write-Host "==> Paso 2: Iniciando Adhan Companion en segundo plano..."
+          Write-Host "==> Paso 2: Iniciando adhan-companion en segundo plano..."
           $appProc = Start-Process -FilePath $appExe -PassThru
           Start-Sleep -Seconds 5
-          $running = Get-Process -Name "Adhan Companion" -ErrorAction SilentlyContinue
+          $running = Get-Process -Name "adhan-companion" -ErrorAction SilentlyContinue
           if (!$running) { throw "El proceso no inició en segundo plano" }
           Write-Host "✔ Proceso corriendo con PID $($running.Id)"
           
@@ -98,13 +96,15 @@ jobs:
           Write-Host "==> Paso 3: Probando actualización encima con la app en ejecución..."
           $updateProc = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/UPDATE", "/P" -Wait -PassThru
           Write-Host "Actualizador finalizo con codigo: $($updateProc.ExitCode)"
-          Start-Sleep -Seconds 5
+          if ($updateProc.ExitCode -ne 0) { throw "La actualización falló con código $($updateProc.ExitCode)" }
+          Start-Sleep -Seconds 3
+          Write-Host "✔ Actualización completada exitosamente sin bloquearse"
           
           # 4. Iniciar la app de nuevo y probar desinstalación mientras corre
           Write-Host "==> Paso 4: Iniciando la app y probando desinstalación mientras corre..."
           $appProc2 = Start-Process -FilePath $appExe -PassThru
           Start-Sleep -Seconds 5
-          $uninstaller = Join-Path $targetDir "Uninstall Adhan Companion.exe"
+          $uninstaller = Join-Path $targetDir "uninstall.exe"
           if (!(Test-Path $uninstaller)) {
             $uninstaller = Get-ChildItem -Path $targetDir -Filter "*uninstall*.exe" | Select-Object -First 1 -ExpandProperty FullName
           }
@@ -113,9 +113,10 @@ jobs:
           Write-Host "Ejecutando desinstalador: $uninstaller"
           $uninstProc = Start-Process -FilePath $uninstaller -ArgumentList "/S", "_?=$targetDir" -Wait -PassThru
           Write-Host "Desinstalador finalizo con codigo: $($uninstProc.ExitCode)"
+          if ($uninstProc.ExitCode -ne 0) { throw "La desinstalación falló con código $($uninstProc.ExitCode)" }
           Start-Sleep -Seconds 3
           
-          $stillRunning = Get-Process -Name "Adhan Companion" -ErrorAction SilentlyContinue
+          $stillRunning = Get-Process -Name "adhan-companion" -ErrorAction SilentlyContinue
           if ($stillRunning) { throw "El proceso sigue en ejecución después de desinstalar" }
           Write-Host "✔ Desinstalación completada exitosamente; proceso finalizado sin errores"
 
