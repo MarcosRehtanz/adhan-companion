@@ -1,13 +1,13 @@
 {
-  "tag_name": "v0.1.25",
-  "version": "0.1.25",
-  "updated_at": "2026-11-15T00:30:44.855Z",
+  "tag_name": "v0.1.26",
+  "version": "0.1.26",
+  "updated_at": "2026-11-15T03:54:37.328Z",
   "assets": {
-    "deb": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan.Companion_0.1.25_amd64.deb",
-    "appimage": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan.Companion_0.1.25_amd64.AppImage",
-    "windows": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan.Companion_0.1.25_x64-setup.exe",
-    "android_arm64": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan-Companion_0.1.25_android-arm64.apk",
-    "android_armv7": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/Adhan-Companion_0.1.25_android-armv7.apk",
-    "sha256": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.25/SHA256SUMS"
+    "deb": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.26/Adhan.Companion_0.1.26_amd64.deb",
+    "appimage": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.26/Adhan.Companion_0.1.26_amd64.AppImage",
+    "windows": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.26/Adhan.Companion_0.1.26_x64-setup.exe",
+    "android_arm64": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.26/Adhan-Companion_0.1.26_android-arm64.apk",
+    "android_armv7": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.26/Adhan-Companion_0.1.26_android-armv7.apk",
+    "sha256": "https://github.com/MarcosRehtanz/adhan-companion/releases/download/v0.1.26/SHA256SUMS"
   }
 }

@@ -6,13 +6,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.25 para Linux, Windows y Android** — widgets nativos para Android con reloj en vivo, actualización configurable al minuto, selector con previsualizaciones y corrección de recortes, sobre la ubicación GPS de alta precisión con geocodificación inversa, el widget solar, el respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.25.md).
+✅ **v0.1.26 para Linux, Windows y Android** — ganchos NSIS para cierre automático de instancias en segundo plano durante instalación, actualización y desinstalación en Windows, test de ciclo de vida completo en CI, sobre los widgets nativos para Android con reloj en vivo, actualización configurable al minuto, selector con previsualizaciones y corrección de recortes, la ubicación GPS de alta precisión con geocodificación inversa, el widget solar, el respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.26.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.25_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.26_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
@@ -38,6 +38,11 @@ La ejecución manual (`workflow_dispatch`) permite validar los builds y descarga
 - **Seguimiento con calendario**: marcá los rezos del día (o de días pasados), registro append-only en `registro.jsonl`.
 - Config: ubicación (sugerencia por IP con cadena de 3 proveedores), método (MWL/ISNA/Egypt/…), madhab, offsets, audio por rezo.
 - 24/7 real: autostart, single-instance, recálculo a medianoche y al reanudar del sleep.
+
+## Novedades de v0.1.26
+
+- **Ganchos personalizados en el instalador y desinstalador de Windows (NSIS):** incorporación de `src-tauri/windows/hooks.nsh` con la macro `KillAdhanCompanion` ejecutada en las fases previas a la instalación (`.onInit`) y desinstalación (`un.onInit`). Resuelve de raíz el bloqueo del instalador con el error *"Failed to kill Adhan Companion. Please close it first then try again"*, cerrando de forma limpia y forzada las instancias que se ejecutan en la bandeja del sistema antes de actualizar o desinstalar archivos.
+- **Suite de verificación de ciclo de vida en CI (Windows Server):** nuevo paso automatizado en `.github/workflows/release.yml` sobre runners reales `windows-2025-vs2026` que comprueba instalación en limpio, inicio en segundo plano, actualización con proceso activo y desinstalación con eliminación total de archivos mientras la aplicación está en marcha.
 
 ## Novedades de v0.1.25
 

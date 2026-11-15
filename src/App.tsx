@@ -479,7 +479,7 @@ export default function App() {
     ...(!isAndroid ? [{ id: "inicio" as Page, label: "Inicio de sesión", value: "Abrir Adhan Companion en la bandeja al iniciar sesión" }] : []),
     // Solo builds con credencial OAuth; las publicadas por la CI todavía no la tienen.
     ...(runtime?.google_sync ? [{ id: "respaldo" as Page, label: "Respaldo y sincronización", value: "Configuración, rezos y lectura en tu cuenta de Google" }] : []),
-    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.25"}` },
+    { id: "actualizaciones", label: "Actualizaciones", value: `Versión ${verActual || "0.1.26"}` },
     { id: "acerca", label: "Acerca de", value: "Archivo de configuración y fuentes" },
   ]];
 
@@ -501,7 +501,7 @@ export default function App() {
         <img src={logo} className="logo-mas" alt="" />
         <div className="marca-mas-texto">
           <h2>Adhan Companion</h2>
-          <span className="version-mas">v{verActual || "0.1.25"}</span>
+          <span className="version-mas">v{verActual || "0.1.26"}</span>
         </div>
       </div>}
       {opciones.map((grupo, i) => <div key={i}>
@@ -527,7 +527,7 @@ export default function App() {
       <div className="acerca-branding">
         <img src={logo} className="logo-acerca" alt="Adhan Companion" />
         <h2>Adhan Companion</h2>
-        <span className="version-acerca">v{verActual || "0.1.25"}{isAndroid ? " para Android" : ""}</span>
+        <span className="version-acerca">v{verActual || "0.1.26"}{isAndroid ? " para Android" : ""}</span>
       </div>
       <section className="panel setting-panel"><div className="panel-heading"><div><h2>Archivo de configuración</h2><p>Preferencias locales de Adhan Companion.</p></div></div><div className="read-grid"><div><span>Ubicación</span><b><code>{runtime?.config_path ?? "Consultando ubicación…"}</code></b></div><div><span>Compatibilidad</span><b>Schema del nodo</b></div></div></section>
       <p className="nota">Cálculo local con PrayTimes; textos del Qur’an de Tanzil y traducción de Raúl González Bórnez.</p>
@@ -582,7 +582,7 @@ export default function App() {
           <button className={"nav-item " + (section === "mas" ? "activa" : "")} aria-label="Configuración" aria-current={section === "mas" ? "page" : undefined} disabled={saving} onClick={() => go("mas")}>
             <Settings size={17} strokeWidth={2} /><span>Configuración</span>
           </button>
-          <span className="sidebar-version">v{verActual || "0.1.25"}</span>
+          <span className="sidebar-version">v{verActual || "0.1.26"}</span>
         </div>
       </aside>}
       <div className="workspace">
