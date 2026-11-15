@@ -10,12 +10,10 @@
 
 !macro KillAdhanCompanion
     DetailPrint "Deteniendo instancias previas de Adhan Companion..."
-    nsExec::ExecToStack 'taskkill /F /IM "Adhan Companion.exe" /T'
+    nsExec::Exec 'cmd.exe /c taskkill /F /IM "Adhan Companion.exe" /T'
     Pop $0
-    Pop $1
-    nsExec::ExecToStack 'taskkill /F /IM "adhan-companion.exe" /T'
+    nsExec::Exec 'cmd.exe /c taskkill /F /IM "adhan-companion.exe" /T'
     Pop $0
-    Pop $1
     Sleep 1000
 !macroend
 

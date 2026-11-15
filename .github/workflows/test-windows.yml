@@ -51,80 +51,69 @@ jobs:
           if (!$installer) { throw "No se encontro el archivo *-setup.exe en bundle/nsis" }
           Write-Host "Probando instalador: $($installer.FullName)"
           
-          # 1. Instalación inicial silenciosa
-          Write-Host "==> Paso 1: Instalación inicial silenciosa (/S)..."
-          Start-Process -FilePath $installer.FullName -ArgumentList "/S"
+          $targetDir = "$env:LOCALAPPDATA\Adhan Companion"
+          Write-Host "Destino previsto: $targetDir"
           
-          # Esperar a que el instalador de fondo termine de extraer y copiar los archivos (NSIS se desacopla)
-          $appExe = $null
-          $installDir = $null
-          for ($i = 0; $i -lt 30; $i++) {
-            Start-Sleep -Seconds 2
-            $candidates = @(
-              "$env:LOCALAPPDATA\Adhan Companion\Adhan Companion.exe",
-              "$env:LOCALAPPDATA\Programs\Adhan Companion\Adhan Companion.exe"
-            )
-            foreach ($cand in $candidates) {
-              if (Test-Path $cand) {
-                $appExe = $cand
-                $installDir = Split-Path -Parent $cand
-                break
-              }
-            }
-            if ($appExe) { break }
+          # 1. Instalación inicial silenciosa especificando /D
+          Write-Host "==> Paso 1: Instalación inicial silenciosa (/S /D=$targetDir)..."
+          # En NSIS, /D debe ser el último argumento y sin comillas
+          $p = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/D=$targetDir" -Wait -PassThru
+          Write-Host "Proceso de instalacion finalizo con codigo de salida: $($p.ExitCode)"
+          
+          # Dar unos segundos por si algún worker en segundo plano finaliza
+          Start-Sleep -Seconds 5
+          
+          # Comprobar contenido del directorio destino
+          if (Test-Path $targetDir) {
+            Write-Host "Contenido de $targetDir:"
+            Get-ChildItem -Path $targetDir | ForEach-Object { Write-Host " - $($_.Name)" }
+          } else {
+            Write-Host "ADVERTENCIA: $targetDir no existe tras la instalacion."
+            Write-Host "Buscando 'Adhan Companion.exe' en el sistema:"
+            Get-ChildItem -Path "$env:USERPROFILE" -Filter "*Adhan Companion*" -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Write-Host " Encontrado: $($_.FullName)" }
           }
-          if (!$appExe) {
-            $found = Get-ChildItem -Path "$env:LOCALAPPDATA" -Filter "Adhan Companion.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) {
-              $appExe = $found.FullName
-              $installDir = $found.DirectoryName
+          
+          $appExe = "$targetDir\Adhan Companion.exe"
+          if (!(Test-Path $appExe)) {
+            $fallback = Get-ChildItem -Path "$env:LOCALAPPDATA" -Filter "Adhan Companion.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($fallback) {
+              $appExe = $fallback.FullName
+              $targetDir = $fallback.DirectoryName
+              Write-Host "Fallback encontrado: $appExe"
             } else {
-              throw "No se encontró el ejecutable instalado tras esperar a NSIS"
+              throw "No se pudo encontrar Adhan Companion.exe en el sistema tras la instalación"
             }
           }
-          # Esperar a que termine cualquier proceso residual del instalador
-          while (Get-Process | Where-Object { $_.ProcessName -like "*setup*" -and $_.Id -ne $PID }) {
-            Start-Sleep -Seconds 1
-          }
-          Write-Host "✔ App instalada correctamente en $installDir ($appExe)"
+          Write-Host "✔ App instalada correctamente en $targetDir ($appExe)"
           
           # 2. Iniciar la aplicación en segundo plano (simulando bandeja del sistema)
           Write-Host "==> Paso 2: Iniciando Adhan Companion en segundo plano..."
           $appProc = Start-Process -FilePath $appExe -PassThru
-          Start-Sleep -Seconds 4
+          Start-Sleep -Seconds 5
           $running = Get-Process -Name "Adhan Companion" -ErrorAction SilentlyContinue
           if (!$running) { throw "El proceso no inició en segundo plano" }
           Write-Host "✔ Proceso corriendo con PID $($running.Id)"
           
           # 3. Probar actualización encima mientras la app está corriendo (/S /UPDATE /P)
           Write-Host "==> Paso 3: Probando actualización encima con la app en ejecución..."
-          Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/UPDATE", "/P"
-          Start-Sleep -Seconds 3
-          # Esperar a que termine la actualización
-          for ($i = 0; $i -lt 30; $i++) {
-            $activeSetup = Get-Process | Where-Object { $_.ProcessName -like "*setup*" -and $_.Id -ne $PID }
-            if (!$activeSetup) { break }
-            Start-Sleep -Seconds 2
-          }
-          if (Get-Process | Where-Object { $_.ProcessName -like "*setup*" -and $_.Id -ne $PID }) {
-            throw "El instalador quedó bloqueado durante la actualización"
-          }
-          Write-Host "✔ Actualización completada exitosamente sin bloquearse"
+          $updateProc = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/UPDATE", "/P" -Wait -PassThru
+          Write-Host "Actualizador finalizo con codigo: $($updateProc.ExitCode)"
+          Start-Sleep -Seconds 5
           
-          # 4. Volver a iniciar la app y probar desinstalación mientras corre
+          # 4. Iniciar la app de nuevo y probar desinstalación mientras corre
           Write-Host "==> Paso 4: Iniciando la app y probando desinstalación mientras corre..."
           $appProc2 = Start-Process -FilePath $appExe -PassThru
-          Start-Sleep -Seconds 4
-          $uninstaller = Join-Path $installDir "Uninstall Adhan Companion.exe"
+          Start-Sleep -Seconds 5
+          $uninstaller = Join-Path $targetDir "Uninstall Adhan Companion.exe"
           if (!(Test-Path $uninstaller)) {
-            $uninstaller = Get-ChildItem -Path $installDir -Filter "*uninstall*.exe" | Select-Object -First 1 -ExpandProperty FullName
+            $uninstaller = Get-ChildItem -Path $targetDir -Filter "*uninstall*.exe" | Select-Object -First 1 -ExpandProperty FullName
           }
-          if (!$uninstaller -or !(Test-Path $uninstaller)) { throw "No se encontró el desinstalador en $installDir" }
+          if (!$uninstaller -or !(Test-Path $uninstaller)) { throw "No se encontró el desinstalador en $targetDir" }
           
           Write-Host "Ejecutando desinstalador: $uninstaller"
-          # NSIS uninstaller: _?= evita que se copie a TEMP y permite esperar de forma síncrona
-          $uninstProc = Start-Process -FilePath $uninstaller -ArgumentList "/S", "_?=$installDir" -Wait -PassThru
-          Start-Sleep -Seconds 2
+          $uninstProc = Start-Process -FilePath $uninstaller -ArgumentList "/S", "_?=$targetDir" -Wait -PassThru
+          Write-Host "Desinstalador finalizo con codigo: $($uninstProc.ExitCode)"
+          Start-Sleep -Seconds 3
           
           $stillRunning = Get-Process -Name "Adhan Companion" -ErrorAction SilentlyContinue
           if ($stillRunning) { throw "El proceso sigue en ejecución después de desinstalar" }
