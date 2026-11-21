@@ -1,3 +1,5 @@
+import { NumberInput } from "./NumberInput";
+
 export interface RamadanConfig {
   enabled: boolean;
   imsak_minutes: number;
@@ -60,17 +62,14 @@ export function RamadanSettings({
                 <label>
                   Adelanto de Imsak (fin del suhur)
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-                    <input
-                      type="number"
+                    <NumberInput
                       min={5}
                       max={60}
                       step={1}
+                      fallback={10}
                       value={current.imsak_minutes}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10);
-                        if (!isNaN(v)) {
-                          onChange({ ...current, imsak_minutes: Math.max(5, Math.min(60, v)) });
-                        }
+                      onChange={(val) => {
+                        onChange({ ...current, imsak_minutes: val === "" ? 10 : val });
                       }}
                       style={{ width: 80 }}
                     />

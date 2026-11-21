@@ -49,6 +49,17 @@ Vista con valor guardado → Editar → borrador → Guardar o Cancelar. Durante
 
 «Adhan y avisos» se encuentra dentro de **Configuración**, junto con apariencia, inicio automático y actualizaciones. No aparece como sección independiente en el menú principal ni en el panel responsive. El acceso antes llamado «Sistema» se presenta como «Configuración». El bloque mantiene vista de valores guardados, Editar, Guardar y Cancelar; comparte el bloqueo de edición con apariencia. Si se navega con una edición de sonido pendiente, «Volver a la edición» regresa a la subpantalla Adhan y avisos (desde el 21/10/2026, Configuración es una lista con subpantallas). En Android, la activación y los permisos de avisos también se encuentran allí. Este cambio de organización no altera la configuración persistida ni la programación de rezos.
 
+## Entradas numéricas (regla de edición y borrado completo)
+
+Regla obligatoria para todos los inputs numéricos (días de pausa de avisos, adelanto de Imsak, preavisos, recordatorios, offsets por rezo y coordenadas):
+
+- **Durante la edición (`onChange`):** El usuario debe poder vaciar el campo por completo (`""`) o introducir caracteres intermedios (signo negativo `"-"`, separador decimal `"."`) sin que la interfaz fuerce de inmediato un valor por defecto (como `1` o `0`) ni aplique recortes (*clamping*) destructivos en cada pulsación de tecla. Esto asegura que el usuario pueda borrar un número (por ejemplo `1` o `3`) para tipear libremente un nuevo valor como `7` sin que el campo se quede atascado en `1`.
+- **Al desenfocar (`onBlur`) o presionar Enter:** Se valida y sanea el valor final:
+  - Si el campo quedó vacío (`""`) o inválido (`NaN`), se restablece al valor predeterminado (*fallback*) o mínimo permitido.
+  - Si el valor excede los límites válidos (`min` o `max`), se ajusta (*clamping*) al límite correspondiente.
+- **Acciones dependientes (botones de acción):** Si un botón depende del valor numérico ingresado (por ejemplo «Pausar N días»), debe permanecer deshabilitado mientras el campo esté vacío o fuera de rango, o aplicar el valor saneado antes de ejecutar la acción si se activa por atajo de teclado.
+- **Implementación estándar:** Se utiliza el componente centralizado `<NumberInput />` (`src/components/NumberInput.tsx`).
+
 ## Navegación responsive lateral
 
 > Reemplazada el 21/10/2026 por la interfaz de celular (barra inferior y subpantallas de «Más»; ver [la maqueta](maquetas/movil/README.md) y la sección siguiente). Se conserva como registro de la versión anterior.

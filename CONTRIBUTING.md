@@ -283,6 +283,12 @@ Cualquier comando nuevo expuesto desde Rust con `#[tauri::command]` debe declara
 ### 4. Compatibilidad CSS WebViews (`chrome80`)
 Mantenemos `build.target: "chrome80"` y `build.cssTarget: "chrome80"` en `vite.config.ts`. No utilices sintaxis de media queries de rango (ej. `@media (width <= 720px)`) ya que rompe la compatibilidad con WebViews más antiguos en dispositivos móviles como Android 8/9.
 
+### 5. Regla de entradas numéricas (`NumberInput`)
+Todo campo de entrada numérica (días de pausa de avisos, adelanto de Imsak, preavisos, recordatorios, offsets o coordenadas) debe usar el componente reutilizable `<NumberInput />` (`src/components/NumberInput.tsx`):
+* **Durante el tipeo (`onChange`):** debe permitir vaciarse por completo (`""`) o recibir caracteres intermedios (`"-"`, `"."`) sin forzar valores por defecto inmediatos ni aplicar recortes destructivos tecla a tecla que impidan borrar un valor para ingresar otro (ej. borrar `1` o `3` para tipear `7`).
+* **Al desenfocar (`onBlur`) o presionar Enter:** se valida y sanea el valor final aplicando límites `[min, max]` y el valor por defecto (`fallback`).
+* **Acciones dependientes:** los botones vinculados deben deshabilitarse mientras el campo esté vacío o fuera de rango.
+
 ---
 
 ## Documentación de cambios y Changelog

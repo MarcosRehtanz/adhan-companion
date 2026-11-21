@@ -8,6 +8,9 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ## [Unreleased]
 
+### Corregido
+- **Regla de entradas numéricas y edición fluida (`NumberInput`):** corrección en el input de días de pausa de avisos (menstruación o viajes), adelanto de Imsak, preavisos, recordatorios y coordenadas donde no se permitía borrar el número completo al estar en foco (quedando trabado en `1` o `0`). Se incorpora el componente reutilizable `NumberInput` con búfer de texto local y saneamiento/ajuste de límites en `onBlur`.
+
 ### En desarrollo
 - Modo Ramadán (cálculo de Imsak e Iftar, ajustes litúrgicos).
 - Conexión MQTT con el nodo de hardware ESP32.

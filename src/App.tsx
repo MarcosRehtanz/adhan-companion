@@ -15,6 +15,7 @@ import {
   LocateFixed, Navigation, CheckCircle2, AlertCircle, ListChecks, CalendarCheck, type LucideIcon,
 } from "lucide-react";
 import type { Schedule, Stats } from "./types";
+import { NumberInput } from "./components/NumberInput";
 import { GoogleMapsLocationPicker } from "./components/GoogleMapsLocationPicker";
 import { PrayerAlertsSettings, type AudioConfig } from "./components/PrayerAlertsSettings";
 import { IslamicCalendar, type CalendarConfig } from "./components/IslamicCalendar";
@@ -423,7 +424,7 @@ export default function App() {
       <div className="panel-heading"><div><h2>Ubicación</h2><p>Ciudad y coordenadas usadas para calcular los horarios.</p></div>{editando !== "ubicacion" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("ubicacion")}><Pencil size={14} />Editar ubicación</button>}</div>
       {editando === "ubicacion" ? <div className="editor">
         <label>Ciudad<input disabled={detectando || localizando} value={cfg.city} onChange={(e) => upd({ city: e.target.value })} /></label>
-        <div className="fila"><label>Latitud<input disabled={detectando || localizando} type="number" min="-90" max="90" step="0.000001" value={cfg.lat} onChange={(e) => upd({ lat: +e.target.value })} /></label><label>Longitud<input disabled={detectando || localizando} type="number" min="-180" max="180" step="0.000001" value={cfg.lon} onChange={(e) => upd({ lon: +e.target.value })} /></label></div>
+        <div className="fila"><label>Latitud<NumberInput disabled={detectando || localizando} min={-90} max={90} step="0.000001" fallback={0} value={cfg.lat} onChange={(lat) => upd({ lat: lat === "" ? 0 : lat })} /></label><label>Longitud<NumberInput disabled={detectando || localizando} min={-180} max={180} step="0.000001" fallback={0} value={cfg.lon} onChange={(lon) => upd({ lon: lon === "" ? 0 : lon })} /></label></div>
         {gpsAccuracy != null && <p className="gps-badge">✓ Coordenadas fijadas por GPS (precisión ±{gpsAccuracy} m)</p>}
         <div className="fila-botones-ubicacion">
           <button className="test boton-gps" disabled={localizando || detectando} onClick={obtenerUbicacionGPS}><Navigation size={14} />{localizando ? "Obteniendo señal GPS…" : "Usar ubicación precisa del GPS"}</button>
@@ -441,7 +442,7 @@ export default function App() {
         <label>Método<select value={cfg.method} onChange={(e) => upd({ method: e.target.value })}>{METHOD_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
         <label>Madhab para Asr<select value={cfg.madhab} onChange={(e) => upd({ madhab: e.target.value })}>{MADHAB_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
         <label>Regla de latitud alta<select value={cfg.highLatRule} onChange={(e) => upd({ highLatRule: e.target.value })}>{HIGH_LAT_OPTIONS.map((m) => <option key={m}>{m}</option>)}</select></label>
-        <div className="offsets"><div className="grupo"><div className="grupo-tit">Ajuste por rezo (minutos)</div><div className="fila-5">{PRAYERS.map((p) => { const key = p.toLowerCase() as keyof Config["offsets"]; return <div className="campo" key={p}><label>{p}</label><input type="number" step="1" value={cfg.offsets[key] ?? 0} onChange={(e) => upd({ offsets: { ...cfg.offsets, [key]: +e.target.value } })} /><span className="min">min</span></div>; })}</div></div></div>
+        <div className="offsets"><div className="grupo"><div className="grupo-tit">Ajuste por rezo (minutos)</div><div className="fila-5">{PRAYERS.map((p) => { const key = p.toLowerCase() as keyof Config["offsets"]; return <div className="campo" key={p}><label>{p}</label><NumberInput step="1" min={-60} max={60} fallback={0} value={cfg.offsets[key] ?? 0} onChange={(val) => upd({ offsets: { ...cfg.offsets, [key]: val === "" ? 0 : val } })} /><span className="min">min</span></div>; })}</div></div></div>
         <div className="editor-actions"><button className="secondary-button" onClick={cancelarEdicion}>Cancelar</button></div>
       </div> : <div className="read-grid read-grid-four"><div><span>Método</span><b>{cfg.method}</b></div><div><span>Madhab para Asr</span><b>{cfg.madhab}</b></div><div><span>Latitud alta</span><b>{cfg.highLatRule}</b></div><div><span>Ajustes manuales</span><b>{PRAYERS.filter((p) => (cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0) !== 0).length ? PRAYERS.filter((p) => (cfg.offsets[p.toLowerCase() as keyof Config["offsets"]] ?? 0) !== 0).length + " rezos ajustados" : "Ninguno"}</b></div></div>}
     </section>
@@ -452,10 +453,10 @@ export default function App() {
       <div className="panel-heading"><div><h2>Adhan y avisos</h2><p>{isAndroid ? "Elegí el sonido por rezo. Los avisos se programan en Android al guardar; activalos en este teléfono." : "Elegí cómo recibir cada rezo. Los avisos funcionan con la ventana cerrada."}</p></div>{editando !== "adhan" && <button disabled={!!editando || saving} className="edit-button" onClick={() => iniciarEdicion("adhan")}><Pencil size={14} />Editar sonido y avisos</button>}</div>
       <PrayerAlertsSettings previewAvailable={runtime?.audio_preview ?? false} audio={cfg.audio} editing={editando === "adhan"} onChange={updAudio} />
       {editando === "adhan" ? <div className="editor">
-        <label>Preaviso antes del horario (minutos)<input type="number" min="0" max="120" value={cfg.notice.minutes_before} onChange={(e) => upd({ notice: { minutes_before: +e.target.value } })} /></label>
+        <label>Preaviso antes del horario (minutos)<NumberInput min={0} max={120} step={1} fallback={0} value={cfg.notice.minutes_before} onChange={(val) => upd({ notice: { minutes_before: val === "" ? 0 : val } })} /></label>
         <p className="nota">El preaviso es una notificación independiente. Usá 0 para desactivarlo. Guardar aplica todos los cambios.</p>
         <label className="fila-check"><input type="checkbox" checked={cfg.follow_up.reminder} onChange={(e) => upd({ follow_up: { ...cfg.follow_up, reminder: e.target.checked } })} />Recordarme si no marqué el rezo</label>
-        <label>Cuánto después del horario (minutos)<input type="number" min="5" max="120" disabled={!cfg.follow_up.reminder} value={cfg.follow_up.minutes} onChange={(e) => upd({ follow_up: { ...cfg.follow_up, minutes: +e.target.value } })} /></label>
+        <label>Cuánto después del horario (minutos)<NumberInput min={5} max={120} step={1} fallback={15} disabled={!cfg.follow_up.reminder} value={cfg.follow_up.minutes} onChange={(val) => upd({ follow_up: { ...cfg.follow_up, minutes: val === "" ? 15 : val } })} /></label>
         <p className="nota">Un aviso suave, sin Adhan, si a esa hora el rezo sigue sin marcar. No llega tarde ni cuando ya empezó el rezo siguiente.</p>
         <div className="editor-actions"><button className="secondary-button" onClick={() => { invoke("stop_alert").catch(() => {}); cancelarEdicion(); }}>Cancelar</button></div>
       </div> : <>
