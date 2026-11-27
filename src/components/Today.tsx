@@ -43,7 +43,14 @@ export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, and
   const nextToday = !!next && next.date === schedule?.date;
   const marked = new Set(schedule?.marked ?? []);
   const pendiente = onGuia && schedule && !scheduleError ? rezoPendiente(schedule, now) : null;
-  const notice = !alerts ? null : !alerts.enabled ? "Los avisos de rezo están apagados en este teléfono." : !alerts.notifications || !alerts.exact ? "Faltan permisos para que suenen los avisos." : alerts.error ? `No se pudieron programar los avisos: ${alerts.error}` : null;
+  const notice = !alerts ? null
+    : !alerts.notifications || !alerts.exact
+      ? { title: "Faltan permisos para los avisos", text: "El sistema no permite que suenen los rezos. Concedé los permisos para que no se pierdan.", btn: "Conceder permisos" }
+    : !alerts.enabled
+      ? { title: "Avisos desactivados en este teléfono", text: "Los rezos no sonarán hasta que actives los avisos.", btn: "Activar avisos" }
+    : alerts.error
+      ? { title: "Atención en los avisos", text: `Hubo un inconveniente al programar: ${alerts.error}`, btn: "Revisar avisos" }
+    : null;
 
   async function toggle(name: string) {
     if (lock.current || !schedule) return;
@@ -54,7 +61,17 @@ export function Today({ schedule, scheduleError, onRetry, qibla, qiblaError, and
   }
 
   return <div className="hoy">
-    {notice && <div className="aviso-permisos" role="note"><p>{notice}</p><button className="link-button" onClick={() => onOpen("avisos")}>Revisar avisos</button></div>}
+    {notice && (
+      <div className="aviso-permisos-destacado" role="alert">
+        <div>
+          <b>⚠️ {notice.title}</b>
+          <p>{notice.text}</p>
+        </div>
+        <button onClick={() => onOpen("avisos")}>
+          {notice.btn}
+        </button>
+      </div>
+    )}
 
     <section className="proximo" aria-labelledby="proximo-nombre">
       {scheduleError ? <div role="alert"><p>No se pudieron calcular los horarios: {scheduleError}</p><button className="secondary-button" onClick={() => void onRetry()}>Reintentar</button></div>

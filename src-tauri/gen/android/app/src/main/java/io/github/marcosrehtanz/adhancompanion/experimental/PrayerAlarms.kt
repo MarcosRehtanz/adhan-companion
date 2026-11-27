@@ -2,6 +2,8 @@ package io.github.marcosrehtanz.adhancompanion.experimental
 
 import android.app.*
 import android.content.*
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
@@ -169,12 +171,13 @@ object PrayerAlarms {
         val kind = intent.getIntExtra("kind", -1)
         val id = "$prayer:$at:$kind"
         try {
-            // El recordatorio tolera algo más de demora (Doze); el Adhan no suena tarde.
-            val late = if (kind == KIND_REMINDER) 600000L else 120000L
+            // El recordatorio tolera algo más de demora (Doze); el Adhan tolera jitter de reloj y despertar.
+            val late = if (kind == KIND_REMINDER) 900000L else 300000L
+            val diff = System.currentTimeMillis() - at
             if (kind !in CODES.indices || !p.getBoolean("enabled", false) || !notifications(c) || prayer !in prayers ||
                 intent.getLongExtra("generation", -1) != p.getLong("generation", 0) ||
                 at != p.getLong(KEYS[kind], 0) ||
-                System.currentTimeMillis() - at !in 0..late || p.getString("last_$kind", "") == id) return
+                diff < -30000L || diff > late || p.getString("last_$kind", "") == id) return
             // Commit antes de emitir: una entrega duplicada no repite el Adhan.
             check(p.edit().putString("last_$kind", id).putString("last_event", id).commit())
             val cfg = JSONObject(p.getString("config", "{}")!!)
@@ -196,38 +199,86 @@ object PrayerAlarms {
         require(prayer in prayers)
         check(notifications(c)) { "Habilitá las notificaciones de la app para usar los avisos y el control Detener." }
         channels(c)
-        if (alert(audio, prayer).getString("mode") == "notification") {
+        val alertCfg = alert(audio, prayer)
+        val mode = alertCfg.optString("mode", "adhan")
+        if (mode == "notification") {
             c.stopService(Intent(c, PrayerAudioService::class.java))
             notify(c, prayer, if (preview) "Prueba de aviso" else "Es hora del rezo.", false)
         } else {
             // Como en escritorio: el Adhan o tono pausa la recitación y se reanuda a mano.
             QuranPlayer.interrupt()
-            val i = Intent(c, PrayerAudioService::class.java).putExtra("audio", audio.toString()).putExtra("prayer", prayer).putExtra("preview", preview)
-            if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i) else c.startService(i)
+            try {
+                val i = Intent(c, PrayerAudioService::class.java).putExtra("audio", audio.toString()).putExtra("prayer", prayer).putExtra("preview", preview)
+                if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i) else c.startService(i)
+            } catch (e: Throwable) {
+                // Fallback garantizado: si Xiaomi o Android 14+ bloquea el servicio de audio en segundo plano,
+                // emitir de inmediato notificación de alta prioridad con sonido del sistema y vibración.
+                failure(c, e)
+                notify(c, prayer, if (preview) "Prueba de aviso" else "Es hora del rezo.", false)
+            }
         }
     }
     fun open(c: Context): PendingIntent = PendingIntent.getActivity(c, 7100, Intent(c, MainActivity::class.java), FLAGS)
     fun channels(c: Context) {
         if (Build.VERSION.SDK_INT >= 26) {
-            val n = c.getSystemService(NotificationManager::class.java)
-            n.createNotificationChannel(NotificationChannel("prayer", "Rezos y reproducción", NotificationManager.IMPORTANCE_DEFAULT).apply { setSound(null, null); enableVibration(false) })
-            n.createNotificationChannel(NotificationChannel("pre-prayer", "Preavisos", NotificationManager.IMPORTANCE_DEFAULT))
-            n.createNotificationChannel(NotificationChannel("quran", "Recitación del Qur’an", NotificationManager.IMPORTANCE_LOW).apply { setSound(null, null); enableVibration(false) })
+            val n = c.getSystemService(NotificationManager::class.java) ?: return
+            // Eliminar canal antiguo silenciado si existía
+            try { n.deleteNotificationChannel("prayer") } catch (_: Throwable) {}
+
+            val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val prayerAttrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
+            val prayerChan = NotificationChannel("prayer_v2", "Avisos de rezo", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Avisos y alarmas al momento exacto de cada rezo"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 600, 250, 600, 250, 600)
+                setSound(soundUri, prayerAttrs)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            n.createNotificationChannel(prayerChan)
+
+            val preChan = NotificationChannel("pre-prayer", "Preavisos", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Avisos de anticipación antes de cada rezo"
+            }
+            n.createNotificationChannel(preChan)
+
+            val quranChan = NotificationChannel("quran", "Recitación del Qur’an", NotificationManager.IMPORTANCE_LOW).apply {
+                setSound(null, null)
+                enableVibration(false)
+            }
+            n.createNotificationChannel(quranChan)
         }
     }
     fun builder(c: Context, title: String, body: String, pre: Boolean = false): NotificationCompat.Builder =
-        NotificationCompat.Builder(c, if (pre) "pre-prayer" else "prayer")
+        NotificationCompat.Builder(c, if (pre) "pre-prayer" else "prayer_v2")
             .setSmallIcon(R.drawable.ic_prayer_notification).setContentTitle(title).setContentText(body)
-            .setContentIntent(open(c)).setAutoCancel(true).setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT).apply { if (!pre) setSilent(true) }
-    private fun notify(c: Context, prayer: String, body: String, pre: Boolean) {
+            .setContentIntent(open(c)).setAutoCancel(true)
+            .setCategory(if (pre) NotificationCompat.CATEGORY_REMINDER else NotificationCompat.CATEGORY_ALARM)
+            .setPriority(if (pre) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+    fun notify(c: Context, prayer: String, body: String, pre: Boolean) {
         channels(c)
-        c.getSystemService(NotificationManager::class.java).notify(CODES[if (pre) KIND_PRE else KIND_PRAYER],
+        val nm = c.getSystemService(NotificationManager::class.java) ?: return
+        nm.notify(CODES[if (pre) KIND_PRE else KIND_PRAYER],
             builder(c, prayer.replaceFirstChar { it.uppercase() }, body, pre).build())
+    }
+    fun postPersistentPrayerNotice(c: Context, prayer: String, preview: Boolean = false) {
+        channels(c)
+        val nm = c.getSystemService(NotificationManager::class.java) ?: return
+        val body = if (preview) "Prueba de aviso completada." else "Es hora del rezo."
+        nm.notify(CODES[KIND_PRAYER],
+            builder(c, prayer.replaceFirstChar { it.uppercase() }, body, false)
+                .setOngoing(false)
+                .setAutoCancel(true)
+                .build())
     }
     private fun remind(c: Context, prayer: String) {
         channels(c)
-        c.getSystemService(NotificationManager::class.java).notify(CODES[KIND_REMINDER],
+        val nm = c.getSystemService(NotificationManager::class.java) ?: return
+        nm.notify(CODES[KIND_REMINDER],
             builder(c, "¿Ya rezaste ${prayer.replaceFirstChar { it.uppercase() }}?", "Marcalo en la app.", true).build())
     }
 }

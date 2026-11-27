@@ -217,6 +217,17 @@ class AdhanPlugin(private val activity: Activity) : Plugin(activity) {
                     invoke.resolve(JSObject(PrayerAlarms.status(activity).toString()))
                 } else background(invoke) { PrayerAlarms.enable(activity, true) }
             }
+            "test" -> {
+                try {
+                    val p = activity.getSharedPreferences("native-prayer-alarms", Context.MODE_PRIVATE)
+                    val configStr = p.getString("config", "{}") ?: "{}"
+                    val audio = JSONObject(configStr).optJSONObject("audio") ?: JSONObject()
+                    PrayerAlarms.play(activity, audio, "asr", true)
+                    invoke.resolve(JSObject(PrayerAlarms.status(activity).toString()))
+                } catch (e: Throwable) {
+                    invoke.reject(e.message ?: "No se pudo realizar la prueba")
+                }
+            }
             "disable", "status", "reschedule" -> background(invoke) {
                 if (action == "reschedule") PrayerAlarms.reschedule(activity)
                 else if (action != "status") PrayerAlarms.enable(activity, false)

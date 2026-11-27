@@ -2,6 +2,7 @@ package io.github.marcosrehtanz.adhancompanion.experimental
 
 import android.app.*
 import android.content.*
+import android.content.pm.ServiceInfo
 import android.media.*
 import android.net.wifi.WifiManager
 import android.os.*
@@ -227,7 +228,12 @@ class QuranAudioService : Service() {
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Android exige startForeground en cuanto arranca un servicio en primer plano.
-        startForeground(QuranPlayer.NOTIFICATION, QuranPlayer.notification(this))
+        val notice = QuranPlayer.notification(this)
+        if (Build.VERSION.SDK_INT >= 29) {
+            startForeground(QuranPlayer.NOTIFICATION, notice, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(QuranPlayer.NOTIFICATION, notice)
+        }
         when (intent?.action) {
             "PAUSE" -> QuranPlayer.pause()
             "RESUME" -> runCatching { QuranPlayer.resume() }

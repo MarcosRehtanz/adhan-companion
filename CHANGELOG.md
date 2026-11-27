@@ -9,6 +9,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 ## [Unreleased]
 
 ### Corregido
+- **Blindaje del sistema de avisos y alarmas en Android:**
+  - **Notificación persistente (no se auto-destruye):** al finalizar el audio del rezo (o tras el tono discreto de 10 s), la notificación ya no se borra con `STOP_FOREGROUND_REMOVE`. Permanece en la bandeja del sistema hasta que el usuario la marque o descarte, evitando que el aviso desaparezca si el usuario no tenía el teléfono en la mano en esos 10 segundos.
+  - **Nuevo canal prioritario con sonido y vibración (`prayer_v2`):** creación del canal con `IMPORTANCE_HIGH`, sonido de alarma del sistema y patrón háptico doble (`[0, 600, 250, 600, 250, 600]`). Reemplaza el canal silenciado anterior que dependía únicamente de la reproducción en segundo plano.
+  - **Motor de vibración nativo (`Vibrator` / `VibratorManager`):** vibración física sincronizada con la reproducción del tono o Adhan, garantizando alerta incluso con el volumen multimedia bajo o el teléfono silenciado.
+  - **Cumplimiento estricto de Android 14+ / SDK 36:** especificación de `FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK` en `startForeground` de `PrayerAudioService` y `QuranAudioService`, previniendo excepciones `MissingForegroundServiceTypeException` o abortos en segundo plano.
+  - **Doble seguro (Fallback garantizado):** captura de excepciones al arrancar servicios en segundo plano (`startForegroundService`); ante cualquier bloqueo de ahorro de energía de Xiaomi/MIUI o Android, se emite inmediatamente una notificación de alta prioridad con sonido y vibración.
+  - **Tolerancia temporal a microsegundos de reloj:** ampliación de la ventana de entrega en `PrayerAlarms.deliver()` (`diff >= -30000L`) para tolerar despertares anticipados de la CPU o jitter sin descartar el aviso.
+  - **Nuevo asistente visual de permisos y botón de prueba («🔔 Probar aviso y sonido ahora»):** rediseño completo de `AndroidAlerts.tsx` con lista de verificación clara (Notificaciones, Alarmas exactas y Batería Xiaomi/Samsung), feedback en vivo y botón para verificar en 3 segundos el sonido, vibración y notificación fija.
+  - **Tarjeta de advertencia destacada en «Hoy» (`Today.tsx`):** aviso visual en la pantalla principal si faltan permisos del sistema o los avisos están desactivados, con botón directo de resolución en un toque.
 - **Regla de entradas numéricas y edición fluida (`NumberInput`):** corrección en el input de días de pausa de avisos (menstruación o viajes), adelanto de Imsak, preavisos, recordatorios y coordenadas donde no se permitía borrar el número completo al estar en foco (quedando trabado en `1` o `0`). Se incorpora el componente reutilizable `NumberInput` con búfer de texto local y saneamiento/ajuste de límites en `onBlur`.
 
 ### En desarrollo
