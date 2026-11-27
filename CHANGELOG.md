@@ -8,6 +8,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ## [Unreleased]
 
+### En desarrollo
+- Modo Ramadán (cálculo de Imsak e Iftar, ajustes litúrgicos).
+- Conexión MQTT con el nodo de hardware ESP32.
+- Soporte extendido para macOS e iOS.
+
+---
+
+## [v0.1.27] - 2026-11-27
+
 ### Corregido
 - **Blindaje del sistema de avisos y alarmas en Android:**
   - **Notificación persistente (no se auto-destruye):** al finalizar el audio del rezo (o tras el tono discreto de 10 s), la notificación ya no se borra con `STOP_FOREGROUND_REMOVE`. Permanece en la bandeja del sistema hasta que el usuario la marque o descarte, evitando que el aviso desaparezca si el usuario no tenía el teléfono en la mano en esos 10 segundos.
@@ -19,11 +28,6 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
   - **Nuevo asistente visual de permisos y botón de prueba («🔔 Probar aviso y sonido ahora»):** rediseño completo de `AndroidAlerts.tsx` con lista de verificación clara (Notificaciones, Alarmas exactas y Batería Xiaomi/Samsung), feedback en vivo y botón para verificar en 3 segundos el sonido, vibración y notificación fija.
   - **Tarjeta de advertencia destacada en «Hoy» (`Today.tsx`):** aviso visual en la pantalla principal si faltan permisos del sistema o los avisos están desactivados, con botón directo de resolución en un toque.
 - **Regla de entradas numéricas y edición fluida (`NumberInput`):** corrección en el input de días de pausa de avisos (menstruación o viajes), adelanto de Imsak, preavisos, recordatorios y coordenadas donde no se permitía borrar el número completo al estar en foco (quedando trabado en `1` o `0`). Se incorpora el componente reutilizable `NumberInput` con búfer de texto local y saneamiento/ajuste de límites en `onBlur`.
-
-### En desarrollo
-- Modo Ramadán (cálculo de Imsak e Iftar, ajustes litúrgicos).
-- Conexión MQTT con el nodo de hardware ESP32.
-- Soporte extendido para macOS e iOS.
 
 ---
 

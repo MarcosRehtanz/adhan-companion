@@ -6,13 +6,13 @@ App de escritorio **tray-first** para Linux y Windows: el tray es la app — hor
 
 ## Estado
 
-✅ **v0.1.26 para Linux, Windows y Android** — ganchos NSIS para cierre automático de instancias en segundo plano durante instalación, actualización y desinstalación en Windows, test de ciclo de vida completo en CI, sobre los widgets nativos para Android con reloj en vivo, actualización configurable al minuto, selector con previsualizaciones y corrección de recortes, la ubicación GPS de alta precisión con geocodificación inversa, el widget solar, el respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.26.md) y [Changelog](CHANGELOG.md).
+✅ **v0.1.27 para Linux, Windows y Android** — ganchos NSIS para cierre automático de instancias en segundo plano durante instalación, actualización y desinstalación en Windows, test de ciclo de vida completo en CI, sobre los widgets nativos para Android con reloj en vivo, actualización configurable al minuto, selector con previsualizaciones y corrección de recortes, la ubicación GPS de alta precisión con geocodificación inversa, el widget solar, el respaldo y sincronización con Google Drive en Android (Wave 2) y motor central unificado, los permisos guiados, el seguimiento de rezos, la pausa de avisos, la guía con acompañamiento, el lector del Qur’an con recitación, el tray con estados, el scheduler 24/7, el cálculo local por FFI y la biblioteca de muecines. Descargas: `.deb`, `.AppImage`, instalador de Windows x64 y APK de Android en [Releases](https://github.com/MarcosRehtanz/adhan-companion/releases/latest). Ver [notas de la versión](docs/releases/v0.1.27.md) y [Changelog](CHANGELOG.md).
 
 ## Instalar (Ubuntu, sin toolchain)
 
 ```bash
 # Descargá el .deb más reciente desde la página de Releases y luego:
-sudo apt install "./Adhan.Companion_0.1.26_amd64.deb"
+sudo apt install "./Adhan.Companion_0.1.27_amd64.deb"
 ```
 
 Queda como app nativa: tray en el menú, autostart, single-instance y config en `~/.config/adhan-companion/config.json`.
